@@ -21,7 +21,7 @@
                 <th></th>
                 <th>Name</th>
                 <th>Price</th>
-                <th>Quantity</th>
+                <th>Stock</th>
                 <th>Created</th>
                 <th>Status</th>
                 <th data-orderable="false">Action</th>
@@ -45,7 +45,7 @@
       serverSide: true,
       ordering: true,
       order: [
-        [1, 'asc']
+        [1, 'desc']
       ],
       ajax: {
         url: "{{ route('backend.admin.products.index') }}"
@@ -54,8 +54,8 @@
       columns: [{
           data: 'DT_RowIndex',
           name: 'DT_RowIndex'
-        }, 
-         {
+        },
+        {
           data: 'image',
           name: 'image'
         },
@@ -72,12 +72,12 @@
           name: 'quantity'
         },
         {
-          data: 'status',
-          name: 'status'
-        },
-        {
           data: 'created_at',
           name: 'created_at'
+        },
+        {
+          data: 'status',
+          name: 'status'
         },
         {
           data: 'action',
