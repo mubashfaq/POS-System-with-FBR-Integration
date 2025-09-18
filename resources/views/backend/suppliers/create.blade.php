@@ -36,7 +36,7 @@
         </div>
         <div class="row">
           <div class="col-md-6">
-            <button type="submit" class="btn btn-md bg-gradient-primary">Create</button>
+            <button type="submit" class="btn btn-md action-button">Create</button>
           </div>
         </div>
       </div>

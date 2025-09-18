@@ -27,7 +27,7 @@
         </div>
         <div class="row">
           <div class="mb-3 col-md-6">
-            <button type="submit" class="btn btn-block bg-gradient-primary">Save</button>
+            <button type="submit" class="btn btn-block action-button">Save</button>
             <!-- /.card-body -->
           </div>
         </div>

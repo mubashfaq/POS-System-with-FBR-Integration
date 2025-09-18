@@ -9,6 +9,7 @@ use App\Http\Controllers\CustomerController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Backend\BusinessController;
 use App\Http\Controllers\Backend\Product\CategoryController;
 use App\Http\Controllers\TestController;
 use App\Http\Controllers\GoogleController;
@@ -44,6 +45,13 @@ Route::get('/', function () {
 //authentication
 Route::match(['get', 'post'], 'login', [AuthController::class, 'login'])->name('login');
 
+// login time business create or select
+
+Route::get('/business-selection', [BusinessController::class, 'selection'])->name('business.selection');
+Route::post('/create-business', [BusinessController::class, 'create'])->name('business.create');
+Route::post('/select-business', [BusinessController::class, 'select'])->name('business.select');
+
+
 Route::get('logout', [AuthController::class, 'logout'])->name('logout');
 Route::match(['get', 'post'], 'sign-up', [AuthController::class, 'register'])->name('signup');
 Route::match(['get', 'post'], 'forget-password', [AuthController::class, 'forgetPassword'])->name('forget.password');
@@ -63,6 +71,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::resource('products', ProductController::class);
     Route::resource('brands', BrandController::class);
+    Route::resource('business', BusinessController::class);
     Route::resource('orders', OrderController::class);
     Route::resource('purchase', PurchaseController::class);
     Route::resource('suppliers', SupplierController::class);
@@ -90,6 +99,9 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::get('/get/products', [CartController::class, 'getProducts'])->name('getProducts');
     Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
     Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
+
+    Route::put('/cart/update-quantity', [CartController::class, 'updateQuantity']);
+
     Route::put('/cart/increment', [CartController::class, 'increment']);
     Route::put('/cart/decrement', [CartController::class, 'decrement']);
     Route::put('/cart/delete', [CartController::class, 'delete']);

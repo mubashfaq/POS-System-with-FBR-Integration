@@ -53,7 +53,7 @@
                         </div>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-block bg-gradient-primary">Create</button>
+                <button type="submit" class="btn btn-block action-button">Create</button>
             </form>
         </div>
     </div>

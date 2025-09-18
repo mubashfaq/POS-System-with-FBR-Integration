@@ -33,8 +33,11 @@ class ProductController extends Controller
     {
 
         abort_if(!auth()->user()->can('product_view'), 403);
+        $businessId = session('business_id');
         if ($request->ajax()) {
-            $products = Product::latest()->get();
+            $products = Product::where('business_id', $businessId) // 👈 filter by business
+            ->latest()
+            ->get();
             return DataTables::of($products)
                 ->addIndexColumn()
                 ->addColumn('image', fn($data) => '<img src="' . asset('storage/' . $data->image) . '" loading="lazy" alt="' . $data->name . '" class="img-thumb img-fluid" onerror="this.onerror=null; this.src=\'' . asset('assets/images/no-image.png') . '\';" height="80" width="60" />')
@@ -53,8 +56,8 @@ class ProductController extends Controller
                     : '<span class="badge bg-danger">Inactive</span>')
                 ->addColumn('action', function ($data) {
                     return '<div class="btn-group">
-                    <button type="button" class="btn bg-gradient-primary btn-flat">Action</button>
-                    <button type="button" class="btn bg-gradient-primary btn-flat dropdown-toggle dropdown-icon" data-toggle="dropdown" aria-expanded="false">
+                    <button type="button" class="btn btn-flat">Action</button>
+                    <button type="button" class="btn btn-flat dropdown-toggle dropdown-icon" data-toggle="dropdown" aria-expanded="false">
                       <span class="sr-only">Toggle Dropdown</span>
                     </button>
                     <div class="dropdown-menu" role="menu">
@@ -115,9 +118,12 @@ class ProductController extends Controller
      */
     public function store(StoreProductRequest $request)
     {
-
         abort_if(!auth()->user()->can('product_create'), 403);
         $validated = $request->validated();
+
+        $businessId = auth()->user()->businesses()->first()->id ?? null;
+        $validated['business_id'] = $businessId;
+
         $product = Product::create($validated);
         if ($request->hasFile("product_image")) {
             $product->image = $this->fileHandler->fileUploadAndGetPath($request->file("product_image"), "/public/media/products");

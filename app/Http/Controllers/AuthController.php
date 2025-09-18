@@ -290,12 +290,32 @@ class AuthController extends Controller
         return back()->with('success', 'Updated Successfully');
     }
 
+    // public function redirectUser()
+    // {
+    //     if (Auth::check()) {
+    //         return redirect()->route('backend.admin.dashboard');
+    //     } else {
+    //         return redirect()->route('login')->with('error', 'You are not logged in');
+    //     }
+    // }
+
+
     public function redirectUser()
     {
         if (Auth::check()) {
-            return redirect()->route('backend.admin.dashboard');
+            $user = Auth::user();
+
+            // check agar user ke paas koi business hai
+            if ($user->businesses()->exists()) {
+                // Agar business exist karta hai → redirect to business selection page
+                return redirect()->route('business.selection');
+            } else {
+                // Agar koi business nahi hai → redirect to business selection page (which will show create form)
+                return redirect()->route('business.selection');
+            }
         } else {
             return redirect()->route('login')->with('error', 'You are not logged in');
         }
     }
+
 }

@@ -54,4 +54,11 @@ class User extends Authenticatable
     {
         return imageRecover($this->profile_image);
     }
+
+    public function businesses()
+    {
+        return $this->belongsToMany(Business::class, 'user_business', 'user_id', 'business_id')
+            ->withTimestamps();
+    }
+
 }

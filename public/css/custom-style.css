@@ -1,12 +1,41 @@
 /* ========= theme ========== */
 .sidebar-dark-lightblue .nav-sidebar>.nav-item>.nav-link.active,
 .sidebar-light-lightblue .nav-sidebar>.nav-item>.nav-link.active {
-    background-color: #8b9ee9 !important;
+    background-color: #000
 }
 
 .text-lightblue {
-    color: #6982e6 !important;
+    color: #000 !important;
 }
+
+/* Sidebar links ka normal state */
+.nav-sidebar .nav-link {
+    background-color: transparent !important;
+    color: #fff !important;
+}
+
+/* Sidebar links hover effect */
+.nav-sidebar .nav-link:hover {
+    background-color: #fd6802 !important;
+    color: #fff !important;
+}
+
+.pos-btn {
+    background-color: #fd6802 !important;
+    border-color: #fd6802 !important;
+}
+
+.pos-btn:hover {
+    background-color: #e25c02 !important; 
+    border-color: #e25c02 !important;
+}
+
+/* Active link ka bhi same hover jaisa color */
+.nav-sidebar .nav-link.active {
+    background-color: #fd6802 !important;
+    color: #fff !important;
+}
+
 
 .bg-gradient-primary {
     background: #4a6aeb linear-gradient(180deg, #8b9ee9, #778ee9) repeat-x !important;
@@ -18,7 +47,7 @@
 }
 
 .bg-primary {
-    background: #8b9ee9 !important;
+    background: #000 !important;
 }
 
 .btn-lightblue {
@@ -35,14 +64,14 @@ a {
 }
 
 .sidebar-light-lightblue {
-    background-color: #b9c6fb !important;
+    background-color: #000 !important;
     box-shadow: none !important;
 }
 
 body:not(.sidebar-mini-md):not(.sidebar-mini-xs):not(.layout-top-nav) .content-wrapper,
-body:not(.sidebar-mini-md):not(.sidebar-mini-xs):not(.layout-top-nav) .main-footer,
+body:not(.sidebar-mini-md):not(.sidebar-mini-xs):not(.layout-top-nav),
 body:not(.sidebar-mini-md):not(.sidebar-mini-xs):not(.layout-top-nav) .main-header {
-    background-color: aliceblue !important;
+    /* background-color: aliceblue !important; */
 }
 
 .elevation-3 {
@@ -52,6 +81,24 @@ body:not(.sidebar-mini-md):not(.sidebar-mini-xs):not(.layout-top-nav) .main-head
 .preloader {
     background-color: aliceblue !important;
 }
+
+/* Footer custom style */
+.custom-footer {
+    background-color: #ffffffff !important;
+    color: #fd6802;
+    padding: 15px;
+    text-align: center;
+}
+
+.custom-footer a {
+    color: #fd6802;
+    text-decoration: none;
+}
+
+.custom-footer a:hover {
+    color: #ffffff; 
+}
+
 
 /* ========= theme end ========== */
 
@@ -164,12 +211,37 @@ input:checked+.slider:before {
     transform: translateX(20px);
 }
 
-/* Rounded sliders */
 .slider.round {
     border-radius: 20px;
-    /* Adjusted for new size */
 }
 
 .slider.round:before {
     border-radius: 50%;
+}
+
+.checkout-btn {
+    background-color: #fd6802 !important;
+    border: none;
+    border-radius: 6px;
+    transition: 0.3s ease-in-out;
+}
+
+.checkout-btn:hover {
+    background-color: #fd6802 !important;
+}
+
+.action-button{
+    background-color: #fd6802 !important;
+    border: none;
+    color: white;
+}
+
+.fa-plus-circle{
+    color: white;
+}
+
+.btn-flat{
+    background-color: #fd6802 !important;
+    border: none;
+    color: white;
 }

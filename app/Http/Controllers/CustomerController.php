@@ -14,8 +14,13 @@ class CustomerController extends Controller
     public function index(Request $request)
     {
         abort_if(!auth()->user()->can('customer_view'), 403);
+
+        $businessId = session('business_id');
+
         if ($request->ajax()) {
-            $customers = Customer::latest()->get();
+            $customers = Customer::where('business_id', $businessId) 
+            ->latest()
+            ->get();
             return DataTables::of($customers)
                 ->addIndexColumn()
                 ->addColumn('name', fn($data) => $data->name)
@@ -24,8 +29,8 @@ class CustomerController extends Controller
                 ->addColumn('created_at', fn($data) => $data->created_at->format('d M, Y')) // Using Carbon for formatting
                 ->addColumn('action', function ($data) {
                     $actionHtml = '<div class="btn-group">
-        <button type="button" class="btn bg-gradient-primary btn-flat">Action</button>
-        <button type="button" class="btn bg-gradient-primary btn-flat dropdown-toggle dropdown-icon" data-toggle="dropdown" aria-expanded="false">
+        <button type="button" class="btn btn-flat">Action</button>
+        <button type="button" class="btn btn-flat dropdown-toggle dropdown-icon" data-toggle="dropdown" aria-expanded="false">
             <span class="sr-only">Toggle Dropdown</span>
         </button>
         <div class="dropdown-menu" role="menu">';
@@ -103,7 +108,17 @@ class CustomerController extends Controller
             'address' => 'nullable|string|max:255',
         ]);
 
-        $customer = Customer::create($request->only(['name', 'phone', 'address']));
+        $businessId = session('business_id'); // business_id 
+        if (!$businessId) {
+            return redirect()->back()->with('error', 'No business selected.');
+        }
+
+        $customer = Customer::create([
+            'name'        => $request->name,
+            'phone'       => $request->phone,
+            'address'     => $request->address,
+            'business_id' => $businessId, 
+        ]);
 
         session()->flash('success', 'Customer created successfully.');
         return to_route('backend.admin.customers.index');

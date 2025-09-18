@@ -19,7 +19,13 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         if ($request->ajax()) {
-            $orders = Order::with('customer')->get();
+            $businessId = session('business_id');
+            if (!$businessId) {
+                return response()->json(['error' => 'No business selected'], 422);
+            }
+            $orders = Order::with('customer')
+                ->where('business_id', $businessId)
+                ->get();
             return DataTables::of($orders)
                 ->addIndexColumn()
                 ->addColumn('saleId', fn($data) => "#" . $data->id)
@@ -62,76 +68,165 @@ class OrderController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
-    {
-        $request->validate([
-            'customer_id' => [
-                'required',
-                'exists:customers,id',
-                'integer', // Ensure customer_id is an integer
-            ],
-            'order_discount' => [
-                'nullable',
-                'numeric',
-                'min:0',
-            ],
-            'paid' => [
-                'nullable',
-                'numeric',
-                'min:0',
-            ],
-        ], [
-            'customer_id.required' => 'Please select a customer.',
-            'customer_id.exists' => 'The selected customer does not exist.',
-            'order_discount.numeric' => 'The order discount must be a number.',
-            'paid.numeric' => 'The amount paid must be a number.',
-        ]);
-        $carts = PosCart::with('product')->where('user_id', auth()->id())->get();
-        $order = Order::create([
-            'customer_id' => $request->customer_id,
-            'user_id' => $request->user()->id,
-        ]);
-        $totalAmountOrder = 0;
-        $orderDiscount = $request->order_discount;
-        foreach ($carts as $cart) {
-            $mainTotal = $cart->product->price * $cart->quantity;
-            $totalAfterDiscount = $cart->product->discounted_price * $cart->quantity;
-            $discount = $mainTotal - $totalAfterDiscount;
-            $totalAmountOrder += $totalAfterDiscount;
-            $order->products()->create([
-                'quantity' => $cart->quantity,
-                'price' => $cart->product->price,
-                'purchase_price' => $cart->product->purchase_price,
-                'sub_total' => $mainTotal,
-                'discount' => $discount,
-                'total' => $totalAfterDiscount,
-                'product_id' => $cart->product->id,
-            ]);
-            $cart->product->quantity = $cart->product->quantity - $cart->quantity;
-            $cart->product->save();
-        }
-        $total = $totalAmountOrder - $orderDiscount;
-        $due = $total - $request->paid;
-        $order->sub_total = $totalAmountOrder;
-        $order->discount = $orderDiscount;
-        $order->paid = $request->paid;
-        $order->total = round((float)$total, 2);
-        $order->due = round((float)$due, 2);
-        $order->status = round((float)$due, 2) <= 0;
-        $order->save();
-        //create order transaction
-        if ($request->paid > 0) {
-            $orderTransaction = $order->transactions()->create([
-                'amount' => $request->paid,
-                'customer_id' => $order->customer_id,
-                'user_id' => auth()->id(),
-                'paid_by' => 'cash',
-            ]);
-        }
 
-        $carts = PosCart::where('user_id', auth()->id())->delete();
-        return response()->json(['message' => 'Order completed successfully', 'order' => $order], 200);
+    public function store(Request $request)
+{
+    $request->validate([
+        'customer_id' => [
+            'required',
+            'exists:customers,id',
+            'integer',
+        ],
+        'order_discount' => [
+            'nullable',
+            'numeric',
+            'min:0',
+        ],
+        'paid' => [
+            'nullable',
+            'numeric',
+            'min:0',
+        ],
+    ], [
+        'customer_id.required' => 'Please select a customer.',
+        'customer_id.exists'   => 'The selected customer does not exist.',
+        'order_discount.numeric' => 'The order discount must be a number.',
+        'paid.numeric'           => 'The amount paid must be a number.',
+    ]);
+
+    $businessId = session('business_id'); // yahan se business_id mil raha hai
+
+    if (!$businessId) {
+        return response()->json(['error' => 'No business selected'], 422);
     }
+
+    $carts = PosCart::with('product')->where('user_id', auth()->id())->get();
+
+    // order create karte waqt business_id bhi insert hoga
+    $order = Order::create([
+        'customer_id' => $request->customer_id,
+        'user_id'     => $request->user()->id,
+        'business_id' => $businessId,
+    ]);
+
+    $totalAmountOrder = 0;
+    $orderDiscount = $request->order_discount;
+
+    foreach ($carts as $cart) {
+        $mainTotal = $cart->product->price * $cart->quantity;
+        $totalAfterDiscount = $cart->product->discounted_price * $cart->quantity;
+        $discount = $mainTotal - $totalAfterDiscount;
+        $totalAmountOrder += $totalAfterDiscount;
+
+        $order->products()->create([
+            'quantity'       => $cart->quantity,
+            'price'          => $cart->product->price,
+            'purchase_price' => $cart->product->purchase_price,
+            'sub_total'      => $mainTotal,
+            'discount'       => $discount,
+            'total'          => $totalAfterDiscount,
+            'product_id'     => $cart->product->id,
+        ]);
+
+        $cart->product->quantity -= $cart->quantity;
+        $cart->product->save();
+    }
+
+    $total = $totalAmountOrder - $orderDiscount;
+    $due   = $total - $request->paid;
+
+    $order->sub_total = $totalAmountOrder;
+    $order->discount  = $orderDiscount;
+    $order->paid      = $request->paid;
+    $order->total     = round((float)$total, 2);
+    $order->due       = round((float)$due, 2);
+    $order->status    = round((float)$due, 2) <= 0;
+    $order->save();
+
+    if ($request->paid > 0) {
+        $order->transactions()->create([
+            'amount'      => $request->paid,
+            'customer_id' => $order->customer_id,
+            'user_id'     => auth()->id(),
+            'paid_by'     => 'cash',
+        ]);
+    }
+
+    PosCart::where('user_id', auth()->id())->delete();
+
+    return response()->json(['message' => 'Order completed successfully', 'order' => $order], 200);
+}
+
+    // public function store(Request $request)
+    // {
+    //     $request->validate([
+    //         'customer_id' => [
+    //             'required',
+    //             'exists:customers,id',
+    //             'integer', // Ensure customer_id is an integer
+    //         ],
+    //         'order_discount' => [
+    //             'nullable',
+    //             'numeric',
+    //             'min:0',
+    //         ],
+    //         'paid' => [
+    //             'nullable',
+    //             'numeric',
+    //             'min:0',
+    //         ],
+    //     ], [
+    //         'customer_id.required' => 'Please select a customer.',
+    //         'customer_id.exists' => 'The selected customer does not exist.',
+    //         'order_discount.numeric' => 'The order discount must be a number.',
+    //         'paid.numeric' => 'The amount paid must be a number.',
+    //     ]);
+    //     $carts = PosCart::with('product')->where('user_id', auth()->id())->get();
+    //     $order = Order::create([
+    //         'customer_id' => $request->customer_id,
+    //         'user_id' => $request->user()->id,
+    //     ]);
+    //     $totalAmountOrder = 0;
+    //     $orderDiscount = $request->order_discount;
+    //     foreach ($carts as $cart) {
+    //         $mainTotal = $cart->product->price * $cart->quantity;
+    //         $totalAfterDiscount = $cart->product->discounted_price * $cart->quantity;
+    //         $discount = $mainTotal - $totalAfterDiscount;
+    //         $totalAmountOrder += $totalAfterDiscount;
+    //         $order->products()->create([
+    //             'quantity' => $cart->quantity,
+    //             'price' => $cart->product->price,
+    //             'purchase_price' => $cart->product->purchase_price,
+    //             'sub_total' => $mainTotal,
+    //             'discount' => $discount,
+    //             'total' => $totalAfterDiscount,
+    //             'product_id' => $cart->product->id,
+    //         ]);
+    //         $cart->product->quantity = $cart->product->quantity - $cart->quantity;
+    //         $cart->product->save();
+    //     }
+    //     $total = $totalAmountOrder - $orderDiscount;
+    //     $due = $total - $request->paid;
+    //     $order->sub_total = $totalAmountOrder;
+    //     $order->discount = $orderDiscount;
+    //     $order->paid = $request->paid;
+    //     $order->total = round((float)$total, 2);
+    //     $order->due = round((float)$due, 2);
+    //     $order->status = round((float)$due, 2) <= 0;
+    //     $order->save();
+    //     //create order transaction
+    //     if ($request->paid > 0) {
+    //         $orderTransaction = $order->transactions()->create([
+    //             'amount' => $request->paid,
+    //             'customer_id' => $order->customer_id,
+    //             'user_id' => auth()->id(),
+    //             'paid_by' => 'cash',
+    //         ]);
+    //     }
+
+    //     $carts = PosCart::where('user_id', auth()->id())->delete();
+    //     return response()->json(['message' => 'Order completed successfully', 'order' => $order], 200);
+    // }
 
     /**
      * Display the specified resource.

@@ -35,7 +35,7 @@
         </div>
       </div>
       <!-- /.card-body -->
-      <button type="submit" class="btn btn-block bg-gradient-primary">Update</button>
+      <button type="submit" class="btn btn-block action-button">Update</button>
     </form>
   </div>
 </div>

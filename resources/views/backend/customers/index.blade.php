@@ -6,9 +6,9 @@
 <div class="card">
   @can('customer_create')
   <div class="mt-n5 mb-3 d-flex justify-content-end">
-    <a href="{{ route('backend.admin.customers.create') }}" class="btn bg-gradient-primary">
+    <a href="{{ route('backend.admin.customers.create') }}" class="btn  action-button">
       <i class="fas fa-plus-circle"></i>
-      Add New
+      Add New 
     </a>
   </div>
   @endcan

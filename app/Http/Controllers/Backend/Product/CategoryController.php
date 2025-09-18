@@ -22,8 +22,11 @@ class CategoryController extends Controller
     public function index(Request $request)
     {
         abort_if(!auth()->user()->can('category_view'), 403);
+        $businessId = session('business_id');
         if ($request->ajax()) {
-            $categories = Category::latest()->get();
+            $categories = Category::where('business_id', $businessId) 
+            ->latest()
+            ->get();
             return DataTables::of($categories)
                 ->addIndexColumn()
                 ->addColumn('image', fn($data) => '<img src="' . asset('storage/' . $data->image) . '" loading="lazy" alt="' . $data->name . '" class="img-thumb img-fluid" onerror="this.onerror=null; this.src=\'' . asset('assets/images/no-image.png') . '\';" height="80" width="60" />')
@@ -33,8 +36,8 @@ class CategoryController extends Controller
                     : '<span class="badge bg-danger">Inactive</span>')
                 ->addColumn('action', function ($data) {
                     return '<div class="btn-group">
-                    <button type="button" class="btn bg-gradient-primary btn-flat">Action</button>
-                    <button type="button" class="btn bg-gradient-primary btn-flat dropdown-toggle dropdown-icon" data-toggle="dropdown" aria-expanded="false">
+                    <button type="button" class="btn btn-flat">Action</button>
+                    <button type="button" class="btn btn-flat dropdown-toggle dropdown-icon" data-toggle="dropdown" aria-expanded="false">
                       <span class="sr-only">Toggle Dropdown</span>
                     </button>
                     <div class="dropdown-menu" role="menu">
@@ -75,7 +78,19 @@ class CategoryController extends Controller
             'category_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'status' => 'required|boolean',
         ]);
-        $category = Category::create($request->except('category_image'));
+
+        $businessId = session('business_id'); // business_id session me hona chahiye
+        if (!$businessId) {
+            return redirect()->back()->with('error', 'No business selected.');
+        }
+
+        $category = Category::create([
+            'business_id' => $businessId,
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+            'status' => $validated['status'],
+        ]);
+
         if ($request->hasFile("category_image")) {
             $category->image = $this->fileHandler->fileUploadAndGetPath($request->file("category_image"), "/public/media/categories");
             $category->save();

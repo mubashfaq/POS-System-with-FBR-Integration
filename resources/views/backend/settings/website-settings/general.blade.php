@@ -78,7 +78,7 @@
                             <i class="fas fa-desktop"></i>
                             &nbsp;&nbsp;Website Info
                         </h5>
-                        <button type="submit" class="btn bg-gradient-primary">
+                        <button type="submit" class="btn action-button">
                             <i class="fas fa-reply"></i>
                             &nbsp;Save Changes
                         </button>
@@ -119,7 +119,7 @@
                             <i class="fas fa-address-book"></i>
                             &nbsp;&nbsp;Contacts
                         </h5>
-                        <button type="submit" class="btn bg-gradient-primary">
+                        <button type="submit" class="btn action-button">
                             <i class="fas fa-reply"></i>
                             &nbsp;Save Changes
                         </button>
@@ -170,7 +170,7 @@
                             <i class="fas fa-share-alt"></i>
                             &nbsp;&nbsp;Social Links
                         </h5>
-                        <button type="submit" class="btn bg-gradient-primary">
+                        <button type="submit" class="btn action-button">
                             <i class="fas fa-reply"></i>
                             &nbsp;Save Changes
                         </button>
@@ -272,7 +272,7 @@
                             <i class="fas fa-swatchbook"></i>
                             &nbsp;&nbsp;Style Settings
                         </h5>
-                        <button type="submit" class="btn bg-gradient-primary">
+                        <button type="submit" class="btn action-button">
                             <i class="fas fa-reply"></i>
                             &nbsp;Save Changes
                         </button>
@@ -369,7 +369,7 @@
                             <i class="fas fa-code"></i>
                             &nbsp;&nbsp;Custom CSS
                         </h5>
-                        <button type="submit" class="btn bg-gradient-primary">
+                        <button type="submit" class="btn action-button">
                             <i class="fas fa-reply"></i>
                             &nbsp;Save Changes
                         </button>
@@ -393,7 +393,7 @@
                             <i class="fas fa-envelope"></i>
                             &nbsp;&nbsp;Notification Settings
                         </h5>
-                        <button type="submit" class="btn bg-gradient-primary">
+                        <button type="submit" class="btn action-button">
                             <i class="fas fa-reply"></i>
                             &nbsp;Save Changes
                         </button>
@@ -454,7 +454,7 @@
                             <i class="fas fa-power-off"></i>
                             &nbsp;&nbsp;Website Status
                         </h5>
-                        <button type="submit" class="btn bg-gradient-primary">
+                        <button type="submit" class="btn action-button">
                             <i class="fas fa-reply"></i>
                             &nbsp;Save Changes
                         </button>
@@ -497,7 +497,7 @@
                             <i class="fas fa-file-invoice"></i>
                             &nbsp;&nbsp;Invoice Settings
                         </h5>
-                        <button type="submit" class="btn bg-gradient-primary">
+                        <button type="submit" class="btn action-button">
                             <i class="fas fa-reply"></i>
                             &nbsp;Save Changes
                         </button>
