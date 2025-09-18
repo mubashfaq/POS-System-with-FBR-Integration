@@ -41,31 +41,25 @@ $route = request()->route()->getName();
                 </a>
             </li>
             {{-- Business Details --}}
-            <li class="nav-item {{ request()->routeIs(['backend.admin.business.index','backend.admin.business.create','backend.admin.business.index']) ? 'menu-open' : '' }}">
-            <a href="#" class="nav-link {{ request()->routeIs(['backend.admin.business.index','backend.admin.business.create','backend.admin.business.index']) ? 'active' : '' }}">
-                <i class="fas fa-briefcase nav-icon"></i>
-                <p>
-                    Business Info
-                    <i class="fas fa-angle-left right"></i>
-                </p>
-            </a>
-            <ul class="nav nav-treeview">
-                <li class="nav-item">
-                    <a href="{{ route('backend.admin.business.index') }}"
-                    class="nav-link {{ request()->routeIs(['backend.admin.business.index','backend.admin.business.create']) ? 'active' : '' }}">
-                        <i class="fas fa-circle nav-icon"></i>
-                        <p>Business</p>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('backend.admin.business.index') }}"
-                    class="nav-link {{ request()->routeIs(['backend.admin.business.index']) ? 'active' : '' }}">
-                        <i class="fas fa-circle nav-icon"></i>
-                        <p>User Business</p>
-                    </a>
-                </li>
-            </ul>
-        </li>
+            <li class="nav-item {{ request()->routeIs(['backend.admin.business.index','backend.admin.business.create','backend.admin.business.edit']) ? 'menu-open' : '' }}">
+                <a href="#" class="nav-link {{ request()->routeIs(['backend.admin.business.index','backend.admin.business.create','backend.admin.business.edit']) ? 'active' : '' }}">
+                    <i class="fas fa-briefcase nav-icon"></i>
+                    <p>
+                        Business Info
+                        <i class="fas fa-angle-left right"></i>
+                    </p>
+                </a>
+                <ul class="nav nav-treeview">
+                    <li class="nav-item">
+                        <a href="{{ route('backend.admin.business.edit', session('business_id')) }}"
+                            class="nav-link {{ request()->routeIs(['backend.admin.business.edit']) ? 'active' : '' }}">
+                            <i class="fas fa-circle nav-icon"></i>
+                            <p>Business</p>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
 
 
             @endcan
