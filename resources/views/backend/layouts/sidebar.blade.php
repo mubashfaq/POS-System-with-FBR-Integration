@@ -16,7 +16,6 @@ $route = request()->route()->getName();
         </div>
     </div> -->
 
-
     <!-- Sidebar Menu -->
     <nav class="mt-2">
         <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
@@ -41,6 +40,34 @@ $route = request()->route()->getName();
                     </p>
                 </a>
             </li>
+            {{-- Business Details --}}
+            <li class="nav-item {{ request()->routeIs(['backend.admin.business.index','backend.admin.business.create','backend.admin.business.index']) ? 'menu-open' : '' }}">
+            <a href="#" class="nav-link {{ request()->routeIs(['backend.admin.business.index','backend.admin.business.create','backend.admin.business.index']) ? 'active' : '' }}">
+                <i class="fas fa-briefcase nav-icon"></i>
+                <p>
+                    Business Info
+                    <i class="fas fa-angle-left right"></i>
+                </p>
+            </a>
+            <ul class="nav nav-treeview">
+                <li class="nav-item">
+                    <a href="{{ route('backend.admin.business.index') }}"
+                    class="nav-link {{ request()->routeIs(['backend.admin.business.index','backend.admin.business.create']) ? 'active' : '' }}">
+                        <i class="fas fa-circle nav-icon"></i>
+                        <p>Business</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('backend.admin.business.index') }}"
+                    class="nav-link {{ request()->routeIs(['backend.admin.business.index']) ? 'active' : '' }}">
+                        <i class="fas fa-circle nav-icon"></i>
+                        <p>User Business</p>
+                    </a>
+                </li>
+            </ul>
+        </li>
+
+
             @endcan
             @if (auth()->user()->hasAnyPermission([
             //customer
@@ -59,7 +86,7 @@ $route = request()->route()->getName();
                 <a href="#" class="nav-link">
                     <i class="fas fa-user-circle nav-icon"></i>
                     <p>
-                        People
+                        Customer
                         <i class="fas fa-angle-left right"></i>
                     </p>
                 </a>

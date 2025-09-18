@@ -20,8 +20,14 @@ class PurchaseController extends Controller
     {
 
         abort_if(!auth()->user()->can('purchase_view'), 403);
+        $businessId = session('business_id');
+        if (!$businessId) {
+            return response()->json(['error' => 'No business selected'], 422);
+        }
         if ($request->ajax()) {
-            $purchases = Purchase::with('supplier')->latest()->get();
+            $purchases = Purchase::with('supplier')
+            ->where('business_id', $businessId)
+            ->get();
             return DataTables::of($purchases)
                 ->addIndexColumn()
                 ->addColumn('supplier', fn($data) => $data->supplier->name)
@@ -32,8 +38,8 @@ class PurchaseController extends Controller
                 ->addColumn('created_at', fn($data) => \Carbon\Carbon::parse($data->date)->format('d M, Y')) // Using Carbon for formatting
                 ->addColumn('action', function ($data) {
                     return '<div class="btn-group">
-                    <button type="button" class="btn bg-gradient-primary btn-flat">Action</button>
-                    <button type="button" class="btn bg-gradient-primary btn-flat dropdown-toggle dropdown-icon" data-toggle="dropdown" aria-expanded="false">
+                    <button type="button" class="btn btn-flat">Action</button>
+                    <button type="button" class="btn btn-flat dropdown-toggle dropdown-icon" data-toggle="dropdown" aria-expanded="false">
                       <span class="sr-only">Toggle Dropdown</span>
                     </button>
                     <div class="dropdown-menu" role="menu">
@@ -95,6 +101,7 @@ class PurchaseController extends Controller
                     $purchase = Purchase::create([
                         'supplier_id' => $validatedData['supplierId'],
                         'user_id' => auth()->id(),
+                        'business_id'   => auth()->user()->business_id,
                         'sub_total' => $validatedData['totals']['subTotal'],
                         'tax' => $validatedData['totals']['tax'],
                         'discount_value' => $validatedData['totals']['discount'],
@@ -129,6 +136,7 @@ class PurchaseController extends Controller
                     $purchase->update([
                         'supplier_id' => $validatedData['supplierId'],
                         'user_id' => auth()->id(),
+                        'business_id'   => auth()->user()->business_id,
                         'sub_total' => $validatedData['totals']['subTotal'],
                         'tax' => $validatedData['totals']['tax'],
                         'discount_value' => $validatedData['totals']['discount'],

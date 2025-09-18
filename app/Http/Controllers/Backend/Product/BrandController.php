@@ -23,8 +23,11 @@ class BrandController extends Controller
     public function index(Request $request)
     {
         abort_if(!auth()->user()->can('brand_view'), 403);
+        $businessId = session('business_id');
         if ($request->ajax()) {
-            $brands = Brand::latest()->get();
+            $brands = Brand::where('business_id', $businessId) 
+            ->latest()
+            ->get();
             return DataTables::of($brands)
                 ->addIndexColumn()
                 ->addColumn('image', fn($data) => '<img src="' . asset('storage/' . $data->image) . '" loading="lazy" alt="' . $data->name . '" class="img-thumb img-fluid" onerror="this.onerror=null; this.src=\'' . asset('assets/images/no-image.png') . '\';" height="80" width="60" />')
@@ -34,8 +37,8 @@ class BrandController extends Controller
                     : '<span class="badge bg-danger">Inactive</span>')
                 ->addColumn('action', function ($data) {
                     return '<div class="btn-group">
-                    <button type="button" class="btn bg-gradient-primary btn-flat">Action</button>
-                    <button type="button" class="btn bg-gradient-primary btn-flat dropdown-toggle dropdown-icon" data-toggle="dropdown" aria-expanded="false">
+                    <button type="button" class="btn btn-flat">Action</button>
+                    <button type="button" class="btn btn-flat dropdown-toggle dropdown-icon" data-toggle="dropdown" aria-expanded="false">
                       <span class="sr-only">Toggle Dropdown</span>
                     </button>
                     <div class="dropdown-menu" role="menu">
@@ -72,20 +75,39 @@ class BrandController extends Controller
     public function store(Request $request)
     {
         abort_if(!auth()->user()->can('brand_create'), 403);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'brand_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'status' => 'required|boolean',
         ]);
-        $brand = Brand::create($request->except('brand_image'));
+
+        $businessId = session('business_id'); // business_id session me hona chahiye
+        if (!$businessId) {
+            return redirect()->back()->with('error', 'No business selected.');
+        }
+
+        // brand create with business_id
+        $brand = Brand::create([
+            'business_id' => $businessId,
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+            'status' => $validated['status'],
+        ]);
+
+        // handle image
         if ($request->hasFile("brand_image")) {
-            $brand->image = $this->fileHandler->fileUploadAndGetPath($request->file("brand_image"), "/public/media/brands");
+            $brand->image = $this->fileHandler->fileUploadAndGetPath(
+                $request->file("brand_image"),
+                "/public/media/brands"
+            );
             $brand->save();
         }
 
         return redirect()->route('backend.admin.brands.index')->with('success', 'Brand created successfully!');
     }
+
 
     /**
      * Display the specified resource.

@@ -7,7 +7,7 @@
 
     @can('role_view')
     <div class="mt-n5 mb-3 d-flex justify-content-end">
-        <a href="{{ route('backend.admin.roles') }}" class="btn bg-gradient-primary">
+        <a href="{{ route('backend.admin.roles') }}" class="btn action-button">
             <i class="fas fa-ruler-vertical"></i>
             Roles
         </a>

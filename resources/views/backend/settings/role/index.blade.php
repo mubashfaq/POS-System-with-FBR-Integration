@@ -6,7 +6,7 @@
 <div class="card">
     <div class="mt-n5 mb-3 d-flex justify-content-end">
         @can('role_create')
-        <button class="btn bg-gradient-primary" data-toggle="modal" data-target="#roleModal">
+        <button class="btn action-button" data-toggle="modal" data-target="#roleModal">
             <i class="fas fa-plus-circle"></i>
             Add New
         </button>

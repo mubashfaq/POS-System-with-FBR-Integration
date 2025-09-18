@@ -376,15 +376,15 @@ export default function Pos() {
                                     </button>
                                 </div>
                                 <div className="col">
-                                    <button
-                                        onClick={() => {
-                                            orderCreate();
-                                        }}
-                                        type="button"
-                                        className="btn bg-gradient-primary btn-block text-white text-bold"
+                                <button
+                                    onClick={() => {
+                                        orderCreate();
+                                    }}
+                                    type="button"
+                                    className="btn checkout-btn btn-block text-white text-bold"
                                     >
-                                        Checkout
-                                    </button>
+                                    Checkout
+                                </button>
                                 </div>
                             </div>
                         </div>

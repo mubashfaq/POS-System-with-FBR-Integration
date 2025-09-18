@@ -11,6 +11,7 @@ class Product extends Model
 {
     use HasFactory;
     protected $fillable = [
+        'business_id',
         'image',
         'name',
         'slug',
@@ -83,4 +84,10 @@ class Product extends Model
         }
         return round($discountedPrice, 2);
     }
+
+    // public function business()
+    // {
+    //     return $this->belongsTo(Business::class);
+    // }
+
 }

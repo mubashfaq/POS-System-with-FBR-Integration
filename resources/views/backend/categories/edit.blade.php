@@ -55,7 +55,7 @@
         </div>
         <div class="row">
           <div class="col-md-6">
-            <button type="submit" class="btn bg-gradient-primary">Update</button>
+            <button type="submit" class="btn action-button">Update</button>
           </div>
         </div>
       </div>

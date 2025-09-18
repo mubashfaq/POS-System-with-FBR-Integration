@@ -146,4 +146,35 @@ class CartController extends Controller
 
         return response()->json(['message' => 'Cart is already empty'], 204);
     }
+
+    public function updateQuantity(Request $request)
+    {
+        $request->validate([
+            'id' => 'required|exists:pos_carts,id',
+            'quantity' => 'required|integer|min:1'
+        ]);
+
+        $cart = PosCart::with('product')->findOrFail($request->id);
+
+        // dd($cart->product->quantity, $request->quantity);
+        // Product ka stock
+        $availableStock = $cart->product->quantity ?? 0;
+
+        if ($request->quantity > $availableStock) {
+            return response()->json(['message' => 'Cannot add more, stock limit reached'], 400);
+        }
+
+        $cart->quantity = $request->quantity;
+        $cart->save();
+
+        $cart->row_total = round(($cart->quantity * $cart->product->discounted_price), 2);
+
+        return response()->json([
+            'message'   => 'Quantity updated successfully',
+            'quantity'  => $cart->quantity,
+            'row_total' => $cart->row_total
+        ], 200); // ✅ success ka HTTP status code explicitly set kar diya
+
+    }
+
 }
