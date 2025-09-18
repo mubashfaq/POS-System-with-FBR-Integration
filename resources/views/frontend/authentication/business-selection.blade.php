@@ -5,6 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Select Business</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        /* Header Styling */
+        .card-header {
+            background-color: #000 !important; /* black background */
+            color: #fff !important;           /* white text */
+        }
+
+        /* Create New Business Button */
+        .btn-create {
+            background-color: #ff6600; /* orange */
+            color: #fff;
+            border: none;
+        }
+
+        .btn-create:hover {
+            background-color: #e65c00; /* darker orange on hover */
+            color: #fff;
+        }
+        .btn-create-select {
+            border: 1px solid #e65c00;
+            color: #e65c00;
+            background: transparent;
+        }
+        .btn-create-select:hover {
+            background-color: #e65c00; /* darker orange on hover */
+            color: #fff;
+        }
+    </style>
 </head>
 <body>
     <div class="container mt-5">
@@ -38,8 +67,8 @@
                                                     <form action="{{ route('business.select') }}" method="POST">
                                                         @csrf
                                                         <input type="hidden" name="business_id" value="{{ $business->id }}">
-                                                        <button type="submit" class="btn btn-outline-primary w-100">
-                                                            View Dashboard
+                                                        <button type="submit" class="btn btn-create-select w-100">
+                                                            Select
                                                         </button>
                                                     </form>
                                                 </div>
@@ -53,7 +82,7 @@
 
                         <!-- Button to show create form -->
                         <div class="text-center mb-3">
-                            <button id="toggleCreateForm" class="btn btn-success">
+                            <button id="toggleCreateForm" class="btn btn-create">
                                 + Create New Business
                             </button>
                         </div>
@@ -87,7 +116,7 @@
                                     <label for="city" class="form-label">City *</label>
                                     <input type="text" class="form-control" id="city" name="city" required>
                                 </div>
-                                <button type="submit" class="btn btn-primary w-100">Create Business</button>
+                                <button type="submit" class="btn btn-create w-100">Create Business</button>
                             </form>
                         </div>
 
@@ -97,11 +126,24 @@
         </div>
     </div>
 
-    <script>
-        document.getElementById("toggleCreateForm").addEventListener("click", function () {
-            let form = document.getElementById("createForm");
-            form.style.display = (form.style.display === "none") ? "block" : "none";
-        });
-    </script>
+<script>
+    const toggleBtn = document.getElementById("toggleCreateForm");
+    const form = document.getElementById("createForm");
+
+    toggleBtn.addEventListener("click", function () {
+        if (form.style.display === "none" || form.style.display === "") {
+            form.style.display = "block";
+            toggleBtn.textContent = "✖ Close Form"; 
+            toggleBtn.classList.remove("btn-create-select");
+            toggleBtn.classList.add("btn-danger"); 
+        } else {
+            form.style.display = "none";
+            toggleBtn.textContent = "+ Create New Business"; 
+            toggleBtn.classList.remove("btn-danger");
+            toggleBtn.classList.add("btn-create"); 
+        }
+    });
+</script>
+
 </body>
 </html>
