@@ -139,8 +139,10 @@ class BusinessController extends Controller
     $business = Business::findOrFail($id);
     $business->update($validated);
 
-    return redirect()->route('backend.admin.business.index')
-        ->with('success', 'Business updated successfully!');
+    return redirect()->route('backend.admin.business.edit', $id)
+    ->with('success', 'Business updated successfully!');
+    // return redirect()->route('backend.admin.business.index')
+    //     ->with('success', 'Business updated successfully!');
     }
 
     /**
