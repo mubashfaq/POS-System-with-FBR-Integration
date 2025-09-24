@@ -34,8 +34,16 @@ class CartController extends Controller
     }
     public function getProducts(Request $request)
     {
+        $businessId = session('business_id');
+     
+        // dd($businessId);
+        $products = Product::query()
+        ->where('business_id', $businessId) // ✅ filter current business
+        ->active()
+        ->stocked();
 
-        $products = Product::query()->active()->stocked();
+
+        // $products = Product::query()->active()->stocked();
         // Search by name if provided
         $products->when($request->search, function ($query, $search) {
             $query->where('name', 'LIKE', "%{$search}%");
@@ -61,7 +69,10 @@ class CartController extends Controller
         $product_id = $request->id;
 
         // Fetch the product
-        $product = Product::find($product_id);
+        // $product = Product::find($product_id);
+        $product = Product::where('id', $product_id)
+        ->where('business_id', session('business_id'))
+        ->firstOrFail();
 
         // Check if the product is active and has sufficient stock
         if (!$product->status) {

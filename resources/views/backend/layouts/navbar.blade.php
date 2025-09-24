@@ -9,6 +9,28 @@
     <!-- Right navbar links -->
     <ul class="navbar-nav ml-auto">
 
+
+            {{-- Business Switcher Dropdown --}}
+        <li class="nav-item dropdown mr-2">
+            <a class="nav-link dropdown-toggle" href="#" id="businessDropdown" role="button" data-toggle="dropdown">
+                <i class="fas fa-store"></i>
+                {{ optional(\App\Models\Business::find(session('business_id')))->business_name ?? 'Select Business' }}
+            </a>
+            <div class="dropdown-menu dropdown-menu-right" aria-labelledby="businessDropdown">
+                @foreach(auth()->user()->businesses as $business)
+                    <a href="#" 
+                    class="dropdown-item business-item {{ session('business_id') == $business->id ? 'current-business' : '' }}"
+                    data-business-id="{{ $business->id }}"
+                    data-business-name="{{ $business->business_name }}">
+                        {{ $business->business_name }}
+                    </a>
+                @endforeach
+            </div>
+        </li>
+
+
+
+
         @can('sale_create')
        <li class="nav-item dropdown">
             <a class="nav-link btn pos-btn text-white" href="{{ route('backend.admin.cart.index') }}">
@@ -67,3 +89,48 @@
         </li>
     </ul>
 </nav>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    $(document).ready(function() {
+    $('.business-item').on('click', function(e) {
+        e.preventDefault();
+        
+        let businessId = $(this).data('business-id');
+        let businessName = $(this).data('business-name');
+        
+        let dropdownToggle = $('#businessDropdown');
+        let originalText = dropdownToggle.html();
+        dropdownToggle.html('<i class="fas fa-spinner fa-spin"></i>');
+        
+        $.ajax({
+            url: '{{ route("business.switch") }}',
+            method: 'POST',
+            data: {
+                business_id: businessId,
+                _token: '{{ csrf_token() }}'
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Current URL update karein
+                    const currentPath = window.location.pathname;
+                    const newPath = currentPath.replace(/\/business\/\d+/, `/business/${businessId}`);
+                    
+                    // Agar URL change hui hai toh redirect karein
+                    if (newPath !== currentPath) {
+                        window.location.href = newPath;
+                    } else {
+                        window.location.reload();
+                    }
+                } else {
+                    dropdownToggle.html(originalText);
+                }
+            },
+            error: function() {
+                dropdownToggle.html(originalText);
+            }
+        });
+    });
+});
+</script>

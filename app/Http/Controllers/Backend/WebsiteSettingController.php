@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Rules\ValidImageType;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Artisan;
+use App\Models\InvoiceSetting;
 use App\Trait\FileHandler;
 
 class WebsiteSettingController extends Controller
@@ -19,7 +20,14 @@ class WebsiteSettingController extends Controller
 
     public function websiteGeneral(Request $request)
     {
-        return view('backend.settings.website-settings.general');
+        $businessId = session('business_id');
+        $invoiceSetting = null;
+
+        if ($businessId) {
+            $invoiceSetting = \App\Models\InvoiceSetting::where('business_id', $businessId)->first();
+        }
+
+        return view('backend.settings.website-settings.general', compact('invoiceSetting'));
     }
 
     public function websiteInfoUpdate(Request $request)
@@ -113,13 +121,39 @@ class WebsiteSettingController extends Controller
         return to_route('backend.admin.settings.website.general', ['active-tab' => 'website-status'])
             ->with('success', 'Updated successfully');
     }
+    // public function websiteInvoiceUpdate(Request $request)
+    // {
+    //     foreach ($request->except('_token') as $key => $value) {
+    //         writeConfig($key, $value);
+    //     }
+    //     Artisan::call('config:clear');
+    //     return to_route('backend.admin.settings.website.general', ['active-tab' => 'invoice-settings'])
+    //         ->with('success', 'Updated successfully');
+    // }
+
     public function websiteInvoiceUpdate(Request $request)
     {
-        foreach ($request->except('_token') as $key => $value) {
-            writeConfig($key, $value);
+        $businessId = session('business_id');
+
+        if (!$businessId) {
+            return back()->with('error', 'Business not found in session');
         }
-        Artisan::call('config:clear');
+        // Invoice settings ko database mein save karein
+        $invoiceSetting = InvoiceSetting::firstOrNew(['business_id' => $businessId]);
+
+        $invoiceSetting->logo = $request->is_show_logo_invoice ?? 0;
+        $invoiceSetting->site_name = $request->is_show_site_name_invoice ?? 0;
+        $invoiceSetting->phone = $request->is_show_phone_invoice ?? 0;
+        $invoiceSetting->email = $request->is_show_email_invoice ?? 0;
+        $invoiceSetting->address = $request->is_show_address_invoice ?? 0;
+        $invoiceSetting->customer = $request->is_show_customer_invoice ?? 0;
+        $invoiceSetting->note_to_customer = $request->note_to_customer ?? 0;
+        $invoiceSetting->note_msg = $request->note_msg ?? null;
+        $invoiceSetting->post_invoice_width = $request->receiptMaxwidth;
+
+        $invoiceSetting->save();
+
         return to_route('backend.admin.settings.website.general', ['active-tab' => 'invoice-settings'])
-            ->with('success', 'Updated successfully');
+            ->with('success', 'Invoice settings updated successfully');
     }
 }

@@ -2,29 +2,125 @@
 
 @section('title', 'Dashboard')
 
+<style>
+.dashboard-card {
+    background: #fff !important;              
+    border-radius: 12px !important;
+    color: #17a2b8 !important;                
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
+    transition: transform 0.2s ease-in-out;
+    display: block;
+    text-decoration: none;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.25) !important;
+}
+
+.dashboard-card .inner h3 {
+    font-size: 3.3rem !important;  /* Bigger numbers */
+    font-weight: 700;
+    margin: 0;
+}
+
+
+.dashboard-card-second {
+    background: #fff !important;              
+    border-radius: 12px !important;
+    color: #28A745!important;                
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
+    transition: transform 0.2s ease-in-out;
+    display: block;
+    text-decoration: none;
+}
+
+.dashboard-card-second .inner h3 {
+    font-size: 3.3rem !important;  /* Bigger numbers */
+    font-weight: 700;
+    margin: 0;
+}
+
+
+.dashboard-card-third {
+    background: #fff !important;              
+    border-radius: 12px !important;
+    color: #FFC107!important;                
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
+    transition: transform 0.2s ease-in-out;
+    display: block;
+    text-decoration: none;
+}
+
+.dashboard-card-third .inner h3 {
+    font-size: 3.3rem !important;  /* Bigger numbers */
+    font-weight: 700;
+    margin: 0;
+}
+
+
+.dashboard-card-forth {
+    background: #fff !important;              
+    border-radius: 12px !important;
+    color: #DC3545!important;                
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
+    transition: transform 0.2s ease-in-out;
+    display: block;
+    text-decoration: none;
+}
+
+.dashboard-card-forth .inner h3 {
+    font-size: 3.3rem !important;  /* Bigger numbers */
+    font-weight: 700;
+    margin: 0;
+}
+
+.ion-bag::before{
+    color: #17a2b8 !important;
+}
+
+.ion-stats-bars::before{
+    color: #28A745 !important;
+}
+
+.ion-person-add::before{
+    color: #FFC107 !important;
+}
+
+.ion-pie-graph::before{
+    color: #DC3545 !important;
+}
+
+.fa-users{
+    color: white !important;
+}
+
+.info-box-number {
+    font-size: 1.6rem; /* default se bara */
+    font-weight: 600;
+    /* color: #17a2b8 !important; */
+}
+</style>
+
 @section('content')
 <section class="content">
     @can('dashboard_view')
     <div class="container-fluid">
         <div class="row">
             <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
+                <div class="info-box dashboard-card">
                     <span class="info-box-icon bg-info elevation-1"><i class="fas fa-cog"></i></span>
-
                     <div class="info-box-content">
                         <span class="info-box-text">Sale SubTotal</span>
                         <span class="info-box-number">
-                            {{currency()->symbol??''}} {{number_format($sub_total,2,'.',',')}}
-                            <small></small>
+                            {{ currency()->symbol??'' }} {{ number_format($sub_total,2,'.',',') }}
                         </span>
                     </div>
-                    <!-- /.info-box-content -->
                 </div>
-                <!-- /.info-box -->
             </div>
             <!-- /.col -->
             <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box mb-3">
+                <div class="info-box dashboard-card-forth">
                     <span class="info-box-icon bg-danger elevation-1"><i class="fas fa-thumbs-up"></i></span>
 
                     <div class="info-box-content">
@@ -41,7 +137,7 @@
             <div class="clearfix hidden-md-up"></div>
 
             <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box mb-3">
+                <div class="info-box dashboard-card-second">
                     <span class="info-box-icon bg-success elevation-1"><i class="fas fa-shopping-cart"></i></span>
 
                     <div class="info-box-content">
@@ -54,7 +150,7 @@
             </div>
             <!-- /.col -->
             <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box mb-3">
+                <div class="info-box dashboard-card-third">
                     <span class="info-box-icon bg-warning elevation-1"><i class="fas fa-users"></i></span>
 
                     <div class="info-box-content">
@@ -71,57 +167,58 @@
         <!-- Small boxes (Stat box) -->
         <div class="row">
             <div class="col-lg-3 col-6">
-                <!-- small box -->
-                <div class="small-box bg-info">
-                    <div class="inner">
-                        <h3>{{$total_customer}}</h3>
+                <a href="{{ route('backend.admin.customers.index') }}" class="small-box bg-info dashboard-card">
+                    <div class="inner dashboard-card" >
+                        <h3>{{ $total_customer }}</h3>
                         <p>Customers</p>
                     </div>
                     <div class="icon">
                         <i class="ion ion-bag"></i>
                     </div>
-                    <a href="{{route('backend.admin.customers.index')}}" class="small-box-footer">
-                        More info
-                        <i class="fas fa-arrow-circle-right"></i>
-                    </a>
-                </div>
+                </a>
             </div>
-            <!-- ./col -->
+
+
             <div class="col-lg-3 col-6">
-                <!-- small box -->
-                <div class="small-box bg-success">
-                    <div class="inner">
-                        <h3>{{$total_product}}</h3>
+                <a href="{{route('backend.admin.products.index')}}" class="small-box bg-info dashboard-card-second">
+                    <div class="inner dashboard-card-second" >
+                        <h3>{{ $total_product }}</h3>
                         <p>Products</p>
                     </div>
                     <div class="icon">
                         <i class="ion ion-stats-bars"></i>
                     </div>
-                    <a href="{{route('backend.admin.products.index')}}" class="small-box-footer">
-                        More info
-                        <i class="fas fa-arrow-circle-right"></i>
-                    </a>
-                </div>
+                </a>
             </div>
-            <!-- ./col -->
+
+
             <div class="col-lg-3 col-6">
-                <!-- small box -->
-                <div class="small-box bg-warning">
-                    <div class="inner">
-                        <h3>{{$total_order}}</h3>
+                <a href="{{route('backend.admin.orders.index')}}" class="small-box bg-info dashboard-card-third">
+                    <div class="inner dashboard-card-third" >
+                        <h3>{{ $total_order }}</h3>
                         <p>Sale</p>
                     </div>
                     <div class="icon">
                         <i class="ion ion-person-add"></i>
                     </div>
-                    <a href="{{route('backend.admin.orders.index')}}" class="small-box-footer">
-                        More info
-                        <i class="fas fa-arrow-circle-right"></i>
-                    </a>
-                </div>
+                </a>
             </div>
-            <!-- ./col -->
+
+
             <div class="col-lg-3 col-6">
+                <a href="{{route('backend.admin.orders.index')}}" class="small-box bg-info dashboard-card-forth">
+                    <div class="inner dashboard-card-forth" >
+                        <h3>{{$total_sale_item}}</h3>
+                        <p>Sale Item</p>
+                    </div>
+                    <div class="icon">
+                        <i class="ion ion-pie-graph"></i>
+                    </div>
+                </a>
+            </div>
+
+            <!-- ./col -->
+            {{-- <div class="col-lg-3 col-6">
                 <!-- small box -->
                 <div class="small-box bg-danger">
                     <div class="inner">
@@ -136,7 +233,7 @@
                         <i class="fas fa-arrow-circle-right"></i>
                     </a>
                 </div>
-            </div>
+            </div> --}}
             <!-- ./col -->
         </div>
         <!-- /.row -->
@@ -181,59 +278,125 @@
 @push('script')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const dailySaleChart = document.getElementById('dailySaleLineChart');
-    const barChartYear = document.getElementById('barChartYear');
+    // Wait for DOM to be fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        const dailySaleChart = document.getElementById('dailySaleLineChart');
+        const barChartYear = document.getElementById('barChartYear');
 
-    new Chart(dailySaleChart, {
-        type: 'line',
-        data: {
-            labels: @json($dates),
-            datasets: [{
-                label: 'Sales',
-                data: @json($totalAmounts),
-                borderWidth: 1
-            }]
-        },
-        options: {
-            scales: {
-                y: {
-                    beginAtZero: true
+        // Debugging ke liye
+        console.log('Dates data:', @json($dates));
+        console.log('Amounts data:', @json($totalAmounts));
+        console.log('Months data:', @json($months));
+        console.log('Monthly amounts data:', @json($totalAmountMonth));
+
+        // Daily Sales Line Chart
+        if (dailySaleChart) {
+            new Chart(dailySaleChart, {
+                type: 'line',
+                data: {
+                    labels: @json($dates),
+                    datasets: [{
+                        label: 'Sales Amount',
+                        data: @json($totalAmounts),
+                        borderWidth: 2,
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Daily Sales Trend'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Sales Amount'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        }
+                    }
                 }
-            }
+            });
         }
-    });
 
-    new Chart(barChartYear, {
-        type: 'bar',
-        data: {
-            labels: @json($months),
-            datasets: [{
-                label: 'Sales',
-                data: @json($totalAmountMonth),
-                borderWidth: 1
-            }]
-        },
-        options: {
-            scales: {
-                y: {
-                    beginAtZero: true
+        // Monthly Sales Bar Chart
+        if (barChartYear) {
+            new Chart(barChartYear, {
+                type: 'bar',
+                data: {
+                    labels: @json($months),
+                    datasets: [{
+                        label: 'Sales Amount',
+                        data: @json($totalAmountMonth),
+                        borderWidth: 2,
+                        backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                        borderColor: 'rgba(255, 99, 132, 1)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Monthly Sales for {{ $currentYear }}'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Sales Amount'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Months'
+                            }
+                        }
+                    }
                 }
-            }
+            });
         }
     });
 </script>
+
 <script>
     $(function() {
-        //Date range picker
-        $('#reservation').daterangepicker().on('apply.daterangepicker', function(e, picker) {
-            let selectedDateRange = picker.startDate.format('YYYY-MM-DD') + ' to ' + picker.endDate.format('YYYY-MM-DD');
+        //Date range picker with default range
+        $('#reservation').daterangepicker({
+            startDate: moment().subtract(29, 'days'),
+            endDate: moment(),
+            ranges: {
+               'Today': [moment(), moment()],
+               'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+               'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+               'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+               'This Month': [moment().startOf('month'), moment().endOf('month')],
+               'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+            }
+        });
 
-            // Update URL with daterange query parameter
+        $('#reservation').on('apply.daterangepicker', function(ev, picker) {
+            let selectedDateRange = picker.startDate.format('YYYY-MM-DD') + ' to ' + picker.endDate.format('YYYY-MM-DD');
             let url = new URL(window.location.href);
             url.searchParams.set('daterange', selectedDateRange);
             window.location.href = url.toString();
         });
-
-    })
+    });
 </script>
 @endpush

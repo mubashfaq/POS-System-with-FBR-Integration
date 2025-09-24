@@ -1,3 +1,7 @@
+<?php
+    $countries = countries('en'); // rinvex helper, returns all countries
+    $businesses = auth()->user()->businesses;
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -90,7 +94,7 @@
                         <!-- Hidden Create Business Form -->
                         <div id="createForm" style="display: none;">
                             <h5>Create New Business</h5>
-                            <form action="{{ route('business.create') }}" method="POST">
+                            <form action="{{ route('business.create') }}" method="POST" enctype="multipart/form-data">
                                 @csrf
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
@@ -109,13 +113,79 @@
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label for="country" class="form-label">Country *</label>
-                                        <input type="text" class="form-control" id="country" name="country" required>
+                                        <select name="country" id="country" class="form-control">
+                                            <option value="">-- Select Country --</option>
+                                            @foreach($countries as $code => $country)
+                                                <option value="{{ $country['name']['common'] }}" 
+                                                    {{ old('country') == $country['name']['common'] ? 'selected' : '' }}>
+                                                    {{ $country['name']['common'] }}
+                                                </option>
+                                            @endforeach
+                                        </select>
                                     </div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="city" class="form-label">City *</label>
                                     <input type="text" class="form-control" id="city" name="city" required>
                                 </div>
+
+
+                                <div class="row">
+                                      <div class="mb-3 col-md-6">
+                                        <label for="email" class="form-label">Email</label>
+                                        <input type="email" class="form-control" placeholder="Enter Email" name="email"
+                                        >
+                                    </div>
+
+                                    <div class="mb-3 col-md-6">
+                                        <label for="phone" class="form-label">Phone</label>
+                                        <input type="text" class="form-control" placeholder="Enter Phone" name="phone"
+                                        >
+                                    </div>
+                                </div>
+
+
+                                <div class="row">
+                                    <div class="mb-3 col-md-6">
+                                        <label for="logo" class="form-label">Logo</label>
+                                        <input type="file" class="form-control" name="logo" accept="image/*">
+                                    </div>
+
+                                    <div class="mb-3 col-md-6">
+                                        <label for="currency" class="form-label">Currency</label>
+                                        <input type="text" class="form-control" placeholder="Enter Currency" name="currency"
+                                        >
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                      <div class="mb-3 col-md-6">
+                                        <label for="facebook_link" class="form-label">Facebook Link</label>
+                                        <input type="url" class="form-control" placeholder="Enter Facebook Link" name="facebook_link"
+                                       >
+                                    </div>
+
+                                    <div class="mb-3 col-md-6">
+                                        <label for="whatsapp_link" class="form-label">WhatsApp Link</label>
+                                        <input type="url" class="form-control" placeholder="Enter WhatsApp Link" name="whatsapp_link"
+                                        >
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                      <div class="mb-3 col-md-6">
+                                        <label for="youtube_link" class="form-label">YouTube Link</label>
+                                        <input type="url" class="form-control" placeholder="Enter YouTube Link" name="youtube_link"
+                                       >
+                                    </div>
+
+                                    <div class="mb-3 col-md-6">
+                                        <label for="instagram_link" class="form-label">Instagram Link</label>
+                                        <input type="url" class="form-control" placeholder="Enter Instagram Link" name="instagram_link"
+                                        >
+                                    </div>
+                                </div>
+
                                 <button type="submit" class="btn btn-create w-100">Create Business</button>
                             </form>
                         </div>

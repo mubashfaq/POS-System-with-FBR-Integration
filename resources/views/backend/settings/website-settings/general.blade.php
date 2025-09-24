@@ -487,88 +487,129 @@
                 </form>
             </div>
             @endcan
-            @can('invoice_settings')
-            <div class="tab-pane fade {{ @$_GET['active-tab'] == 'invoice-settings' ? 'active show' : '' }}"
-                id="tabs-8" role="tabpanel" aria-labelledby="vert-tabs-8">
-                <form action="{{ route('backend.admin.settings.website.invoice.update') }}" method="post">
-                    @csrf
-                    <div class="col-md-12 d-flex justify-content-between">
-                        <h5>
-                            <i class="fas fa-file-invoice"></i>
-                            &nbsp;&nbsp;Invoice Settings
-                        </h5>
-                        <button type="submit" class="btn action-button">
-                            <i class="fas fa-reply"></i>
-                            &nbsp;Save Changes
-                        </button>
-                    </div>
-                    <div class="form-group">
-                        <label>Note to customer</label>
-                        <input type="text" class="form-control" placeholder="Enter message for invoice" name="note_to_customer_invoice" value="{{ readConfig('note_to_customer_invoice') }}">
-                    </div>
-                    <div class="form-group d-flex align-items-center">
-                        <label class="switch"><input type="hidden" name="is_show_logo_invoice" value="0">
-                            <input onclick="updateCheckboxValue(this)" type="checkbox" {{ readConfig('is_show_logo_invoice') == 1 ? 'checked' : '' }} name="is_show_logo_invoice" id="is_show_logo_invoice" value="{{ readConfig('is_show_logo_invoice') == 1 ? 1 : '0' }}">
-                            <span class="slider round"></span>
-                        </label>
-                        <label for="is_show_logo_invoice" class="mx-2">Logo</label>
-                    </div>
-                    <div class="form-group d-flex align-items-center">
-                        <label class="switch"><input type="hidden" name="is_show_site_invoice" value="0">
-                            <input onclick="updateCheckboxValue(this)" type="checkbox" {{ readConfig('is_show_site_invoice') == 1 ? 'checked' : '' }} name="is_show_site_invoice" id="is_show_site_invoice" value="{{ readConfig('is_show_site_invoice') == 1 ? 1 : '0' }}">
-                            <span class="slider round"></span>
-                        </label>
-                        <label for="is_show_site_invoice" class="mx-2">Site Name</label>
-                    </div>
-                    <div class="form-group d-flex align-items-center">
-                        <label class="switch"><input type="hidden" name="is_show_phone_invoice" value="0">
-                            <input onclick="updateCheckboxValue(this)" type="checkbox" {{ readConfig('is_show_phone_invoice') == 1 ? 'checked' : '' }} name="is_show_phone_invoice" id="is_show_phone_invoice" value="{{ readConfig('is_show_phone_invoice') == 1 ? 1 : '0' }}">
-                            <span class="slider round"></span>
-                        </label>
-
-                        <label for="is_show_phone_invoice" class="mx-2">Phone</label>
-                    </div>
-                    <div class="form-group d-flex align-items-center">
-                        <label class="switch"><input type="hidden" name="is_show_email_invoice" value="0">
-                            <input onclick="updateCheckboxValue(this)" type="checkbox" {{ readConfig('is_show_email_invoice') == 1 ? 'checked' : '' }} name="is_show_email_invoice" id="is_show_email_invoice" value="{{ readConfig('is_show_email_invoice') == 1 ? 1 : '0' }}">
-                            <span class="slider round"></span>
-                        </label>
-                        <label for="is_show_email_invoice" class="mx-2">Email</label>
-                    </div>
-                    <div class="form-group d-flex align-items-center">
-                        <label class="switch"><input type="hidden" name="is_show_address_invoice" value="0">
-                            <input onclick="updateCheckboxValue(this)" type="checkbox" {{ readConfig('is_show_address_invoice') == 1 ? 'checked' : '' }} name="is_show_address_invoice" id="is_show_address_invoice" value="{{ readConfig('is_show_address_invoice') == 1 ? 1 : '0' }}">
-                            <span class="slider round"></span>
-                        </label>
-                        <label for="is_show_address_invoice" class="mx-2">Address</label>
-                    </div>
-                    <div class="form-group d-flex align-items-center">
-                        <label class="switch"><input type="hidden" name="is_show_customer_invoice" value="0">
-                            <input onclick="updateCheckboxValue(this)" type="checkbox" {{ readConfig('is_show_customer_invoice') == 1 ? 'checked' : '' }} name="is_show_customer_invoice" id="is_show_customer_invoice" value="{{ readConfig('is_show_customer_invoice') == 1 ? 1 : '0' }}">
-                            <span class="slider round"></span>
-                        </label>
-                        <label for="is_show_customer_invoice" class="mx-2">Customer</label>
-                    </div>
-                    <div class="form-group d-flex align-items-center">
-                        <label class="switch"><input type="hidden" name="is_show_note_invoice" value="0">
-                            <input onclick="updateCheckboxValue(this)" type="checkbox" {{ readConfig('is_show_note_invoice') == 1 ? 'checked' : '' }} name="is_show_note_invoice" id="is_show_note_invoice" value="{{ readConfig('is_show_note_invoice') == 1 ? 1 : '0' }}">
-                            <span class="slider round"></span>
-                        </label>
-                        <label for="is_show_note_invoice" class="mx-2">Note to customer</label>
-                    </div>
-                    <div class="form-group">
-                        <label class="">Pos Invoice Width</label>
-                        <select name="receiptMaxwidth" class="form-control col-6">
-                            <option value="300px" {{ readConfig('receiptMaxwidth') == '300px' ? 'selected' : '' }}>Small</option>
-                            <option value="400px" {{ readConfig('receiptMaxwidth') == '400px' ? 'selected' : '' }}>Medium</option>
-                            <option value="500px" {{ readConfig('receiptMaxwidth') == '500px' ? 'selected' : '' }}>Large</option>
-                        </select>
-                    </div>
-
-            </div>
-            @endcan
-            </form>
+@can('invoice_settings')
+<div class="tab-pane fade {{ @$_GET['active-tab'] == 'invoice-settings' ? 'active show' : '' }}" id="tabs-8"
+    role="tabpanel" aria-labelledby="vert-tabs-8">
+    
+    <form action="{{ route('backend.admin.settings.website.invoice.update') }}" method="post">
+        @csrf
+        <div class="col-md-12 d-flex justify-content-between">
+            <h5>
+                <i class="fas fa-file-invoice"></i>
+                &nbsp;&nbsp;Invoice Settings
+            </h5>
+            <button type="submit" class="btn action-button">
+                <i class="fas fa-reply"></i>
+                &nbsp;Save Changes
+            </button>
         </div>
+        
+        <div class="col-md-12 mt-3">
+            {{-- <div class="form-group">
+                <label>Note to customer message (Optional)</label>
+                <input type="text" class="form-control" placeholder="Enter message for invoice" 
+                       name="note_message" value="{{ old('note_message', $invoiceSetting->note_message ?? '') }}">
+                <small class="text-muted">Yeh message tab show hoga jab "Note to customer" switch ON hogi</small>
+            </div> --}}
+
+            <div class="form-group">
+                <label for="note_msg">Above Note Message</label>
+                <input type="text" class="form-control" id="note_msg" 
+                    name="note_msg"
+                    value="{{ $invoiceSetting->note_msg ?? '' }}"
+                    placeholder="Enter message to display above note">
+            </div>
+            
+            <!-- Logo Switch -->
+            <div class="form-group d-flex align-items-center">
+                <label class="switch">
+                    <input type="hidden" name="is_show_logo_invoice" value="0">
+                    <input type="checkbox" name="is_show_logo_invoice" value="1" 
+                           {{ isset($invoiceSetting) && $invoiceSetting->logo == 1 ? 'checked' : '' }}>
+                    <span class="slider round"></span>
+                </label>
+                <span class="ml-3">Show Logo on Invoice</span>
+            </div>
+
+            <!-- Site Name Switch -->
+            <div class="form-group d-flex align-items-center">
+                <label class="switch">
+                    <input type="hidden" name="is_show_site_invoice" value="0">
+                    <input type="checkbox" name="is_show_site_invoice" value="1" 
+                           {{ isset($invoiceSetting) && $invoiceSetting->site_name == 1 ? 'checked' : '' }}>
+                    <span class="slider round"></span>
+                </label>
+                <span class="ml-3">Show Site Name</span>
+            </div>
+
+            <!-- Phone Switch -->
+            <div class="form-group d-flex align-items-center">
+                <label class="switch">
+                    <input type="hidden" name="is_show_phone_invoice" value="0">
+                    <input type="checkbox" name="is_show_phone_invoice" value="1" 
+                           {{ isset($invoiceSetting) && $invoiceSetting->phone == 1 ? 'checked' : '' }}>
+                    <span class="slider round"></span>
+                </label>
+                <span class="ml-3">Show Phone Number</span>
+            </div>
+
+            <!-- Email Switch -->
+            <div class="form-group d-flex align-items-center">
+                <label class="switch">
+                    <input type="hidden" name="is_show_email_invoice" value="0">
+                    <input type="checkbox" name="is_show_email_invoice" value="1" 
+                           {{ isset($invoiceSetting) && $invoiceSetting->email == 1 ? 'checked' : '' }}>
+                    <span class="slider round"></span>
+                </label>
+                <span class="ml-3">Show Email Address</span>
+            </div>
+
+            <!-- Address Switch -->
+            <div class="form-group d-flex align-items-center">
+                <label class="switch">
+                    <input type="hidden" name="is_show_address_invoice" value="0">
+                    <input type="checkbox" name="is_show_address_invoice" value="1" 
+                           {{ isset($invoiceSetting) && $invoiceSetting->address == 1 ? 'checked' : '' }}>
+                    <span class="slider round"></span>
+                </label>
+                <span class="ml-3">Show Address</span>
+            </div>
+
+            <!-- Customer Switch -->
+            <div class="form-group d-flex align-items-center">
+                <label class="switch">
+                    <input type="hidden" name="is_show_customer_invoice" value="0">
+                    <input type="checkbox" name="is_show_customer_invoice" value="1" 
+                           {{ isset($invoiceSetting) && $invoiceSetting->customer == 1 ? 'checked' : '' }}>
+                    <span class="slider round"></span>
+                </label>
+                <span class="ml-3">Show Customer Details</span>
+            </div>
+
+            <!-- Note to Customer Switch -->
+            <div class="form-group d-flex align-items-center">
+                <label class="switch">
+                    <input type="hidden" name="note_to_customer" value="0">
+                    <input type="checkbox" name="note_to_customer" value="1" 
+                           {{ isset($invoiceSetting) && $invoiceSetting->note_to_customer == 1 ? 'checked' : '' }}>
+                    <span class="slider round"></span>
+                </label>
+                <span class="ml-3">Show Note to Customer</span>
+            </div>
+
+            <!-- POS Invoice Width -->
+            <div class="form-group">
+                <label>POS Invoice Width</label>
+                <select name="receiptMaxwidth" class="form-control col-6">
+                    <option value="300px" {{ (isset($invoiceSetting) && $invoiceSetting->post_invoice_width == '300px') ? 'selected' : '' }}>Small</option>
+                    <option value="400px" {{ (isset($invoiceSetting) && $invoiceSetting->post_invoice_width == '400px') ? 'selected' : '' }}>Medium</option>
+                    <option value="500px" {{ (isset($invoiceSetting) && $invoiceSetting->post_invoice_width == '500px') ? 'selected' : '' }}>Large</option>
+                </select>
+            </div>
+        </div>
+    </form>
+</div>
+@endcan
     </div>
 </div>
 </div>
@@ -584,8 +625,36 @@
         }
     });
 
+    // Checkbox values automatically update karne ke liye - CORRECTED VERSION
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.switch input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                // Hidden input update karein - agar checkbox checked hai toh hidden value 0 rahegi
+                const hiddenInput = this.parentElement.querySelector('input[type="hidden"]');
+                if (hiddenInput) {
+                    hiddenInput.value = this.checked ? '0' : '0'; // Hidden input always 0 rahega
+                }
+                
+                // Debugging ke liye
+                console.log('Checkbox changed:', this.name, 'Checked:', this.checked, 'Value:', this.value);
+            });
+            
+            // Page load par bhi check karein
+            const hiddenInput = checkbox.parentElement.querySelector('input[type="hidden"]');
+            if (hiddenInput) {
+                hiddenInput.value = checkbox.checked ? '0' : '0';
+            }
+        });
+    });
+
+    // Agar aapko manually value change karni hai toh yeh function use karein
     function updateCheckboxValue(checkbox) {
         checkbox.value = checkbox.checked ? '1' : '0';
+        // Hidden input ko bhi update karein
+        const hiddenInput = checkbox.parentElement.querySelector('input[type="hidden"]');
+        if (hiddenInput) {
+            hiddenInput.value = checkbox.checked ? '0' : '0';
+        }
     }
 </script>
 @endpush

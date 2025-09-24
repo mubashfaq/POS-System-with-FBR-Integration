@@ -6,6 +6,7 @@ use App\Models\Page;
 use App\Models\Product;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\View;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,5 +24,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Paginator::useBootstrap();
+
+        View::composer('*', function ($view) {
+            $currentBusinessId = session('business_id');
+            $view->with('currentBusinessId', $currentBusinessId);
+        });
     }
 }

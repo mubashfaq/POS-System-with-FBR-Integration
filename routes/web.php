@@ -51,6 +51,7 @@ Route::get('/business-selection', [BusinessController::class, 'selection'])->nam
 Route::post('/create-business', [BusinessController::class, 'create'])->name('business.create');
 Route::post('/select-business', [BusinessController::class, 'select'])->name('business.select');
 
+Route::post('/switch-business', [BusinessController::class, 'switchBusiness'])->name('business.switch');
 
 Route::get('logout', [AuthController::class, 'logout'])->name('logout');
 Route::match(['get', 'post'], 'sign-up', [AuthController::class, 'register'])->name('signup');
@@ -71,7 +72,10 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::resource('products', ProductController::class);
     Route::resource('brands', BrandController::class);
-    Route::resource('business', BusinessController::class);
+    // Route::resource('business', BusinessController::class);
+    Route::resource('business', BusinessController::class)
+    ->middleware('current.business');
+
     Route::resource('orders', OrderController::class);
     Route::resource('purchase', PurchaseController::class);
     Route::resource('suppliers', SupplierController::class);
@@ -95,20 +99,21 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::get('/sale/report', [ReportController::class, 'saleReport'])->name('sale.report');
     Route::get('/inventory/report', [ReportController::class, 'inventoryReport'])->name('inventory.report');
     //end report
-   // start pos
-    Route::get('/get/products', [CartController::class, 'getProducts'])->name('getProducts');
-    Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
-    Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
+    
+    // start pos
+        Route::get('/get/products', [CartController::class, 'getProducts'])->name('getProducts');
+        Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+        Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
 
-    Route::put('/cart/update-quantity', [CartController::class, 'updateQuantity']);
+        Route::put('/cart/update-quantity', [CartController::class, 'updateQuantity']);
 
-    Route::put('/cart/increment', [CartController::class, 'increment']);
-    Route::put('/cart/decrement', [CartController::class, 'decrement']);
-    Route::put('/cart/delete', [CartController::class, 'delete']);
-    Route::put('/cart/empty', [CartController::class, 'empty']);
-    Route::put('/order/create', [OrderController::class, 'store']);
-    Route::get('/get/customers',[CustomerController::class,'getCustomers']);
-    Route::post('/create/customers', [CustomerController::class, 'store']);
+        Route::put('/cart/increment', [CartController::class, 'increment']);
+        Route::put('/cart/decrement', [CartController::class, 'decrement']);
+        Route::put('/cart/delete', [CartController::class, 'delete']);
+        Route::put('/cart/empty', [CartController::class, 'empty']);
+        Route::put('/order/create', [OrderController::class, 'store']);
+        Route::get('/get/customers',[CustomerController::class,'getCustomers']);
+        Route::post('/create/customers', [CustomerController::class, 'store']);
     //end pos
     Route::get('profile', [DashboardController::class, 'profile'])->name('profile');
     Route::post('profile/update', [AuthController::class, 'update'])->name('profile.update');
@@ -135,8 +140,10 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
                 Route::post('update-custom-css', 'websiteCustomCssUpdate')->name('settings.website.custom.css.update');
                 Route::post('update-notification-settings', 'websiteNotificationSettingsUpdate')->name('settings.website.notification.settings.update');
                 Route::post('update-website-status', 'websiteStatusUpdate')->name('settings.website.status.update');
-
                 Route::post('update-invoice-settings', 'websiteInvoiceUpdate')->name('settings.website.invoice.update');
+
+                Route::post('/website/invoice/update', [WebsiteSettingController::class, 'websiteInvoiceUpdate'])
+                ->name('backend.admin.settings.website.invoice.update');
             });
 
             Route::controller(RoleController::class)->prefix('roles')->group(function () {

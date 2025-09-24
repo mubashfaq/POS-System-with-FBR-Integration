@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Models\Business;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Rinvex\Country\CountryLoader;
 
 class BusinessController extends Controller
@@ -62,23 +64,39 @@ class BusinessController extends Controller
 
     public function create(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'business_name' => 'required|string|max:255',
             'industry' => 'required|string|max:255',
             'ntn' => 'nullable|string|max:255',
             'country' => 'required|string|max:255',
             'city' => 'required|string|max:255',
+            'email'           => 'nullable|email|max:255',
+            'phone'           => 'nullable|string|max:50',
+            'logo'            => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'currency'        => 'nullable|string|max:10',
+            'facebook_link'   => 'nullable|url|max:255',
+            'whatsapp_link'   => 'nullable|url|max:255',
+            'youtube_link'    => 'nullable|url|max:255',
+            'instagram_link'  => 'nullable|url|max:255',
         ]);
 
-        $business = Business::create($request->all());
-        
-        // Attach business to user
-        Auth::user()->businesses()->attach($business->id);
+    // File Upload
+    if ($request->hasFile('logo')) {
+        $logoPath = $request->file('logo')->store('logos', 'public');
+        $validated['logo'] = $logoPath; // yaha sahi path add kar rahe ho
+    }
 
-        // Store selected business in session
-        session(['current_business_id' => $business->id]);
+    // Ab $validated use karo instead of $request->all()
+    $business = Business::create($validated);
 
-        return redirect()->route('backend.admin.dashboard')->with('success', 'Business created successfully');
+    // Attach business to user
+    Auth::user()->businesses()->attach($business->id);
+
+    // Store selected business in session
+    session(['business_id' => $business->id]);
+
+    return redirect()->route('backend.admin.dashboard')
+        ->with('success', 'Business created successfully');
     }
 
     /**
@@ -86,15 +104,31 @@ class BusinessController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'business_name' => 'required|string|max:255',
             'industry'      => 'nullable|string|max:255',
             'ntn'           => 'nullable|string|max:255',
             'country'       => 'nullable|string|max:255',
             'city'          => 'nullable|string|max:255',
+            'email'           => 'nullable|email|max:255',
+            'phone'           => 'nullable|string|max:50',
+            'logo'            => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'currency'        => 'nullable|string|max:10',
+            'facebook_link'   => 'nullable|url|max:255',
+            'whatsapp_link'   => 'nullable|url|max:255',
+            'youtube_link'    => 'nullable|url|max:255',
+            'instagram_link'  => 'nullable|url|max:255',
+            'address'         => 'nullable',
         ]);
 
-        Business::create($request->only(['business_name','industry','ntn','country','city']));
+        // Handle logo upload
+        if ($request->hasFile('logo')) {
+            $logoPath = $request->file('logo')->store('logos', 'public');
+            $validated['logo'] = $logoPath;
+        }
+
+        Business::create($validated);
+        // Business::create($request->only(['business_name','industry','ntn','country','city']));
 
         return redirect()->route('backend.admin.business.index')
                          ->with('success', 'Business created successfully!');
@@ -117,6 +151,13 @@ class BusinessController extends Controller
     {
         // abort_if(!auth()->user()->can('business_update'), 403);
 
+        $currentBusinessId = session('business_id');
+        
+        // Agar requested ID current session business se different hai
+        if ($id != $currentBusinessId) {
+            return redirect()->route('backend.admin.business.edit', $currentBusinessId);
+        }
+
         $business = Business::findOrFail($id);
         return view('backend.business.edit', compact('business'));
     }
@@ -134,10 +175,40 @@ class BusinessController extends Controller
         'ntn'           => 'nullable|string|max:50',
         'country'       => 'nullable|string|max:100',
         'city'          => 'nullable|string|max:100',
+        'email'           => 'nullable|email|max:255',
+        'phone'           => 'nullable|string|max:50',
+        'logo'            => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+        'currency'        => 'nullable|string|max:10',
+        'facebook_link'   => 'nullable|url|max:255',
+        'whatsapp_link'   => 'nullable|url|max:255',
+        'youtube_link'    => 'nullable|url|max:255',
+        'instagram_link'  => 'nullable|url|max:255',
+        'address' => 'nullable',
     ]);
 
     $business = Business::findOrFail($id);
+    
+    if ($request->hasFile('logo')) {
+    // Delete old logo if exists
+    if ($business->logo && Storage::disk('public')->exists($business->logo)) {
+        Storage::disk('public')->delete($business->logo);
+    }
+        
+        $logoPath = $request->file('logo')->store('logos', 'public');
+        $validated['logo'] = $logoPath;
+    } else {
+        // Keep the existing logo if no new file is uploaded
+        $validated['logo'] = $business->logo;
+    }
+
     $business->update($validated);
+
+
+        // ✅ Update session if this business is currently selected
+    if (session('business_id') == $business->id) {
+        session(['business_id' => $business->id]);
+        session(['business_name' => $business->business_name]);
+    }
 
     return redirect()->route('backend.admin.business.edit', $id)
     ->with('success', 'Business updated successfully!');
@@ -190,5 +261,25 @@ class BusinessController extends Controller
         return redirect()->route('backend.admin.dashboard')->with('success', 'Business selected successfully');
     }
 
+
+    public function switchBusiness(Request $request)
+    {
+        $businessId = $request->input('business_id');
+
+        // dd($businessId);
+        // Check that this business belongs to the current user
+        if (!auth()->user()->businesses()->where('businesses.id', $businessId)->exists()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // Store in session
+        $business = \App\Models\Business::find($businessId);
+        session(['business_id' => $business->id]);
+        session(['business_name' => $business->business_name]);
+
+        Log::info("success");
+        return response()->json(['success' => true]);
+    }
+    
 
 }
