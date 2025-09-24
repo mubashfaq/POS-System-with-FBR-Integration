@@ -8,6 +8,7 @@ use App\Models\OrderTransaction;
 use App\Models\PosCart;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\DataTables;
 
 class OrderController extends Controller
@@ -309,10 +310,31 @@ class OrderController extends Controller
         return view('backend.orders.collection.index', compact('order'));
     }
 
+    // public function posInvoice($id)
+    // {
+    //     $order = Order::with(['customer', 'products.product'])->findOrFail($id);
+    //     $maxWidth = readConfig('receiptMaxwidth')??'300px';
+    //     return view('backend.orders.pos-invoice', compact('order', 'maxWidth'));
+    // }
+
+
     public function posInvoice($id)
     {
-        $order = Order::with(['customer', 'products.product'])->findOrFail($id);
-        $maxWidth = readConfig('receiptMaxwidth')??'300px';
-        return view('backend.orders.pos-invoice', compact('order', 'maxWidth'));
+        $businessId = session('business_id');
+
+        $order = Order::with(['customer', 'products.product'])
+            ->where('business_id', $businessId)
+            ->findOrFail($id);
+
+        $invoiceSettings = DB::table('invoice_settings')
+            ->where('business_id', $businessId)
+            ->first();
+
+        $business = DB::table('businesses')->where('id', $businessId)->first();
+
+        $maxWidth = $invoiceSettings->post_invoice_width ?? '300px';
+
+        return view('backend.orders.pos-invoice', compact('order', 'maxWidth', 'invoiceSettings', 'business'));
     }
+
 }

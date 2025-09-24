@@ -5,7 +5,7 @@
 @section('content')
 <div class="card">
   <div class="card-body">
-    <form action="{{ route('backend.admin.business.update',$business->id) }}" method="post" class="accountForm">
+    <form action="{{ route('backend.admin.business.update',$business->id) }}" method="post" class="accountForm" enctype="multipart/form-data">
       @csrf
       @method('PUT')
       <div class="card-body">
@@ -50,6 +50,69 @@
             <input type="text" class="form-control" placeholder="Enter City" name="city"
               value="{{ old('city', $business->city) }}">
           </div>
+
+
+            <div class="mb-3 col-md-6">
+              <label for="email" class="form-label">Email</label>
+              <input type="email" class="form-control" placeholder="Enter Email" name="email"
+                value="{{ old('email', $business->email) }}">
+            </div>
+
+            <div class="mb-3 col-md-6">
+              <label for="phone" class="form-label">Phone</label>
+              <input type="text" class="form-control" placeholder="Enter Phone" name="phone"
+                value="{{ old('phone', $business->phone) }}">
+            </div>
+
+            <div class="mb-3 col-md-6">
+              <label for="currency" class="form-label">Currency</label>
+              <input type="text" class="form-control" placeholder="Enter Currency" name="currency"
+                value="{{ old('currency', $business->currency) }}">
+            </div>
+
+            <div class="mb-3 col-md-6">
+              <label for="facebook_link" class="form-label">Facebook Link</label>
+              <input type="url" class="form-control" placeholder="Enter Facebook Link" name="facebook_link"
+                value="{{ old('facebook_link', $business->facebook_link) }}">
+            </div>
+
+            <div class="mb-3 col-md-6">
+              <label for="whatsapp_link" class="form-label">WhatsApp Link</label>
+              <input type="url" class="form-control" placeholder="Enter WhatsApp Link" name="whatsapp_link"
+                value="{{ old('whatsapp_link', $business->whatsapp_link) }}">
+            </div>
+
+            <div class="mb-3 col-md-6">
+              <label for="youtube_link" class="form-label">YouTube Link</label>
+              <input type="url" class="form-control" placeholder="Enter YouTube Link" name="youtube_link"
+                value="{{ old('youtube_link', $business->youtube_link) }}">
+            </div>
+
+            <div class="mb-3 col-md-6">
+              <label for="instagram_link" class="form-label">Instagram Link</label>
+              <input type="url" class="form-control" placeholder="Enter Instagram Link" name="instagram_link"
+                value="{{ old('instagram_link', $business->instagram_link) }}">
+            </div>
+
+            <div class="mb-3 col-md-6">
+              <label for="logo" class="form-label">Logo</label>
+              <input type="file" class="form-control" name="logo" accept="image/*">
+              @if($business->logo)
+                  <img src="{{ asset('storage/'.$business->logo) }}" alt="Logo" width="80" class="mt-2">
+                  <div class="form-check mt-2">
+                      <input class="form-check-input" type="checkbox" name="remove_logo" id="remove_logo" value="1">
+                      <label class="form-check-label" for="remove_logo">
+                          Remove logo
+                      </label>
+                  </div>
+              @endif
+          </div>
+
+            <div class="mb-3 col-md-6">
+              <label for="address" class="form-label">Address</label>
+              <input type="text" class="form-control" placeholder="Enter Address" name="address"
+                value="{{ old('address', $business->address) }}">
+            </div>
 
         </div>
 

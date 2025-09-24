@@ -10,6 +10,7 @@ use App\Models\OrderProduct;
 use App\Models\OrderTransaction;
 use App\Models\Product;
 use App\Models\SupportTicket;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -17,7 +18,27 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        $orders = Order::get();
+        // Get the current business ID from session
+        $businessId = session('business_id');
+
+        $orders = Order::when($businessId, function($query) use ($businessId) {
+            return $query->where('business_id', $businessId);
+        })->get();
+
+        $customers = Customer::when($businessId, function($query) use ($businessId) {
+            return $query->where('business_id', $businessId);
+        });
+        
+        $products = Product::when($businessId, function($query) use ($businessId) {
+            return $query->where('business_id', $businessId);
+        });
+
+        $orderProducts = OrderProduct::when($businessId, function($query) use ($businessId) {
+            return $query->whereHas('order', function($q) use ($businessId) {
+                $q->where('business_id', $businessId);
+            });
+        });
+
         // Calculate totals
         $data = [
             'sub_total' => $orders->sum('sub_total'),
@@ -25,52 +46,99 @@ class DashboardController extends Controller
             'total' => $orders->sum('total'),
             'paid' => $orders->sum('paid'),
             'due' => $orders->sum('due'),
-            'total_customer' => Customer::count(),
+            'total_customer' => $customers->count(),
             'total_order' => $orders->count(),
-            'total_product' => Product::count(),
-            'total_sale_item' => OrderProduct::sum('quantity'),
+            'total_product' => $products->count(),
+            'total_sale_item' => $orderProducts->sum('quantity'),
         ];
 
+        // Debugging ke liye
+        Log::info('Dashboard accessed for business: ' . $businessId);
+        Log::info('Total orders: ' . $orders->count());
 
-        $startDate = Carbon::now()->subDays(30)->format('Y-m-d');
-        $endDate = Carbon::now()->format('Y-m-d');
+        // Daily Sales Chart Data - FIXED VERSION
+        $startDate = Carbon::now()->subDays(30)->startOfDay();
+        $endDate = Carbon::now()->endOfDay();
+        
         if($request->has('daterange')) {
             $dates = explode(' to ', $request->query('daterange'));
 
             if (count($dates) == 2) {
-                $startDate = Carbon::parse($dates[0])->format('Y-m-d');
-                $endDate = Carbon::parse($dates[1])->format('Y-m-d');
+                $startDate = Carbon::parse($dates[0])->startOfDay();
+                $endDate = Carbon::parse($dates[1])->endOfDay();
             }
         }
-        $dailyTotals = OrderTransaction::selectRaw('DATE(created_at) as date, SUM(amount) as total_amount')
-        ->whereBetween('created_at', [$startDate, $endDate])
-        ->groupBy('date')
-        ->orderBy('date', 'DESC')
-        ->get();
-        $dates = $dailyTotals->pluck('date')->toArray();
-        $totalAmounts = $dailyTotals->pluck('total_amount')->toArray();
+
+        Log::info('Date range for daily sales: ' . $startDate . ' to ' . $endDate);
+
+        // Get daily totals with proper date handling
+        $dailyTotals = Order::when($businessId, function($query) use ($businessId) {
+                return $query->where('business_id', $businessId);
+            })
+            ->selectRaw('DATE(created_at) as date, SUM(total) as total_amount')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->groupBy('date')
+            ->orderBy('date', 'ASC')
+            ->get();
+
+        Log::info('Daily totals found: ' . $dailyTotals->count());
+        Log::info('Daily totals data: ' . $dailyTotals->toJson());
+
+        // Agar koi data nahi hai toh empty arrays return karein
+        if ($dailyTotals->isEmpty()) {
+            $dates = [];
+            $totalAmounts = [];
+            
+            // Last 30 days ke dates generate karein
+            for ($i = 29; $i >= 0; $i--) {
+                $dates[] = Carbon::now()->subDays($i)->format('Y-m-d');
+                $totalAmounts[] = 0;
+            }
+        } else {
+            $dates = $dailyTotals->pluck('date')->map(function($date) {
+                return Carbon::parse($date)->format('m/d/Y'); // Chart ke liye proper format
+            })->toArray();
+            
+            $totalAmounts = $dailyTotals->pluck('total_amount')->toArray();
+        }
+
         $data['dates'] = $dates;
         $data['totalAmounts'] = $totalAmounts;
-        $data['dateRange'] = 'from '. $startDate . ' to ' . $endDate;
+        $data['dateRange'] = 'from '. $startDate->format('Y-m-d') . ' to ' . $endDate->format('Y-m-d');
 
-
+        // Monthly Sales Chart Data - FIXED VERSION
         $currentYear = now()->year;
         $data['currentYear'] = $currentYear;
 
-        $salesData = OrderTransaction::selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, SUM(amount) as total_amount')
-        ->whereYear('created_at', $currentYear)
-        ->groupBy('month')
-        ->orderBy('month', 'ASC')->pluck('total_amount', 'month')->toArray();
-        $tempMonths = [];
+        $salesData = Order::when($businessId, function($query) use ($businessId) {
+                return $query->where('business_id', $businessId);
+            })
+            ->selectRaw('MONTH(created_at) as month, SUM(total) as total_amount')
+            ->whereYear('created_at', $currentYear)
+            ->groupBy('month')
+            ->orderBy('month', 'ASC')
+            ->pluck('total_amount', 'month')
+            ->toArray();
+
+
+        Log::info('Monthly sales data: ' . json_encode($salesData));
+
+        $monthNames = [];
         $tempTotalAmountMonth = [];
+        
         for ($i = 1; $i <= 12; $i++) {
-            $monthKey = Carbon::create($currentYear, $i, 1)->format('Y-m');
-            $tempMonths[] = $monthKey;
-            $tempTotalAmountMonth[] = $salesData[$monthKey] ?? 0;
+            $monthNames[] = Carbon::create()->month($i)->format('F'); // Month names
+            $tempTotalAmountMonth[] = $salesData[$i] ?? 0;
         }
 
-        $data['months'] = $tempMonths;
+        $data['months'] = $monthNames; // Month names use karein
         $data['totalAmountMonth'] = $tempTotalAmountMonth;
+
+        // Final data log karein
+        Log::info('Final chart data - Dates: ' . json_encode($dates));
+        Log::info('Final chart data - Amounts: ' . json_encode($totalAmounts));
+        Log::info('Final monthly data - Months: ' . json_encode($monthNames));
+        Log::info('Final monthly data - Amounts: ' . json_encode($tempTotalAmountMonth));
 
         return view('backend.index', $data);
     }

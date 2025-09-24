@@ -391,9 +391,9 @@ export default function Pos() {
                         <div className="col-md-6 col-lg-7">
                             <div className="row">
                                 <div className="input-group mb-2 col-md-6">
-                                    <div class="input-group-prepend">
-                                        <span class="input-group-text">
-                                            <i class="fas fa-barcode"></i>
+                                    <div className="input-group-prepend">
+                                        <span className="input-group-text">
+                                            <i className="fas fa-barcode"></i>
                                         </span>
                                     </div>
                                     <input

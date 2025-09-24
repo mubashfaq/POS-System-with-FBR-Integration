@@ -85,13 +85,23 @@ class AuthController extends Controller
                 'username' => uniqid(),
             ]);
             
-            if ($newUser) {
-                $request->session()->regenerate();
-                Auth::login($newUser);
-                return redirect()->route('backend.admin.dashboard')->with('success', 'User registered successfully');
-             } else {
-                return back()->with('error', 'Something went wrong');
+        if ($newUser) {
+            $request->session()->regenerate();
+            Auth::login($newUser);
+
+            // ✅ Check if this user has any business
+            if ($newUser->businesses()->count() == 0) {
+                // Business-selection page dikhana hai
+                return redirect()->route('business.selection')
+                                ->with('info', 'Please select or create your first business.');
             }
+
+            // Agar already business hai → dashboard bhej do
+            return redirect()->route('backend.admin.dashboard')
+                            ->with('success', 'User registered successfully');
+        } else {
+            return back()->with('error', 'Something went wrong');
+        }
         } else {
             return view('frontend.authentication.sign-up');
         }

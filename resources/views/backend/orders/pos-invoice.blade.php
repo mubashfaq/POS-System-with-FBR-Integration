@@ -6,15 +6,25 @@
   <!-- Main content -->
   <div class="receipt-container mt-0" id="printable-section" style="max-width: {{ $maxWidth}}; font-size: 12px; font-family: 'Courier New', Courier, monospace;">
     <div class="text-center">
-      @if(readConfig('is_show_logo_invoice'))
-      <img src="{{ assetImage(readconfig('site_logo')) }}" height="30" width="70" alt="Logo">
-      @endif
-      @if(readConfig('is_show_site_invoice'))
-      <h3>{{ readConfig('site_name') }}</h3>
-      @endif
-      @if(readConfig('is_show_address_invoice')){{ readConfig('contact_address') }}<br>@endif
-      @if(readConfig('is_show_phone_invoice')){{ readConfig('contact_phone') }}<br>@endif
-      @if(readConfig('is_show_email_invoice')){{ readConfig('contact_email') }}<br>@endif
+ @if(!empty($invoiceSettings->logo) && $invoiceSettings->logo == 1 && !empty($business->logo))
+    <img src="{{ asset('storage/'.$business->logo) }}" height="30" width="70" alt="Logo"><br>
+  @endif
+
+  @if(!empty($invoiceSettings->site_name) && $invoiceSettings->site_name == 1)
+    <h3>{{ $business->name ?? '' }}</h3> <br>
+  @endif
+
+  @if(!empty($invoiceSettings->address) && $invoiceSettings->address == 1)
+    {{ $business->address ?? '' }}<br>
+  @endif
+
+  @if(!empty($invoiceSettings->phone) && $invoiceSettings->phone == 1)
+    {{ $business->phone ?? '' }}<br>
+  @endif
+
+  @if(!empty($invoiceSettings->email) && $invoiceSettings->email == 1)
+    {{ $business->email ?? '' }}<br>
+  @endif
     </div>
     {{ 'User: '.auth()->user()->name}}<br>
     {{ 'Order: #'.$order->id}}<br>
@@ -85,7 +95,9 @@
     </div>
     <hr>
     <div class="text-center">
-      <p class="text-muted" style="font-size: 12px;">@if(readConfig('is_show_note_invoice')){{ readConfig('note_to_customer_invoice') }}@endif</p>
+    @if(!empty($invoiceSettings->note_to_customer) && $invoiceSettings->note_to_customer == 1)
+      <p class="text-muted" style="font-size: 12px;">{{ $invoiceSettings->note_msg ?? '' }}</p>
+    @endif
     </div>
   </div>
 

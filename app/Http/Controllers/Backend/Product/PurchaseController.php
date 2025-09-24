@@ -79,6 +79,12 @@ class PurchaseController extends Controller
     {
 
         abort_if(!auth()->user()->can('purchase_create'), 403);
+
+        $businessId = session('business_id'); // business_id session me hona chahiye
+        if (!$businessId) {
+            return redirect()->back()->with('error', 'No business selected.');
+        }
+
         if ($request->wantsJson()) {
             // Step 1: Validate the request data
             $validatedData = $request->validate([
@@ -101,7 +107,7 @@ class PurchaseController extends Controller
                     $purchase = Purchase::create([
                         'supplier_id' => $validatedData['supplierId'],
                         'user_id' => auth()->id(),
-                        'business_id'   => auth()->user()->business_id,
+                        'business_id'   => $businessId,
                         'sub_total' => $validatedData['totals']['subTotal'],
                         'tax' => $validatedData['totals']['tax'],
                         'discount_value' => $validatedData['totals']['discount'],
@@ -136,7 +142,7 @@ class PurchaseController extends Controller
                     $purchase->update([
                         'supplier_id' => $validatedData['supplierId'],
                         'user_id' => auth()->id(),
-                        'business_id'   => auth()->user()->business_id,
+                        'business_id'   => $businessId,
                         'sub_total' => $validatedData['totals']['subTotal'],
                         'tax' => $validatedData['totals']['tax'],
                         'discount_value' => $validatedData['totals']['discount'],

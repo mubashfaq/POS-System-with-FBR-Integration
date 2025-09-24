@@ -17,6 +17,9 @@ class ReportController extends Controller
 
         abort_if(!auth()->user()->can(abilities: 'reports_sales'), 403);
         // Get user input or set default values
+
+        $businessId = session('business_id');
+
         $start_date_input = $request->input('start_date', Carbon::today()->subDays(29)->format('Y-m-d'));
         $end_date_input = $request->input('end_date', Carbon::today()->format('Y-m-d'));
 
@@ -28,7 +31,10 @@ class ReportController extends Controller
         $end_date = Carbon::createFromFormat('Y-m-d', $end_date_input) ?: Carbon::today()->endOfDay();
         $end_date = $end_date->endOfDay();
         // Retrieve orders within the date range
-        $orders = Order::whereBetween('created_at', [$start_date, $end_date])->with('customer')->get();
+        $orders = Order::where('business_id', $businessId)
+        ->whereBetween('created_at', [$start_date, $end_date])
+        ->with('customer')
+        ->get();
 
         // Calculate totals
         $data = [
@@ -46,9 +52,16 @@ class ReportController extends Controller
     }
     public function saleSummery(Request $request)
     {
-
         abort_if(!auth()->user()->can('reports_summary'), 403);
         // Get user input or set default values
+
+        $businessId = session('business_id');
+
+        if (!$businessId) {
+            return redirect()->route('business.select')
+                ->with('error', 'Please select a business first.');
+        }
+
         $start_date_input = $request->input('start_date', Carbon::today()->subDays(29)->format('Y-m-d'));
         $end_date_input = $request->input('end_date', Carbon::today()->format('Y-m-d'));
 
@@ -60,7 +73,9 @@ class ReportController extends Controller
         $end_date = Carbon::createFromFormat('Y-m-d', $end_date_input) ?: Carbon::today()->endOfDay();
         $end_date = $end_date->endOfDay();
         // Retrieve orders within the date range
-        $orders = Order::whereBetween('created_at', [$start_date, $end_date])->get();
+        $orders = Order::where('business_id', $businessId)
+        ->whereBetween('created_at', [$start_date, $end_date])
+        ->get();
 
         // Calculate totals
         $data = [
@@ -79,8 +94,13 @@ class ReportController extends Controller
     {
 
         abort_if(!auth()->user()->can('reports_inventory'), 403);
+        $businessId = session('business_id');
+
         if ($request->ajax()) {
-            $products = Product::latest()->active()->get();
+            $products = Product::where('business_id', $businessId) // ✅ filter by business
+            ->latest()
+            ->active()
+            ->get();
             return DataTables::of($products)
                 ->addIndexColumn()
                 ->addColumn('name', fn($data) => $data->name)

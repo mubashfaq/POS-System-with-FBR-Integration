@@ -15,8 +15,14 @@ class OrderProduct extends Model
         return $this->belongsTo(Product::class);
     }
     protected $appends = ['discounted_price'];
+    
     public function getDiscountedPriceAttribute()
     {
             return number_format(($this->total / $this->quantity), 2); 
+    }
+    
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
     }
 }
