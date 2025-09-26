@@ -185,6 +185,13 @@
                                         >
                                     </div>
                                 </div>
+                                <div class="row">
+                                    <div class="mb-3 col-md-6">
+                                        <label for="address" class="form-label">Address</label>
+                                        <input type="text" class="form-control" placeholder="Enter address" name="address"
+                                        >
+                                    </div>
+                                </div>
 
                                 <button type="submit" class="btn btn-create w-100">Create Business</button>
                             </form>

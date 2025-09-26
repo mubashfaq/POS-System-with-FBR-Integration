@@ -14,7 +14,10 @@ class UnitController extends Controller
      */
     public function index(Request $request)
     {
-        abort_if(!auth()->user()->can('unit_view'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('unit_view'), 403);
+
+        // abort_if(!auth()->user()->can('unit_view'), 403);
         if ($request->ajax()) {
             $units = Unit::latest()->get();
             return DataTables::of($units)
@@ -49,7 +52,10 @@ class UnitController extends Controller
      */
     public function create()
     {
-        abort_if(!auth()->user()->can('unit_create'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('unit_create'), 403);
+
+        // abort_if(!auth()->user()->can('unit_create'), 403);
         return view('backend.units.create');
     }
 
@@ -58,7 +64,10 @@ class UnitController extends Controller
      */
     public function store(Request $request)
     {
-        abort_if(!auth()->user()->can('unit_create'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('unit_create'), 403);
+
+        // abort_if(!auth()->user()->can('unit_create'), 403);
         $unit = Unit::create($request->only(['title','short_name']));
 
         return redirect()->route('backend.admin.units.index')->with('success', 'Unit created successfully!');
@@ -77,7 +86,10 @@ class UnitController extends Controller
      */
     public function edit($id)
     {
-        abort_if(!auth()->user()->can('unit_update'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('unit_update'), 403);
+
+        // abort_if(!auth()->user()->can('unit_update'), 403);
 
         $unit = Unit::findOrFail($id);
         return view('backend.units.edit', compact('unit'));
@@ -88,7 +100,10 @@ class UnitController extends Controller
      */
     public function update(Request $request, $id)
     {
-        abort_if(!auth()->user()->can('unit_update'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('unit_update'), 403);
+
+        // abort_if(!auth()->user()->can('unit_update'), 403);
         $unitToUpdate = Unit::findOrFail($id);
         $unitToUpdate->update($request->only(['title', 'short_name']));
         return redirect()->route('backend.admin.units.index')->with('success', 'Unit updated successfully!');
@@ -100,7 +115,10 @@ class UnitController extends Controller
      */
     public function destroy($id)
     {
-        abort_if(!auth()->user()->can('unit_delete'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('unit_delete'), 403);
+
+        // abort_if(!auth()->user()->can('unit_delete'), 403);
         $unit = Unit::findOrFail($id);
         $unit->delete();
         return redirect()->back()->with('success', 'Unit Deleted Successfully');

@@ -13,7 +13,10 @@ class CustomerController extends Controller
      */
     public function index(Request $request)
     {
-        abort_if(!auth()->user()->can('customer_view'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('customer_view'), 403);
+
+        // abort_if(!auth()->user()->can('customer_view'), 403);
 
         $businessId = session('business_id');
 
@@ -78,8 +81,10 @@ class CustomerController extends Controller
      */
     public function create()
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('customer_create'), 403);
 
-        abort_if(!auth()->user()->can('customer_create'), 403);
+        // abort_if(!auth()->user()->can('customer_create'), 403);
         return view('backend.customers.create');
     }
 
@@ -88,8 +93,10 @@ class CustomerController extends Controller
      */
     public function store(Request $request)
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('customer_create'), 403);
 
-        abort_if(!auth()->user()->can('customer_create'), 403);
+        // abort_if(!auth()->user()->can('customer_create'), 403);
 
         if ($request->wantsJson()) {
             $request->validate([
@@ -137,8 +144,11 @@ class CustomerController extends Controller
      */
     public function edit($id)
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('customer_update'), 403);
 
-        abort_if(!auth()->user()->can('customer_update'), 403);
+
+        // abort_if(!auth()->user()->can('customer_update'), 403);
         $customer = Customer::findOrFail($id);
         return view('backend.customers.edit', compact('customer'));
     }
@@ -148,8 +158,11 @@ class CustomerController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('customer_update'), 403);
 
-        abort_if(!auth()->user()->can('customer_update'), 403);
+
+        // abort_if(!auth()->user()->can('customer_update'), 403);
         $customer = Customer::findOrFail($id);
 
         $request->validate([
@@ -170,8 +183,10 @@ class CustomerController extends Controller
      */
     public function destroy($id)
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('customer_delete'), 403);
 
-        abort_if(!auth()->user()->can('customer_delete'), 403);
+        // abort_if(!auth()->user()->can('customer_delete'), 403);
         $customer = Customer::findOrFail($id);
         $customer->delete();
         session()->flash('success', 'Customer deleted successfully.');

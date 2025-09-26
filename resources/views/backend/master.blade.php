@@ -5,17 +5,17 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>
-        @yield('title', 'Dashboard') | {{ readConfig('site_name') }}
+        @yield('title', 'Dashboard') | {{'site_name'}}
     </title>
 
     <!-- FAVICON ICON -->
-    <link rel="shortcut icon" href="{{ assetImage(readconfig('favicon_icon')) }}" type="image/svg+xml">
+    {{-- <link rel="shortcut icon" href="{{ assetImage(readconfig('favicon_icon')) }}" type="image/svg+xml"> --}}
 
     <!-- FAVICON ICON APPLE -->
-    <link href="{{ assetImage(readconfig('favicon_icon_apple')) }}" rel="apple-touch-icon">
+    {{-- <link href="{{ assetImage(readconfig('favicon_icon_apple')) }}" rel="apple-touch-icon">
     <link href="{{ assetImage(readconfig('favicon_icon_apple')) }}" rel="apple-touch-icon" sizes="72x72">
     <link href="{{ assetImage(readconfig('favicon_icon_apple')) }}" rel="apple-touch-icon" sizes="114x114">
-    <link href="{{ assetImage(readconfig('favicon_icon_apple')) }}" rel="apple-touch-icon" sizes="144x144">
+    <link href="{{ assetImage(readconfig('favicon_icon_apple')) }}" rel="apple-touch-icon" sizes="144x144"> --}}
 
     <!-- Google Font: Source Sans Pro -->
     <link rel="stylesheet"
@@ -116,10 +116,10 @@
     <div class="wrapper">
 
         <!-- Preloader -->
-        <!-- <div class="preloader flex-column justify-content-center align-items-center">
+        {{-- <!-- <div class="preloader flex-column justify-content-center align-items-center">
             <img class="animation__shake" src="{{ assetImage(readconfig('site_logo')) }}" alt="Logo" height="60"
                 width="60">
-        </div> -->
+        </div> --> --}}
 
         <!-- Navbar -->
         @include('backend.layouts.navbar')
@@ -128,11 +128,11 @@
         <!-- Main Sidebar Container -->
         <aside class="main-sidebar elevation-4 sidebar-light-lightblue">
             <!-- Brand Logo -->
-            <a href="{{ route('frontend.home') }}" class="brand-link">
+            {{-- <a href="{{ route('frontend.home') }}" class="brand-link">
                 <img src="{{ assetImage(readconfig('site_logo')) }}" alt="Logo"
                     class="brand-image img-circle elevation-3" style="opacity: .8">
                 <span class="brand-text font-weight-light" style="color: white" >{{ readConfig('site_name') }}</span>
-            </a>
+            </a> --}}
 
             <!-- Sidebar -->
             @include('backend.layouts.sidebar')

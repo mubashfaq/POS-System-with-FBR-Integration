@@ -104,7 +104,8 @@
 
 @section('content')
 <section class="content">
-    @can('dashboard_view')
+    {{-- @can('dashboard_view') --}}
+@if (currentUserBusiness() && currentUserBusiness()->hasPermissionTo('dashboard_view'))
     <div class="container-fluid">
         <div class="row">
             <div class="col-12 col-sm-6 col-md-3">
@@ -271,7 +272,8 @@
             </div>
         </div>
     </div>
-    @endcan
+    {{-- @endcan --}}
+    @endif
     <!-- /.container-fluid -->
 </section>
 @endsection
