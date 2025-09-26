@@ -61,4 +61,24 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    public function userBusinesses()
+    {
+        return $this->hasMany(UserBusiness::class, 'user_id');
+    }
+
+    public function hasPermission($permission)
+    {
+        if (!$this->business) {
+            return false;
+        }
+
+        $role = $this->business->role;
+
+        if (!$role) {
+            return false;
+        }
+
+        return $role->permissions()->where('slug', $permission)->exists();
+    }
+
 }

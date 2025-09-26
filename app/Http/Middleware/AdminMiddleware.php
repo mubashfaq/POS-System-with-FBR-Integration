@@ -24,8 +24,6 @@ class AdminMiddleware
 }
 
 
-
-
 //         if (Auth::check()) {
 //             if (Auth::user()->type == 'Admin') {
 //                 return $next($request);

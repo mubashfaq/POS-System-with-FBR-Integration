@@ -18,8 +18,10 @@ class PurchaseController extends Controller
      */
     public function index(Request $request)
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('purchase_view'), 403);
 
-        abort_if(!auth()->user()->can('purchase_view'), 403);
+        // abort_if(!auth()->user()->can('purchase_view'), 403);
         $businessId = session('business_id');
         if (!$businessId) {
             return response()->json(['error' => 'No business selected'], 422);
@@ -66,9 +68,10 @@ class PurchaseController extends Controller
      */
     public function create()
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('purchase_create'), 403);
 
-
-        abort_if(!auth()->user()->can('purchase_create'), 403);
+        // abort_if(!auth()->user()->can('purchase_create'), 403);
         return view('backend.purchase.create');
     }
 
@@ -77,8 +80,10 @@ class PurchaseController extends Controller
      */
     public function store(Request $request)
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('purchase_create'), 403);
 
-        abort_if(!auth()->user()->can('purchase_create'), 403);
+        // abort_if(!auth()->user()->can('purchase_create'), 403);
 
         $businessId = session('business_id'); // business_id session me hona chahiye
         if (!$businessId) {
@@ -206,7 +211,10 @@ class PurchaseController extends Controller
     public function edit($id)
     {
 
-        abort_if(!auth()->user()->can('purchase_update'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('purchase_update'), 403);
+
+        // abort_if(!auth()->user()->can('purchase_update'), 403);
     }
 
     /**
@@ -214,8 +222,10 @@ class PurchaseController extends Controller
      */
     public function update(Request $request, Purchase $purchase)
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('purchase_update'), 403);
 
-        abort_if(!auth()->user()->can('purchase_update'), 403);
+        // abort_if(!auth()->user()->can('purchase_update'), 403);
         //
     }
 
@@ -224,8 +234,11 @@ class PurchaseController extends Controller
      */
     public function destroy(Purchase $purchase)
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('purchase_delete'), 403);
 
-        abort_if(!auth()->user()->can('purchase_delete'), 403);
+
+        // abort_if(!auth()->user()->can('purchase_delete'), 403);
         //
     }
     // purchaseProducts list by Purchase id

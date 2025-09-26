@@ -14,8 +14,11 @@ class SupplierController extends Controller
      */
     public function index(Request $request)
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('supplier_view'), 403);
+
         
-    abort_if(!auth()->user()->can('supplier_view'), 403);
+    // abort_if(!auth()->user()->can('supplier_view'), 403);
 
         $businessId = session('business_id');
         if ($request->ajax()) {
@@ -62,7 +65,10 @@ class SupplierController extends Controller
      */
     public function create()
     {
-    abort_if(!auth()->user()->can('supplier_create'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('supplier_create'), 403);
+
+    // abort_if(!auth()->user()->can('supplier_create'), 403);
         return view('backend.suppliers.create');
     }
 
@@ -71,8 +77,11 @@ class SupplierController extends Controller
      */
     public function store(Request $request)
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('supplier_create'), 403);
 
-    abort_if(!auth()->user()->can('supplier_create'), 403);
+
+    // abort_if(!auth()->user()->can('supplier_create'), 403);
         if ($request->wantsJson()) {
             $request->validate([
                 'name' => 'required|string',
@@ -119,7 +128,10 @@ class SupplierController extends Controller
      */
     public function edit($id)
     {
-        abort_if(!auth()->user()->can('supplier_update'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('supplier_update'), 403);
+
+        // abort_if(!auth()->user()->can('supplier_update'), 403);
         $supplier = Supplier::findOrFail($id);
         return view('backend.suppliers.edit', compact('supplier'));
     }
@@ -129,7 +141,10 @@ class SupplierController extends Controller
      */
     public function update(Request $request, $id)
     {
-        abort_if(!auth()->user()->can('supplier_update'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('supplier_update'), 403);
+
+        // abort_if(!auth()->user()->can('supplier_update'), 403);
         $supplier = Supplier::findOrFail($id);
 
         $request->validate([
@@ -150,7 +165,10 @@ class SupplierController extends Controller
      */
     public function destroy($id)
     {
-        abort_if(!auth()->user()->can('supplier_delete'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('supplier_delete'), 403);
+
+        // abort_if(!auth()->user()->can('supplier_delete'), 403);
         $supplier = Supplier::findOrFail($id);
         $supplier->delete();
         session()->flash('success', 'Supplier deleted successfully.');

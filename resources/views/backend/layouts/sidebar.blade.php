@@ -1,9 +1,17 @@
 @php
 $route = request()->route()->getName();
+$currentBusiness = currentUserBusiness();
+$hasCurrentBusiness = !is_null($currentBusiness);
+
+$canSaleCreate = $hasCurrentBusiness && $currentBusiness->hasPermissionTo('sale_create');
+$hasCustomerPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(['customer_view', 'customer_create']);
+$hasSupplierPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(['supplier_view', 'supplier_create']);
+$hasProductPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(['product_view', 'product_create']);
+$hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(['user_view', 'user_create']);
 @endphp
+
 <div class="sidebar">
     <!-- Sidebar user panel (optional) -->
-
     <!-- <div class="user-panel mt-3 pb-3 mb-3 d-flex">
         <div class="image">
             <img src="{{ auth()->user()->pro_pic }}" class="img-circle elevation-2" style="width: 2.5rem; height: 2.5rem;"
@@ -16,10 +24,9 @@ $route = request()->route()->getName();
         </div>
     </div> -->
 
-    <!-- Sidebar Menu -->
     <nav class="mt-2">
         <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
-            @can('dashboard_view')
+
             <li class="nav-item">
                 <a href="{{ route('backend.admin.dashboard') }}"
                     class="nav-link {{ $route === 'backend.admin.dashboard' ? 'active' : '' }}">
@@ -29,8 +36,8 @@ $route = request()->route()->getName();
                     </p>
                 </a>
             </li>
-            @endcan
-            @can('sale_create')
+
+            @if ($canSaleCreate)
             <li class="nav-item">
                 <a href="{{ route('backend.admin.cart.index') }}"
                     class="nav-link {{ $route === 'backend.admin.cart.index' ? 'active' : '' }}">
@@ -40,6 +47,7 @@ $route = request()->route()->getName();
                     </p>
                 </a>
             </li>
+            @endif
             {{-- Business Details --}}
             <li class="nav-item {{ request()->routeIs(['backend.admin.business.index','backend.admin.business.create','backend.admin.business.edit']) ? 'menu-open' : '' }}">
                 <a href="#" class="nav-link {{ request()->routeIs(['backend.admin.business.index','backend.admin.business.create','backend.admin.business.edit']) ? 'active' : '' }}">
@@ -60,10 +68,8 @@ $route = request()->route()->getName();
                 </ul>
             </li>
 
-
-
-            @endcan
-            @if (auth()->user()->hasAnyPermission([
+            {{-- @endcan --}}
+            @if (currentUserBusiness() && currentUserBusiness()->hasAnyPermission([
             //customer
             'customer_create',
             'customer_view',
@@ -85,7 +91,7 @@ $route = request()->route()->getName();
                     </p>
                 </a>
                 <ul class="nav nav-treeview">
-                    @if (auth()->user()->hasAnyPermission(['customer_create','customer_view','customer_update','customer_delete']))
+                    @if ($currentBusiness->hasAnyPermission(['customer_create','customer_view','customer_update','customer_delete']))
                     <li class="nav-item">
                         <a href="{{route('backend.admin.customers.index')}}"
                             class="nav-link {{ request()->routeIs(['backend.admin.customers.index','backend.admin.customers.edit','backend.admin.customers.create']) ? 'active' : '' }}">
@@ -96,7 +102,7 @@ $route = request()->route()->getName();
                     @endif
                 </ul>
                 <ul class="nav nav-treeview">
-                    @if (auth()->user()->hasAnyPermission(['supplier_create','supplier_view','supplier_update','supplier_delete']))
+                    @if ($currentBusiness->hasAnyPermission(['supplier_create','supplier_view','supplier_update','supplier_delete']))
                     <li class="nav-item">
                         <a href="{{route('backend.admin.suppliers.index')}}"
                             class="nav-link {{ request()->routeIs(['backend.admin.suppliers.index','backend.admin.suppliers.edit','backend.admin.suppliers.create']) ? 'active' : '' }}">
@@ -108,7 +114,7 @@ $route = request()->route()->getName();
                 </ul>
             </li>
             @endif
-            @if (auth()->user()->hasAnyPermission([
+            @if ($currentBusiness->hasAnyPermission([
             'product_create',
             'product_view',
             'product_update',
@@ -126,7 +132,7 @@ $route = request()->route()->getName();
                     </p>
                 </a>
                 <ul class="nav nav-treeview">
-                    @if (auth()->user()->hasAnyPermission(['product_view','product_update','product_delete']))
+                    @if ($currentBusiness->hasAnyPermission(['product_view','product_update','product_delete']))
                     <li class="nav-item">
                         <a href="{{route('backend.admin.products.index')}}"
                             class="nav-link {{ request()->routeIs(['backend.admin.products.index', 'backend.admin.products.edit']) ? 'active' : '' }}">
@@ -135,7 +141,6 @@ $route = request()->route()->getName();
                         </a>
                     </li>
                     @endif
-                    @can('product_create')
                     <li class="nav-item">
                         <a href="{{route('backend.admin.products.create')}}"
                             class="nav-link {{ request()->routeIs(['backend.admin.products.create']) ? 'active' : '' }}">
@@ -143,9 +148,7 @@ $route = request()->route()->getName();
                             <p>Product Create</p>
                         </a>
                     </li>
-                    @endcan
 
-                    @can('product_import')
                     <li class="nav-item">
                         <a href="{{route('backend.admin.products.import')}}"
                             class="nav-link {{ request()->routeIs(['backend.admin.products.import']) ? 'active' : '' }}">
@@ -153,8 +156,8 @@ $route = request()->route()->getName();
                             <p>Product Import</p>
                         </a>
                     </li>
-                    @endcan
-                    @if (auth()->user()->hasAnyPermission(['brand_create','brand_view','brand_update','brand_delete']))
+
+                    @if ($currentBusiness->hasAnyPermission(['brand_create','brand_view','brand_update','brand_delete']))
                     <li class="nav-item">
                         <a href="{{route('backend.admin.brands.index')}}"
                             class="nav-link {{ request()->routeIs(['backend.admin.brands.index', 'backend.admin.brands.create', 'backend.admin.brands.edit']) ? 'active' : '' }}">
@@ -162,7 +165,7 @@ $route = request()->route()->getName();
                             <p>Brand</p>
                         </a>
                     </li>@endif
-                    @if (auth()->user()->hasAnyPermission(['category_create','category_view','category_update','category_delete']))
+                    @if ($currentBusiness->hasAnyPermission(['category_create','category_view','category_update','category_delete']))
                     <li class="nav-item">
                         <a href="{{route('backend.admin.categories.index')}}"
                             class="nav-link {{ request()->routeIs([ 'backend.admin.categories.index', 'backend.admin.categories.create', 'backend.admin.categories.edit']) ? 'active' : '' }}">
@@ -170,7 +173,7 @@ $route = request()->route()->getName();
                             <p>Category</p>
                         </a>
                     </li>@endif
-                    @if (auth()->user()->hasAnyPermission(['unit_create','unit_view','unit_update','unit_delete']))
+                    @if ($currentBusiness->hasAnyPermission(['unit_create','unit_view','unit_update','unit_delete']))
                     <li class="nav-item">
                         <a href="{{route('backend.admin.units.index')}}"
                             class="nav-link {{ request()->routeIs([ 'backend.admin.units.index', 'backend.admin.units.create', 'backend.admin.units.edit']) ? 'active' : '' }}">
@@ -183,8 +186,11 @@ $route = request()->route()->getName();
             </li>
             @endif
 
-            @if (auth()->user()->hasAnyPermission([
-            'sale_view'
+            @if ($currentBusiness->hasAnyPermission([
+            'sale_create',
+            'sale_view',
+            'sale_update',
+            'sale_delete',
             ]))
             <li class="nav-item">
                 <a href="#" class="nav-link {{ request()->routeIs(['backend.admin.orders.index', 'backend.admin.orders.create', 'backend.admin.orders.edit']) ? 'menu-open' : '' }}">
@@ -195,7 +201,6 @@ $route = request()->route()->getName();
                     </p>
                 </a>
                 <ul class="nav nav-treeview">
-                    @can('sale_view')
                     <li class="nav-item">
                         <a href="{{route('backend.admin.orders.index')}}"
                             class="nav-link {{ request()->routeIs(['backend.admin.orders.index']) ? 'active' : '' }}">
@@ -203,11 +208,10 @@ $route = request()->route()->getName();
                             <p>Sale List</p>
                         </a>
                     </li>
-                    @endcan
                 </ul>
             </li>
             @endif
-            @if (auth()->user()->hasAnyPermission([
+            @if ($currentBusiness->hasAnyPermission([
             'purchase_create',
             'purchase_view',
             'purchase_update',
@@ -222,7 +226,7 @@ $route = request()->route()->getName();
                     </p>
                 </a>
                 <ul class="nav nav-treeview">
-                    @can('purchase_view')
+
                     <li class="nav-item">
                         <a href="{{route('backend.admin.purchase.index')}}"
                             class="nav-link {{ request()->routeIs(['backend.admin.purchase.index']) ? 'active' : '' }}">
@@ -230,8 +234,7 @@ $route = request()->route()->getName();
                             <p>Purchase List</p>
                         </a>
                     </li>
-                    @endcan
-                    @can('purchase_create')
+
                     <li class="nav-item">
                         <a href="{{route('backend.admin.purchase.create')}}"
                             class="nav-link {{ request()->routeIs(['backend.admin.purchase.create']) ? 'active' : '' }}">
@@ -239,11 +242,11 @@ $route = request()->route()->getName();
                             <p>Purchase Create</p>
                         </a>
                     </li>
-                    @endcan
+
                 </ul>
             </li>
             @endif
-            @if (auth()->user()->hasAnyPermission([
+            @if ($currentBusiness->hasAnyPermission([
             'reports_summary',
             'reports_sales',
             'reports_inventory',
@@ -257,7 +260,6 @@ $route = request()->route()->getName();
                     </p>
                 </a>
                 <ul class="nav nav-treeview">
-                    @can('reports_summary')
                     <li class="nav-item">
                         <a href="{{route('backend.admin.sale.summery')}}"
                             class="nav-link {{ request()->routeIs(['backend.admin.sale.summery']) ? 'active' : '' }}">
@@ -265,8 +267,8 @@ $route = request()->route()->getName();
                             <p>Sales Summary</p>
                         </a>
                     </li>
-                    @endcan
-                    @can('reports_sales')
+
+
                     <li class="nav-item">
                         <a href="{{route('backend.admin.sale.report')}}"
                             class="nav-link {{ request()->routeIs(['backend.admin.sale.report']) ? 'active' : '' }}">
@@ -274,8 +276,7 @@ $route = request()->route()->getName();
                             <p>Sales</p>
                         </a>
                     </li>
-                    @endcan
-                    @can('reports_inventory')
+
                     <li class="nav-item">
                         <a href="{{route('backend.admin.inventory.report')}}"
                             class="nav-link {{ request()->routeIs(['backend.admin.inventory.report']) ? 'active' : '' }}">
@@ -283,12 +284,11 @@ $route = request()->route()->getName();
                             <p>Inventory</p>
                         </a>
                     </li>
-                    @endcan
                 </ul>
             </li>
             @endif
             {{-- settings --}}
-            @if (auth()->user()->hasAnyPermission([
+            @if ($currentBusiness->hasAnyPermission([
             //currency
             'currency_create',
             'currency_view',
@@ -328,7 +328,7 @@ $route = request()->route()->getName();
                     </p>
                 </a>
                 <ul class="nav nav-treeview">
-                    @if (auth()->user()->hasAnyPermission([
+                    @if ($currentBusiness->hasAnyPermission([
                     'website_settings',
                     'contact_settings',
                     'socials_settings',
@@ -346,7 +346,7 @@ $route = request()->route()->getName();
                         </a>
                     </li>
                     @endif
-                    @if (auth()->user()->hasAnyPermission(['currency_create','currency_view','currency_update','currency_delete']))
+                    @if ($currentBusiness->hasAnyPermission(['currency_create','currency_view','currency_update','currency_delete']))
                     <li class="nav-item">
                         <a href="{{ route('backend.admin.currencies.index') }}"
                             class="nav-link {{ request()->routeIs([ 'backend.admin.currencies.index', 'backend.admin.currencies.create', 'backend.admin.currencies.edit']) ? 'active' : '' }}">
@@ -355,7 +355,7 @@ $route = request()->route()->getName();
                         </a>
                     </li>
                     @endif
-                    @if (auth()->user()->hasAnyPermission([
+                    @if ($currentBusiness->hasAnyPermission([
                     'role_create',
                     'role_view',
                     'role_update',
@@ -373,7 +373,6 @@ $route = request()->route()->getName();
                             </span>
                         </a>
                         <ul class="nav nav-treeview">
-                            @can('role_view')
                             <li class="nav-item">
                                 <a href="{{ route('backend.admin.roles') }}"
                                     class="nav-link {{ $route === 'backend.admin.roles' ? 'active' : '' }}">
@@ -381,8 +380,7 @@ $route = request()->route()->getName();
                                     <p>Roles</p>
                                 </a>
                             </li>
-                            @endcan
-                            @can('permission_view')
+
                             <li class="nav-item">
                                 <a href="{{ route('backend.admin.permissions') }}"
                                     class="nav-link {{ $route === 'backend.admin.permissions' ? 'active' : '' }}">
@@ -390,12 +388,12 @@ $route = request()->route()->getName();
                                     <p>Permissions</p>
                                 </a>
                             </li>
-                            @endcan
+
                         </ul>
                     </li>
                     @endif
-                    @if (auth()->user()->hasAnyPermission([
-                    //user
+                    
+                @if ($currentBusiness && $currentBusiness->hasAnyPermission([
                     'user_create',
                     'user_view',
                     'user_update',
@@ -415,27 +413,22 @@ $route = request()->route()->getName();
             @endif
         </ul>
     </nav>
-    <!-- /.sidebar-menu -->
+
 </div>
 
 <script>
-    // Get all elements with the nav-treeview class
     const treeviewElements = document.querySelectorAll('.nav-treeview');
-
     // Iterate over each treeview element
     treeviewElements.forEach(treeviewElement => {
-        // Check if it has the nav-link and active classes
+
         const navLinkElements = treeviewElement.querySelectorAll('.nav-link.active');
 
-        // If there are nav-link elements with the active class, log the treeview element
         if (navLinkElements.length > 0) {
-            // Add the menu-open class to the parent nav-item
             const parentNavItem = treeviewElement.closest('.nav-item');
             if (parentNavItem) {
                 parentNavItem.classList.add('menu-open');
             }
-
-            // Add the active class to the immediate child nav-link
+        
             const childNavLink = parentNavItem.querySelector('.nav-link');
             if (childNavLink) {
                 childNavLink.classList.add('active');

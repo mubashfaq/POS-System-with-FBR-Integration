@@ -21,10 +21,18 @@ class UserManagementController extends Controller
 
     public function index(Request $request)
     {
+        $currentBusiness = currentUserBusiness();
 
-        abort_if(!auth()->user()->can('user_view'), 403);
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('user_view'), 403);
+        // abort_if(!auth()->user()->can('user_view'), 403);
         if ($request->ajax()) {
-            $users = User::with('roles')->latest()->get();
+            $users = User::whereHas('userBusinesses', function ($query) use ($currentBusiness) {
+                $query->where('business_id', $currentBusiness->business_id);
+            })
+            ->with('roles')
+            ->latest()
+            ->get();
+            // $users = User::with('roles')->latest()->get();
 
             return DataTables::of($users)
                 ->addIndexColumn()
@@ -99,7 +107,8 @@ class UserManagementController extends Controller
 
     public function suspend($id, $status)
     {
-        abort_if(!auth()->user()->can('user_suspend'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('user_suspend'), 403);
         $user = User::findOrFail($id);
 
         if ($user->is_suspended == $status) {
@@ -114,8 +123,9 @@ class UserManagementController extends Controller
 
     public function create(Request $request)
     {
-        abort_if(!auth()->user()->can(
-        'user_create'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('user_create'), 403);
+        // abort_if(!auth()->user()->can('user_create'), 403);
         if ($request->isMethod('post')) {
             $request->validate([
                 'name' => 'required',
@@ -148,7 +158,9 @@ class UserManagementController extends Controller
 
     public function edit(Request $request, $id)
     {
-        abort_if(!auth()->user()->can('user_update'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('user_update'), 403);
+        // abort_if(!auth()->user()->can('user_update'), 403);
 
         $user = User::with('roles')->findOrFail($id);
 
@@ -198,7 +210,9 @@ class UserManagementController extends Controller
 
     public function delete($id)
     {
-        abort_if(!auth()->user()->can('user_delete'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('user_delete'), 403);
+        // abort_if(!auth()->user()->can('user_delete'), 403);
 
         if ($id == auth()->id()) {
             return back()->with('error', 'Can not delete your self');

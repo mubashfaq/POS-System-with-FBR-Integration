@@ -92,6 +92,15 @@ class BusinessController extends Controller
     // Attach business to user
     Auth::user()->businesses()->attach($business->id);
 
+        // ✅ Create UserBusiness record
+    $userBusiness = \App\Models\UserBusiness::where('user_id', Auth::id())
+        ->where('business_id', $business->id)
+        ->first();
+
+    if ($userBusiness) {
+        $userBusiness->assignRole(1);
+    }
+
     // Store selected business in session
     session(['business_id' => $business->id]);
 

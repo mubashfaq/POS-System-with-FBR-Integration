@@ -15,8 +15,11 @@ class CurrencyController extends Controller
      */
     public function index(Request $request)
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('currency_view'), 403);
 
-        abort_if(!auth()->user()->can('currency_view'), 403);
+
+        // abort_if(!auth()->user()->can('currency_view'), 403);
         if ($request->ajax()) {
             $currencies = Currency::latest()->get();
             return DataTables::of($currencies)
@@ -56,8 +59,11 @@ class CurrencyController extends Controller
      */
     public function create()
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('currency_create'), 403);
 
-        abort_if(!auth()->user()->can('currency_create'), 403);
+
+        // abort_if(!auth()->user()->can('currency_create'), 403);
         return view('backend.settings.currencies.create');
     }
 
@@ -66,8 +72,10 @@ class CurrencyController extends Controller
      */
     public function store(Request $request)
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('currency_create'), 403);
 
-        abort_if(!auth()->user()->can('currency_create'), 403);
+        // abort_if(!auth()->user()->can('currency_create'), 403);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'code' => 'required|string|unique:currencies,code',
@@ -92,7 +100,10 @@ class CurrencyController extends Controller
     public function edit($id)
     {
 
-        abort_if(!auth()->user()->can('currency_update'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('currency_update'), 403);
+
+        // abort_if(!auth()->user()->can('currency_update'), 403);
 
         $currency = Currency::findOrFail($id);
         return view('backend.settings.currencies.edit', compact('currency'));
@@ -103,8 +114,11 @@ class CurrencyController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('currency_update'), 403);
+    
 
-        abort_if(!auth()->user()->can('currency_update'), 403);
+        // abort_if(!auth()->user()->can('currency_update'), 403);
         $currency = Currency::findOrFail($id);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -121,8 +135,11 @@ class CurrencyController extends Controller
      */
     public function destroy($id)
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('currency_delete'), 403);
 
-        abort_if(!auth()->user()->can('currency_delete'), 403);
+
+        // abort_if(!auth()->user()->can('currency_delete'), 403);
         $currency = Currency::findOrFail($id);
         $currency->delete();
         return redirect()->back()->with('success', 'Currency Deleted Successfully');

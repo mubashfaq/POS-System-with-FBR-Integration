@@ -32,7 +32,10 @@ class ProductController extends Controller
     public function index(Request $request)
     {
 
-        abort_if(!auth()->user()->can('product_view'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_view'), 403);
+
+        // abort_if(!auth()->user()->can('product_view'), 403);        
         $businessId = session('business_id');
         if ($request->ajax()) {
             $products = Product::where('business_id', $businessId) // 👈 filter by business
@@ -105,8 +108,10 @@ class ProductController extends Controller
      */
     public function create()
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_create'), 403);
 
-        abort_if(!auth()->user()->can('product_create'), 403);
+        // abort_if(!auth()->user()->can('product_create'), 403);
         $brands = Brand::whereStatus(true)->get();
         $categories = Category::whereStatus(true)->get();
         $units = Unit::all();
@@ -118,7 +123,10 @@ class ProductController extends Controller
      */
     public function store(StoreProductRequest $request)
     {
-        abort_if(!auth()->user()->can('product_create'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_create'), 403);
+
+        // abort_if(!auth()->user()->can('product_create'), 403);
         $validated = $request->validated();
 
         $businessId = auth()->user()->businesses()->first()->id ?? null;
@@ -146,8 +154,10 @@ class ProductController extends Controller
      */
     public function edit($id)
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_update'), 403);
 
-        abort_if(!auth()->user()->can('product_update'), 403);
+        // abort_if(!auth()->user()->can('product_update'), 403);
 
         $product = Product::findOrFail($id);
         $brands = Brand::whereStatus(true)->get();
@@ -161,8 +171,10 @@ class ProductController extends Controller
      */
     public function update(UpdateProductRequest $request, $id)
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_update'), 403);
 
-        abort_if(!auth()->user()->can('product_update'), 403);
+        // abort_if(!auth()->user()->can('product_update'), 403);
         $validated = $request->validated();
         $product = Product::findOrFail($id);
         $oldImage = $product->image;
@@ -181,8 +193,10 @@ class ProductController extends Controller
      */
     public function destroy($id)
     {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_delete'), 403);
 
-        abort_if(!auth()->user()->can('product_delete'), 403);
+        // abort_if(!auth()->user()->can('product_delete'), 403);
         $product = Product::findOrFail($id);
         if ($product->image != '') {
             $this->fileHandler->secureUnlink($product->image);

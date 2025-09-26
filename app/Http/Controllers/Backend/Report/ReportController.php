@@ -15,7 +15,10 @@ class ReportController extends Controller
     public function saleReport(Request $request)
     {
 
-        abort_if(!auth()->user()->can(abilities: 'reports_sales'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('reports_sales'), 403);
+
+        // abort_if(!auth()->user()->can(abilities: 'reports_sales'), 403);
         // Get user input or set default values
 
         $businessId = session('business_id');
@@ -52,7 +55,10 @@ class ReportController extends Controller
     }
     public function saleSummery(Request $request)
     {
-        abort_if(!auth()->user()->can('reports_summary'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('reports_summary'), 403);
+
+        // abort_if(!auth()->user()->can('reports_summary'), 403);
         // Get user input or set default values
 
         $businessId = session('business_id');
@@ -93,7 +99,10 @@ class ReportController extends Controller
     function inventoryReport(Request $request)
     {
 
-        abort_if(!auth()->user()->can('reports_inventory'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('reports_inventory'), 403);
+
+        // abort_if(!auth()->user()->can('reports_inventory'), 403);
         $businessId = session('business_id');
 
         if ($request->ajax()) {
