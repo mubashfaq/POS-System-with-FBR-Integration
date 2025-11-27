@@ -35,7 +35,7 @@ class CartController extends Controller
     public function getProducts(Request $request)
     {
         $businessId = session('business_id');
-     
+       
         // dd($businessId);
         $products = Product::query()
         ->where('business_id', $businessId) // ✅ filter current business

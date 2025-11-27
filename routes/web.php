@@ -81,6 +81,9 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::resource('suppliers', SupplierController::class);
     Route::resource('customers', CustomerController::class);
     Route::resource('products', ProductController::class);
+    Route::get('products/hsCode-desc/{id}', [ProductController::class, 'getDescription'])->name('products.hsCode-desc');
+
+
     Route::resource('units', UnitController::class);
     Route::resource('currencies', CurrencyController::class);
     Route::match(['get', 'post'], 'import/products', [ProductController::class,'import'])->name('products.import');

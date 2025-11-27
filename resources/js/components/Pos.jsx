@@ -206,16 +206,23 @@ export default function Pos() {
                         customer_id: customerId,
                         order_discount: parseFloat(orderDiscount) || 0,
                         paid: parseFloat(paid) || 0,
-                    })
+
+                        //  Add full cart here
+                        cart: carts
+                    },{headers: {
+                            "Content-Type": "application/json"
+            }})
                     .then((res) => {
                         setCartUpdated(!cartUpdated);
                         setProductUpdated(!productUpdated);
                         toast.success(res?.data?.message);
                         // window.location.href = `orders/invoice/${res?.data?.order?.id}`;
-                        window.location.href = `orders/pos-invoice/${res?.data?.order?.id}`;
+                        // window.location.href = `orders/pos-invoice/${res?.data?.order?.id}`;
+                        console.log("API Full Response:", res.data);
                     })
                     .catch((err) => {
-                        toast.error(err.response.data.message);
+                        // toast.error(err.response.data.message);
+                        console.error(err);
                     });
             } else if (result.isDenied) {
                 return;

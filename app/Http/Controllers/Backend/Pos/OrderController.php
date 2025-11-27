@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Backend\Pos;
 
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderTransaction;
 use App\Models\PosCart;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
 
 class OrderController extends Controller
@@ -103,6 +106,9 @@ class OrderController extends Controller
 
     $carts = PosCart::with('product')->where('user_id', auth()->id())->get();
 
+    if ($carts->isEmpty()) {
+        return response()->json(['error' => 'Cart is empty'], 422);
+    }
     // order create karte waqt business_id bhi insert hoga
     $order = Order::create([
         'customer_id' => $request->customer_id,
@@ -114,8 +120,9 @@ class OrderController extends Controller
     $orderDiscount = $request->order_discount;
 
     foreach ($carts as $cart) {
-        $mainTotal = $cart->product->price * $cart->quantity;
-        $totalAfterDiscount = $cart->product->discounted_price * $cart->quantity;
+        $product = $cart->product;
+        $mainTotal = $product->price * $cart->quantity;
+        $totalAfterDiscount = $product->discounted_price * $cart->quantity;
         $discount = $mainTotal - $totalAfterDiscount;
         $totalAmountOrder += $totalAfterDiscount;
 
@@ -144,6 +151,102 @@ class OrderController extends Controller
     $order->status    = round((float)$due, 2) <= 0;
     $order->save();
 
+     // BUILD FBR ITEMS ARRAY
+     $fbrItems = [];
+
+     foreach ($carts as $cart) {
+
+        $product = $cart->product;
+        // fbr errror for 2 decimal 
+        $quantity = round($cart->quantity, 4); 
+        $lineTotal = round($product->discounted_price * $quantity, 2); // 2 decimals
+
+        // Calculate ST 18%
+        $valueExTax = round($lineTotal / 1.18, 2);
+        $salesTax   = round($lineTotal - $valueExTax, 2);
+        $discount   = round(($product->price - $product->discounted_price) * $quantity, 2); // 2 decimals
+
+        $fbrItems[] = [
+            "hsCode" => "0101.2100",
+            "productDescription" => "Smart Access Control Device",
+            "rate" => "18%",
+            "uoM" => "Numbers, pieces, units",
+            // "quantity" => $quantity,
+            "quantity" => (float) number_format($quantity, 4, '.', ''),
+            "totalValues" => (float) number_format($lineTotal, 2, '.', ''),
+            "valueSalesExcludingST" => (float) number_format($valueExTax, 2, '.', ''),
+            "fixedNotifiedValueOrRetailPrice" => 0,
+            // "salesTaxApplicable" => $salesTax,
+            "salesTaxApplicable" => (float) number_format($salesTax, 2, '.', ''),
+            // "salesTaxWithheldAtSource" => 0,
+            "salesTaxWithheldAtSource" => 5,
+            // numberic extra tax fbr 
+            "extraTax" => 0.00,
+            "furtherTax" => 0,
+            "sroScheduleNo" => null,
+            "fedPayable" => 0,
+            "discount" => (float) number_format($discount, 2, '.', ''),
+            // "discount" => $discount,
+            "saleType" => "Goods at standard rate (default)",
+            // "saleType" => "Local Sale",
+            "sroItemSerialNo" => "12A"
+        ];
+    }
+
+    // BUILD FBR PAYLOAD
+    $customer = Customer::find($request->customer_id);
+    $fbrPayload = [
+        // "invoiceType" => "Goods at standard rate (default)",
+        "invoiceType" => "Sale Invoice",
+        "invoiceDate" => now()->format('Y-m-d'),
+
+        "sellerNTNCNIC" => "3520228369157",
+        "sellerBusinessName" => "M/S A TO Z ENTERPRISES",
+        "sellerProvince" => "Punjab",
+        "sellerAddress" => "5 Hospital Road",
+
+        "buyerNTNCNIC" => "",
+        "buyerBusinessName" => $customer->name,
+        "buyerProvince" => $customer->province ?? "Punjab",
+        "buyerAddress" => $customer->address ?? "",
+        "buyerRegistrationType" => $customer->is_registered ? "Registered" : "Unregistered",
+
+        "invoiceRefNo" => "INV-" . $order->id,
+        "scenarioId" => "SN002",
+
+        "items" => $fbrItems
+    ];
+
+
+    // SEND TO FBR API
+
+    $token = "f2df2f0e-435d-3202-9fda-eb7c0aa439f8";
+
+   try {
+    $response = Http::withOptions([
+    'timeout' => 620,        // total request timeout
+    'connect_timeout' => 620, // connection timeout
+    ])->withHeaders([
+        'Authorization' => "Bearer $token",
+        'Content-Type' => 'application/json',
+        'Accept-Encoding' => 'gzip, deflate, br',
+        'Accept' => 'application/json'
+    ])->post("https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb", $fbrPayload);
+    // ])->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb", $fbrPayload);
+
+    // Debug
+    // dd($response->body()); // ye actual raw response show karega
+    } catch (\Illuminate\Http\Client\ConnectionException $e) {
+        info('Connection Exception: ' . $e->getMessage());
+}
+
+    // $response = Http::withToken($token)
+    //     ->asJson()
+    //     ->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb", $fbrPayload);
+
+
+    // RECORD PAYMENT (IF ANY)
+
     if ($request->paid > 0) {
         $order->transactions()->create([
             'amount'      => $request->paid,
@@ -155,7 +258,16 @@ class OrderController extends Controller
 
     PosCart::where('user_id', auth()->id())->delete();
 
-    return response()->json(['message' => 'Order completed successfully', 'order' => $order], 200);
+    // FINAL RESPONSE
+
+    return response()->json([
+        'message' => 'Order completed successfully!',
+        'order' => $order,
+        'fbr_payload_sent' => $fbrPayload,
+        'fbr_api_response' => $response->json()
+    ], 200);
+
+    // return response()->json(['message' => 'Order completed successfully', 'order' => $order], 200);
 }
 
     // public function store(Request $request)

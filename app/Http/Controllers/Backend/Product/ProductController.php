@@ -10,10 +10,15 @@ use App\Http\Resources\ProductResource;
 use App\Imports\ProductsImport;
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\HsCode;
 use App\Models\Product;
+use App\Models\SaleType;
+use App\Models\SroItemCode;
 use App\Models\Unit;
+use App\Models\Uom;
 use App\Trait\FileHandler;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\DataTables;
 
@@ -112,10 +117,40 @@ class ProductController extends Controller
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_create'), 403);
 
         // abort_if(!auth()->user()->can('product_create'), 403);
-        $brands = Brand::whereStatus(true)->get();
-        $categories = Category::whereStatus(true)->get();
-        $units = Unit::all();
-        return view('backend.products.create', compact('brands', 'categories', 'units'));
+        $businessId = session('business_id');
+
+        // $brands = Brand::whereStatus(true)->get();
+        $brands = Brand::where('status', true)
+            ->where(function ($query) use ($businessId) {
+                $query->where('business_id', $businessId)
+                    ->orWhereNull('business_id');
+            })
+            ->get();
+        // $categories = Category::whereStatus(true)->get();
+        $categories = Category::where('status', true)
+            ->where(function ($query) use ($businessId) {
+                $query->where('business_id', $businessId)
+                    ->orWhereNull('business_id');
+            })
+            ->get();
+
+       
+
+        $hsCodes = hsCode::all();
+        $units = Uom::all();
+        $saleTypes = SaleType::all();
+        $sroItems = SroItemCode::all();
+
+        // $units = Unit::all();
+
+        // $UoM = $this->saveUoms();
+       
+        
+        // $hsCodes = $this->saveHsCodes();
+        // $this->saveSaleTypes();
+        
+
+        return view('backend.products.create', compact('brands', 'categories', 'units' , 'hsCodes' , 'saleTypes', 'sroItems'));
     }
 
     /**
@@ -129,7 +164,10 @@ class ProductController extends Controller
         // abort_if(!auth()->user()->can('product_create'), 403);
         $validated = $request->validated();
 
-        $businessId = auth()->user()->businesses()->first()->id ?? null;
+        // $businessId = auth()->user()->businesses()->first()->id ?? null;
+        // $businessId = Session::get('business_id');
+        $businessId = session('business_id');
+
         $validated['business_id'] = $businessId;
 
         $product = Product::create($validated);
@@ -215,4 +253,226 @@ class ProductController extends Controller
         }
         return view('backend.products.import');
     }
+
+    public function getFbrHscodes()
+    {
+        $token = "f2df2f0e-435d-3202-9fda-eb7c0aa439f8"; // your FBR token
+
+        try {
+            $response = Http::withHeaders([
+               'Authorization' => "Bearer $token",
+                'Content-Type' => 'application/json',
+                'Accept-Encoding' => 'gzip, deflate, br',
+                'Accept' => 'application/json'
+            ])->timeout(60)->get('https://gw.fbr.gov.pk/pdi/v1/itemdesccode');
+
+            // Show raw response
+            // dd($response->body());
+
+            // Optional: decode JSON if needed
+            $data = json_decode($response->body(), true);
+            // dd($data);
+             // Make sure JSON is valid
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return []; // return empty array if JSON is invalid
+        }
+
+        // return the data array
+        return $data; 
+
+        } catch (\Exception $e) {
+            dd('Exception: ' . $e->getMessage());
+        }
+    }
+
+    public function getSroItem()
+    {
+        $token = "f2df2f0e-435d-3202-9fda-eb7c0aa439f8"; // your FBR token
+
+        try {
+            $response = Http::withHeaders([
+               'Authorization' => "Bearer $token",
+                'Content-Type' => 'application/json',
+                'Accept-Encoding' => 'gzip, deflate, br',
+                'Accept' => 'application/json'
+            ])->timeout(60)->get('https://gw.fbr.gov.pk/pdi/v1/sroitemcode');
+
+            // Show raw response
+            // dd($response->body());
+
+            // Optional: decode JSON if needed
+            $data = json_decode($response->body(), true);
+            // dd($data);
+             // Make sure JSON is valid
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return []; // return empty array if JSON is invalid
+        }
+
+        // return the data array
+        return $data; 
+
+        } catch (\Exception $e) {
+            dd('Exception: ' . $e->getMessage());
+        }
+    }
+
+
+    public function getFbrSaleTypes()
+    {
+        $token = "f2df2f0e-435d-3202-9fda-eb7c0aa439f8"; // your FBR token
+
+        try {
+            $response = Http::withHeaders([
+               'Authorization' => "Bearer $token",
+                'Content-Type' => 'application/json',
+                'Accept-Encoding' => 'gzip, deflate, br',
+                'Accept' => 'application/json'
+            ])->timeout(60)->get('https://gw.fbr.gov.pk/pdi/v1/transtypecode');
+
+            // Show raw response
+            // dd($response->body());
+
+            // Optional: decode JSON if needed
+            $data = json_decode($response->body(), true);
+            // dd($data);
+             // Make sure JSON is valid
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return []; // return empty array if JSON is invalid
+        }
+
+        // return the data array
+        return $data; 
+
+        } catch (\Exception $e) {
+            dd('Exception: ' . $e->getMessage());
+        }
+    }
+
+    public function saveHsCodes()
+    {
+        $hsCodes = $this->getFbrHscodes(); // API call
+       
+        if (empty($hsCodes)) {
+            return "No data received!";
+        }
+
+        foreach ($hsCodes as $row) {
+
+            HsCode::updateOrCreate(
+                ['hs_code' => $row['hS_CODE']],   // unique field
+                [
+                    'item_desc' => $row['description'] ?? null,
+                ]
+            );
+        }
+
+        return "HS Codes saved successfully!";
+    }
+
+    // UOM
+    public function getFbrUOM()
+    {
+        $token = "f2df2f0e-435d-3202-9fda-eb7c0aa439f8"; // your FBR token
+
+        try {
+            $response = Http::withHeaders([
+               'Authorization' => "Bearer $token",
+                'Content-Type' => 'application/json',
+                'Accept-Encoding' => 'gzip, deflate, br',
+                'Accept' => 'application/json'
+            ])->timeout(60)->get('https://gw.fbr.gov.pk/pdi/v1/uom');
+
+            // Show raw response
+            // dd($response->body());
+
+            // Optional: decode JSON if needed
+            $data = json_decode($response->body(), true);
+            // dd($data);
+             // Make sure JSON is valid
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return []; // return empty array if JSON is invalid
+        }
+
+        // return the data array
+        return $data; 
+
+        } catch (\Exception $e) {
+            dd('Exception: ' . $e->getMessage());
+        }
+    }
+
+     public function saveUoms()
+    {
+        $UoM = $this->getFbrUOM(); // API call
+       
+        if (empty($UoM)) {
+            return "No data received!";
+        }
+
+        foreach ($UoM as $row) {
+
+            Uom::updateOrCreate(
+                ['uoM_ID' => $row['uoM_ID']],   // unique field
+                [
+                    'description' => $row['description'] ?? null,
+                ]
+            );
+        }
+
+        return "UOMs saved successfully!";
+    }
+
+    public function saveSroItem()
+    {
+        $sroItem = $this->getSroItem(); // API call
+       
+        if (empty($sroItem)) {
+            return "No data received!";
+        }
+
+        foreach ($sroItem as $row) {
+
+            SroItemCode::updateOrCreate(
+                ['srO_ITEM_ID' => $row['srO_ITEM_ID']],   // unique field
+                [
+                    'srO_ITEM_DESC' => $row['srO_ITEM_DESC'] ?? null,
+                ]
+            );
+        }
+
+        return "Sro Codes saved successfully!";
+    }
+
+    public function saveSaleTypes()
+    {
+        $saleType = $this->getFbrSaleTypes(); // API call
+       
+        if (empty($saleType)) {
+            return "No data received!";
+        }
+
+        foreach ($saleType as $row) {
+
+            SaleType::updateOrCreate(
+                ['transactioN_TYPE_ID' => $row['transactioN_TYPE_ID']],   // unique field
+                [
+                    'transactioN_DESC' => $row['transactioN_DESC'] ?? null,
+                ]
+            );
+        }
+
+        return "Sale Types saved successfully!";
+    }
+
+    public function getDescription($id)
+    {
+        $hsCode = HsCode::find($id);
+
+        if ($hsCode) {
+            return response()->json(['description' => $hsCode->item_desc]);
+        } else {
+            return response()->json(['description' => 'Description not found'], 404);
+        }
+    }
+
 }
