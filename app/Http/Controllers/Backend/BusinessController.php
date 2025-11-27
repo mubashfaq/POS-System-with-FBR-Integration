@@ -245,10 +245,17 @@ class BusinessController extends Controller
 
     public function selection()
     {
-        $user = Auth::user();
+        if (!Auth::check()) {
+                    return view('frontend.authentication.business-selection');
+
+        }else{
+
+             $user = Auth::user();
         $businesses = $user->businesses;
         
         return view('frontend.authentication.business-selection', compact('businesses'));
+        }
+       
     }
 
     public function select(Request $request)
