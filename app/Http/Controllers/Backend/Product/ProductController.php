@@ -256,7 +256,7 @@ class ProductController extends Controller
 
     public function getFbrHscodes()
     {
-        $token = "f2df2f0e-435d-3202-9fda-eb7c0aa439f8"; // your FBR token
+        $token = "xyz"; // your FBR token
 
         try {
             $response = Http::withHeaders([
@@ -287,7 +287,7 @@ class ProductController extends Controller
 
     public function getSroItem()
     {
-        $token = "f2df2f0e-435d-3202-9fda-eb7c0aa439f8"; // your FBR token
+        $token = "xyz"; // your FBR token
 
         try {
             $response = Http::withHeaders([
@@ -319,7 +319,7 @@ class ProductController extends Controller
 
     public function getFbrSaleTypes()
     {
-        $token = "f2df2f0e-435d-3202-9fda-eb7c0aa439f8"; // your FBR token
+        $token = "xyz"; // your FBR token
 
         try {
             $response = Http::withHeaders([
@@ -372,7 +372,7 @@ class ProductController extends Controller
     // UOM
     public function getFbrUOM()
     {
-        $token = "f2df2f0e-435d-3202-9fda-eb7c0aa439f8"; // your FBR token
+        $token = "xyz"; // your FBR token
 
         try {
             $response = Http::withHeaders([

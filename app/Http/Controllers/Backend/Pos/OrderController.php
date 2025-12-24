@@ -220,7 +220,7 @@ class OrderController extends Controller
 
     // SEND TO FBR API
 
-    $token = "f2df2f0e-435d-3202-9fda-eb7c0aa439f8";
+    $token = "xyz";
 
    try {
     $response = Http::withOptions([
