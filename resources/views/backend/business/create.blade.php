@@ -36,6 +36,15 @@
               name="ntn" value="{{ old('ntn') }}">
           </div>
 
+           <!-- NTN
+          <div class="mb-3 col-md-6">
+            <label for="ntn" class="form-label">
+              CNIC
+            </label>
+            <input type="text" class="form-control" id="ntn" placeholder="Enter NTN" 
+              name="ntn" value="{{ old('ntn') }}">
+          </div> -->
+
           <!-- Country -->
         <div class="mb-3 col-md-6">
             <label for="country" class="form-label">Country</label>

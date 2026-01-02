@@ -114,16 +114,17 @@
                                 <button type="submit" class="create-account-btn w-100">Sign In</button>
                             </div>
                             <div class="form-group"> <br>
-                            <p><b>User:</b> demo@qtecsolution.net</p>
-                            <p><b>Password:</b> 87654321</p>
+                            <!-- <p><b>User:</b> demo@qtecsolution.net</p>
+                            <p><b>Password:</b> 87654321</p> -->
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="authentication-form-footer">
-                    <p>Don’t have an account? <a href="{{ route('signup') }}">Sign up </a></p>
-                </div>
+                
             </form>
+            <!-- <div class="authentication-form-footer">
+                    <p>Don’t have an account? <a href="{{ route('signup') }}">Sign up </a></p>
+                </div> -->
             
         </div>
     </section>

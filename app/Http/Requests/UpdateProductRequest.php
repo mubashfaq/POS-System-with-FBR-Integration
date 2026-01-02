@@ -42,7 +42,7 @@ class UpdateProductRequest extends FormRequest
             'description' => 'nullable|string',
             'category_id' => 'required|exists:categories,id',
             'brand_id' => 'required|exists:brands,id',
-            'unit_id' => 'required|exists:units,id',
+            // 'unit_id' => 'required|exists:units,id',
             'price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0|required_with:discount_type',
             'discount_type' => 'nullable|required_with:discount',
@@ -50,6 +50,18 @@ class UpdateProductRequest extends FormRequest
             'quantity' => 'nullable|integer|min:0',
             'expire_date' => 'nullable|date',
             'status' => 'nullable|boolean',
+             // ✅ New fields
+            'hsCode' => 'required|string|max:255',
+            'hs_description' => 'required|string',
+            'rate_of_tax' => 'required|string|max:255',
+            // 'salesTaxWithheldAtSource' => 'required|float|min:0',
+            'salesTaxWithheldAtSource' => ['required', 'numeric', 'min:0', 'regex:/^\d+(\.\d{1,2})?$/'],
+
+            'sale_type' => 'required|string|max:255',
+            'sro_item' => 'nullable|string|max:10',
+            'uom' => 'required|string|max:255',
+            'sro_schedule' => 'nullable|string|max:255',
+
         ];
     }
 }

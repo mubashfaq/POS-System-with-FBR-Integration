@@ -27,6 +27,17 @@ class Product extends Model
         'quantity',
         'expire_date',
         'status',
+        'hsCode',
+        'hs_description',
+        'rate_of_tax',
+        'salesTaxWithheldAtSource',
+        'sale_type',
+        'sro_item',
+        'uom',
+        'sro_schedule'
+
+
+
     ];
     protected $appends = ['discounted_price'];
 

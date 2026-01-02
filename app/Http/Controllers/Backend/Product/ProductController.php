@@ -169,7 +169,6 @@ class ProductController extends Controller
         $businessId = session('business_id');
 
         $validated['business_id'] = $businessId;
-
         $product = Product::create($validated);
         if ($request->hasFile("product_image")) {
             $product->image = $this->fileHandler->fileUploadAndGetPath($request->file("product_image"), "/public/media/products");
@@ -201,7 +200,11 @@ class ProductController extends Controller
         $brands = Brand::whereStatus(true)->get();
         $categories = Category::whereStatus(true)->get();
         $units = Unit::all();
-        return view('backend.products.edit', compact('brands', 'categories', 'units', 'product'));
+         $hsCodes = hsCode::all();
+        $units = Uom::all();
+        $saleTypes = SaleType::all();
+        $sroItems = SroItemCode::all();
+        return view('backend.products.edit', compact('brands', 'categories', 'units', 'product', 'hsCodes', 'saleTypes', 'sroItems'));
     }
 
     /**
@@ -254,10 +257,42 @@ class ProductController extends Controller
         return view('backend.products.import');
     }
 
+    public function checkUOMUsingHsCode(){
+        $token = env('FBR_TOKEN');
+
+        try {
+            $response = Http::withHeaders([
+               'Authorization' => "Bearer $token",
+                'Content-Type' => 'application/json',
+                'Accept-Encoding' => 'gzip, deflate, br',
+                'Accept' => 'application/json'
+            ])->timeout(60)->get('https://gw.fbr.gov.pk/pdi/v2/HS_UOM?hs_code=5904.9000&annexure_id=3');
+
+            // Show raw response
+            // dd($response->body());
+
+            // Optional: decode JSON if needed
+            $data = json_decode($response->body(), true);
+
+            dd($data);
+            // dd($data);
+             // Make sure JSON is valid
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return []; // return empty array if JSON is invalid
+        }
+
+        // return the data array
+        return $data; 
+
+        } catch (\Exception $e) {
+            dd('Exception: ' . $e->getMessage());
+        }
+         
+    }
+
     public function getFbrHscodes()
     {
-        $token = "xyz"; // your FBR token
-
+        $token = env('FBR_TOKEN');
         try {
             $response = Http::withHeaders([
                'Authorization' => "Bearer $token",
@@ -287,8 +322,7 @@ class ProductController extends Controller
 
     public function getSroItem()
     {
-        $token = "xyz"; // your FBR token
-
+        $token = env('FBR_TOKEN');
         try {
             $response = Http::withHeaders([
                'Authorization' => "Bearer $token",
@@ -319,8 +353,7 @@ class ProductController extends Controller
 
     public function getFbrSaleTypes()
     {
-        $token = "xyz"; // your FBR token
-
+        $token = env('FBR_TOKEN');
         try {
             $response = Http::withHeaders([
                'Authorization' => "Bearer $token",
@@ -372,7 +405,7 @@ class ProductController extends Controller
     // UOM
     public function getFbrUOM()
     {
-        $token = "xyz"; // your FBR token
+        $token = env('FBR_TOKEN');
 
         try {
             $response = Http::withHeaders([
@@ -387,6 +420,38 @@ class ProductController extends Controller
 
             // Optional: decode JSON if needed
             $data = json_decode($response->body(), true);
+            // dd($data);
+             // Make sure JSON is valid
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return []; // return empty array if JSON is invalid
+        }
+
+        // return the data array
+        return $data; 
+
+        } catch (\Exception $e) {
+            dd('Exception: ' . $e->getMessage());
+        }
+    }
+
+     public function getTransTypeCode()
+    {
+        $token = env('FBR_TOKEN');
+
+        try {
+            $response = Http::withHeaders([
+               'Authorization' => "Bearer $token",
+                'Content-Type' => 'application/json',
+                'Accept-Encoding' => 'gzip, deflate, br',
+                'Accept' => 'application/json'
+            ])->timeout(600)->get('https://gw.fbr.gov.pk/pdi/v1/transtypecode');
+
+            // Show raw response
+            // dd($response->body());
+
+            // Optional: decode JSON if needed
+            $data = json_decode($response->body(), true);
+            dd($data);
             // dd($data);
              // Make sure JSON is valid
         if (json_last_error() !== JSON_ERROR_NONE) {
@@ -464,15 +529,143 @@ class ProductController extends Controller
         return "Sale Types saved successfully!";
     }
 
-    public function getDescription($id)
+    public function getDescription($hs_code)
     {
-        $hsCode = HsCode::find($id);
+        
+        $hs = HsCode::where("hs_code",$hs_code)->first();
 
-        if ($hsCode) {
-            return response()->json(['description' => $hsCode->item_desc]);
+        if ($hs) {
+
+           $token = env('FBR_TOKEN');
+
+            try {
+                $response = Http::withHeaders([
+                'Authorization' => "Bearer $token",
+                    'Content-Type' => 'application/json',
+                    'Accept-Encoding' => 'gzip, deflate, br',
+                    'Accept' => 'application/json'
+                ])->timeout(30)->get('https://gw.fbr.gov.pk/pdi/v2/HS_UOM?hs_code='.$hs_code.'&annexure_id=3');
+
+                $uom = json_decode($response->body(), true);
+
+            } catch (\Exception $e) {
+                dd('Exception: ' . $e->getMessage());
+            }
+
+
+            
+
+            return response()->json(['description' => $hs->item_desc , 'uom' => $uom]);
         } else {
             return response()->json(['description' => 'Description not found'], 404);
         }
     }
 
+    public function getSaleTypeId($sale_type)
+    {
+        
+        $st = SaleType::where("transactioN_DESC",$sale_type)->first();
+       
+        $saleTypeId = intval($st->transactioN_TYPE_ID);
+       
+        $token = env('FBR_TOKEN');
+
+        try {
+            $response = Http::withHeaders([
+               'Authorization' => "Bearer $token",
+                'Content-Type' => 'application/json',
+                'Accept-Encoding' => 'gzip, deflate, br',
+                'Accept' => 'application/json'
+            ])->timeout(60)->get('https://gw.fbr.gov.pk/pdi/v2/SaleTypeToRate?date=24-Feb2024&transTypeId='.$saleTypeId.'&originationSupplier=1');
+
+         
+            $data = json_decode($response->body(), true);
+            if ($data) {
+                return response()->json(['sale_data' => $data]);
+            } else {
+                return response()->json(['sale_type_id' => 'Sale Type not found'], 404);
+            }
+            
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return []; // return empty array if JSON is invalid
+        }
+
+        // return the data array
+        return $data; 
+
+        } catch (\Exception $e) {
+            dd('Exception: ' . $e->getMessage());
+        }
+
+
+    }
+
+    public function getSroSchedule($rate_tax_id)
+    {
+
+       
+        $token = env('FBR_TOKEN');
+
+        try {
+            $response = Http::withHeaders([
+               'Authorization' => "Bearer $token",
+                'Content-Type' => 'application/json',
+                'Accept-Encoding' => 'gzip, deflate, br',
+                'Accept' => 'application/json'
+            ])->timeout(60)->get('https://gw.fbr.gov.pk/pdi/v1/SroSchedule?rate_id='.$rate_tax_id.'&date=04-Feb2024&origination_supplier_csv=1');
+
+         
+            $data = json_decode($response->body(), true);
+            if ($data) {
+                return response()->json(['sro_data' => $data]);
+            } else {
+                return response()->json(['sro_item' => 'SRO Item not found'], 404);
+            }
+            
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return []; // return empty array if JSON is invalid
+        }
+
+        // return the data array
+        return $data; 
+
+        } catch (\Exception $e) {
+            dd('Exception: ' . $e->getMessage());
+        }
+    }
+
+    public function getSroItemDetail($sro_schedule_id)
+    {
+
+       
+        $token = env('FBR_TOKEN');  
+        try {
+            $response = Http::withHeaders([
+               'Authorization' => "Bearer $token",
+                'Content-Type' => 'application/json',
+                'Accept-Encoding' => 'gzip, deflate, br',
+                'Accept' => 'application/json'
+            ])->timeout(60)->get('https://gw.fbr.gov.pk/pdi/v2/SROItem?date=2025-03-25&sro_id='.$sro_schedule_id);
+
+         
+            $data = json_decode($response->body(), true);
+
+           
+            if ($data) {
+                return response()->json(['sro_data' => $data]);
+            } else {
+                return response()->json(['sro_item' => 'SRO Item not found'], 404);
+            }
+            
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return []; // return empty array if JSON is invalid
+        }
+
+        // return the data array
+        return $data; 
+
+        } catch (\Exception $e) {
+            dd('Exception: ' . $e->getMessage());
+        }
+    }
 }
