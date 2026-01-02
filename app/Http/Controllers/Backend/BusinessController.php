@@ -128,6 +128,8 @@ class BusinessController extends Controller
             'youtube_link'    => 'nullable|url|max:255',
             'instagram_link'  => 'nullable|url|max:255',
             'address'         => 'nullable',
+            'cnic'         => 'required|numeric|digits:13',
+            'state'         => 'required|string|max:255',
         ]);
 
         // Handle logo upload
@@ -136,6 +138,7 @@ class BusinessController extends Controller
             $validated['logo'] = $logoPath;
         }
 
+        
         Business::create($validated);
         // Business::create($request->only(['business_name','industry','ntn','country','city']));
 

@@ -54,7 +54,8 @@ Route::post('/select-business', [BusinessController::class, 'select'])->name('bu
 Route::post('/switch-business', [BusinessController::class, 'switchBusiness'])->name('business.switch');
 
 Route::get('logout', [AuthController::class, 'logout'])->name('logout');
-Route::match(['get', 'post'], 'sign-up', [AuthController::class, 'register'])->name('signup');
+// Route::match(['post', 'get'], 'sign-up', [AuthController::class, 'register'])->name('signup');
+Route::match(['post', 'get'], 'sign-up', [AuthController::class, 'login'])->name('signup');
 Route::match(['get', 'post'], 'forget-password', [AuthController::class, 'forgetPassword'])->name('forget.password');
 Route::match(['get', 'post'], 'new-password', [AuthController::class, 'newPassword'])->name('new.password');
 Route::match(['get', 'post'], 'password-reset', [AuthController::class, 'resetPassword'])->name('password.reset');
@@ -81,8 +82,10 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::resource('suppliers', SupplierController::class);
     Route::resource('customers', CustomerController::class);
     Route::resource('products', ProductController::class);
-    Route::get('products/hsCode-desc/{id}', [ProductController::class, 'getDescription'])->name('products.hsCode-desc');
-
+    Route::get('products/hsCode-desc/{hs_code}', [ProductController::class, 'getDescription'])->name('products.hsCode-desc');
+    Route::get('products/sale-type/{sale_type}', [ProductController::class, 'getSaleTypeId'])->name('products.sale-type');
+    Route::get('products/sro-schedule/{rate_tax_id}', [ProductController::class, 'getSroSchedule'])->name('products.sro-schedule');
+    Route::get('products/sro-Items-details/{sro_schedule_id}', [ProductController::class, 'getSroItemDetail'])->name('products.sro-Items-details');
 
     Route::resource('units', UnitController::class);
     Route::resource('currencies', CurrencyController::class);

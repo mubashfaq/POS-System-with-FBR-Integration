@@ -85,11 +85,11 @@
                         @endif
 
                         <!-- Button to show create form -->
-                        <div class="text-center mb-3">
+                        <!-- <div class="text-center mb-3">
                             <button id="toggleCreateForm" class="btn btn-create">
                                 + Create New Business
                             </button>
-                        </div>
+                        </div> -->
 
                         <!-- Hidden Create Business Form -->
                         <div id="createForm" style="display: none;">

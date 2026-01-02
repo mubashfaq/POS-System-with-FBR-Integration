@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Backend\Pos;
 
 use App\Http\Controllers\Controller;
+use App\Models\Business;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderTransaction;
@@ -22,6 +23,7 @@ class OrderController extends Controller
 
     public function index(Request $request)
     {
+       
         if ($request->ajax()) {
             $businessId = session('business_id');
             if (!$businessId) {
@@ -106,6 +108,8 @@ class OrderController extends Controller
 
     $carts = PosCart::with('product')->where('user_id', auth()->id())->get();
 
+    
+
     if ($carts->isEmpty()) {
         return response()->json(['error' => 'Cart is empty'], 422);
     }
@@ -155,55 +159,84 @@ class OrderController extends Controller
      $fbrItems = [];
 
      foreach ($carts as $cart) {
-
+        
         $product = $cart->product;
         // fbr errror for 2 decimal 
         $quantity = round($cart->quantity, 4); 
         $lineTotal = round($product->discounted_price * $quantity, 2); // 2 decimals
+       $rate_of_taxx = $product->rate_of_tax;
+$rate_of_tax = trim($rate_of_taxx); // Remove spaces
 
-        // Calculate ST 18%
-        $valueExTax = round($lineTotal / 1.18, 2);
-        $salesTax   = round($lineTotal - $valueExTax, 2);
-        $discount   = round(($product->price - $product->discounted_price) * $quantity, 2); // 2 decimals
+if (str_ends_with($rate_of_tax, '%')) {
+    // Percentage case
+    $numericRate = floatval(str_replace('%', '', $rate_of_tax));
 
+    $valueExTax = round($lineTotal / (1 + ($numericRate / 100)), 2);
+    $salesTax   = round($lineTotal - $valueExTax, 2);
+
+} elseif (str_starts_with($rate_of_tax, 'Rs')) {
+    // Fixed amount case
+    $numericRate = floatval(preg_replace('/[^0-9.]/', '', $rate_of_tax));
+
+    $salesTax   = $numericRate;
+    $valueExTax = round($lineTotal - $salesTax, 2);
+
+} else {
+    // Fallback, assume percentage
+    $numericRate = floatval($rate_of_tax);
+
+    $valueExTax = round($lineTotal / (1 + ($numericRate / 100)), 2);
+    $salesTax   = round($lineTotal - $valueExTax, 2);
+}
+
+        $hsCode = $product->hsCode;
+        $hs_desc = $product->hs_description;
+        $uom = $product->uom;
+        $sro_item = $product->sro_item;
+        $sale_type = $product->sale_type;
+        $sro_schedule = $product->sro_schedule;
+        
         $fbrItems[] = [
-            "hsCode" => "0101.2100",
-            "productDescription" => "Smart Access Control Device",
-            "rate" => "18%",
-            "uoM" => "Numbers, pieces, units",
-            // "quantity" => $quantity,
+            "hsCode" => $hsCode,
+            "productDescription" => $hs_desc,
+            "rate" => $rate_of_taxx,
+            "uoM" => $uom,
             "quantity" => (float) number_format($quantity, 4, '.', ''),
             "totalValues" => (float) number_format($lineTotal, 2, '.', ''),
             "valueSalesExcludingST" => (float) number_format($valueExTax, 2, '.', ''),
             "fixedNotifiedValueOrRetailPrice" => 0,
-            // "salesTaxApplicable" => $salesTax,
             "salesTaxApplicable" => (float) number_format($salesTax, 2, '.', ''),
-            // "salesTaxWithheldAtSource" => 0,
-            "salesTaxWithheldAtSource" => 5,
+            // "salesTaxApplicable" => 9,
+            // "salesTaxWithheldAtSource" => 5,
+            "salesTaxWithheldAtSource" => (float) number_format($cart->salesTaxWithheldAtSource, 2, '.', ''),
             // numberic extra tax fbr 
             "extraTax" => 0.00,
             "furtherTax" => 0,
-            "sroScheduleNo" => null,
+            "sroScheduleNo" => $sro_schedule,
             "fedPayable" => 0,
             "discount" => (float) number_format($discount, 2, '.', ''),
             // "discount" => $discount,
-            "saleType" => "Goods at standard rate (default)",
+            "saleType" => $sale_type,
             // "saleType" => "Local Sale",
-            "sroItemSerialNo" => "12A"
+            "sroItemSerialNo" => $sro_item,
         ];
     }
 
     // BUILD FBR PAYLOAD
     $customer = Customer::find($request->customer_id);
+     $businessId = session('business_id');
+     $businessData = Business::find($businessId);
+
     $fbrPayload = [
         // "invoiceType" => "Goods at standard rate (default)",
         "invoiceType" => "Sale Invoice",
         "invoiceDate" => now()->format('Y-m-d'),
 
-        "sellerNTNCNIC" => "3520228369157",
-        "sellerBusinessName" => "M/S A TO Z ENTERPRISES",
-        "sellerProvince" => "Punjab",
-        "sellerAddress" => "5 Hospital Road",
+        // "sellerNTNCNIC" => "3520228369157",
+        "sellerNTNCNIC" => $businessData->cnic,
+        "sellerBusinessName" => $businessData->business_name,
+        "sellerProvince" => $businessData->state,
+        "sellerAddress" => $businessData->address,
 
         "buyerNTNCNIC" => "",
         "buyerBusinessName" => $customer->name,
@@ -217,10 +250,12 @@ class OrderController extends Controller
         "items" => $fbrItems
     ];
 
+    // dd($fbrPayload);
+    // $this->checkUOMUsingHsCode();
 
     // SEND TO FBR API
+    $token = env('FBR_TOKEN');
 
-    $token = "xyz";
 
    try {
     $response = Http::withOptions([
@@ -232,18 +267,10 @@ class OrderController extends Controller
         'Accept-Encoding' => 'gzip, deflate, br',
         'Accept' => 'application/json'
     ])->post("https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb", $fbrPayload);
-    // ])->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb", $fbrPayload);
 
-    // Debug
-    // dd($response->body()); // ye actual raw response show karega
     } catch (\Illuminate\Http\Client\ConnectionException $e) {
         info('Connection Exception: ' . $e->getMessage());
 }
-
-    // $response = Http::withToken($token)
-    //     ->asJson()
-    //     ->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb", $fbrPayload);
-
 
     // RECORD PAYMENT (IF ANY)
 
@@ -262,9 +289,9 @@ class OrderController extends Controller
 
     return response()->json([
         'message' => 'Order completed successfully!',
-        'order' => $order,
+        // 'order' => $order,
         'fbr_payload_sent' => $fbrPayload,
-        'fbr_api_response' => $response->json()
+        'fbr_api_response' => $response->json(),
     ], 200);
 
     // return response()->json(['message' => 'Order completed successfully', 'order' => $order], 200);
@@ -449,4 +476,5 @@ class OrderController extends Controller
         return view('backend.orders.pos-invoice', compact('order', 'maxWidth', 'invoiceSettings', 'business'));
     }
 
+     
 }

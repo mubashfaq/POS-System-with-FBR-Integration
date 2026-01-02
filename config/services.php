@@ -37,4 +37,8 @@ return [
         'redirect' => env('APP_URL') . '/auth/google/callback',
     ],
 
+    'fbr' => [
+        'token' => env('FBR_TOKEN'),
+    ],
+
 ];
