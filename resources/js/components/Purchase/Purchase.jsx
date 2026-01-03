@@ -183,7 +183,7 @@ export default function Purchase() {
             (sum, product) => sum + product.subTotal,
             0
         );
-        const formattedSubTotal = parseFloat(subTotal.toFixed(2));
+        const formattedSubTotal = parseFloat(parseFloat(subTotal || 0).toFixed(2));
         const formattedTax = parseFloat((tax || 0).toFixed(2));
         const formattedDiscount = parseFloat((discount || 0).toFixed(2));
         const formattedShipping = parseFloat((shipping || 0).toFixed(2));
@@ -466,10 +466,9 @@ export default function Purchase() {
                                                         }
                                                     />
                                                 </td>
-                                                <td>
-                                                    {product.subTotal.toFixed(
-                                                        2
-                                                    )}
+                                                <td>     
+                                                    {parseFloat(product.subTotal || 0).toFixed(2)}
+
                                                 </td>
                                                 <td>
                                                     <button
@@ -498,7 +497,8 @@ export default function Purchase() {
                                             <tr>
                                                 <th>Subtotal:</th>
                                                 <td className="text-right">
-                                                    {totals.subTotal.toFixed(2)}
+                                                    {parseFloat(totals.subTotal || 0).toFixed(2)}
+
                                                 </td>
                                             </tr>
                                             <tr>
