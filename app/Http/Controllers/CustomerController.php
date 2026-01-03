@@ -73,7 +73,7 @@ class CustomerController extends Controller
         }
 
 
-        return view('backend.customers.index');
+        return view('backend.customers.index',compact('currentBusiness'));
     }
 
     /**

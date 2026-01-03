@@ -4,7 +4,10 @@
 
 @section('content')
 <div class="card">
-  @can('customer_create')
+
+
+
+  @can('customer_create', $currentBusiness)
   <div class="mt-n5 mb-3 d-flex justify-content-end">
     <a href="{{ route('backend.admin.customers.create') }}" class="btn  action-button">
       <i class="fas fa-plus-circle"></i>
