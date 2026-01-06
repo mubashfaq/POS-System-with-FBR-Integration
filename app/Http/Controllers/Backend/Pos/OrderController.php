@@ -32,6 +32,8 @@ class OrderController extends Controller
             $orders = Order::with('customer')
                 ->where('business_id', $businessId)
                 ->get();
+            $fbr_status = Order::select('api_status')->distinct()->get();
+            
             return DataTables::of($orders)
                 ->addIndexColumn()
                 ->addColumn('saleId', fn($data) => "#" . $data->id)
@@ -164,8 +166,8 @@ class OrderController extends Controller
         // fbr errror for 2 decimal 
         $quantity = round($cart->quantity, 4); 
         $lineTotal = round($product->discounted_price * $quantity, 2); // 2 decimals
-       $rate_of_taxx = $product->rate_of_tax;
-$rate_of_tax = trim($rate_of_taxx); // Remove spaces
+        $rate_of_taxx = $product->rate_of_tax;
+        $rate_of_tax = trim($rate_of_taxx); // Remove spaces
 
 if (str_ends_with($rate_of_tax, '%')) {
     // Percentage case
@@ -228,34 +230,24 @@ if (str_ends_with($rate_of_tax, '%')) {
      $businessData = Business::find($businessId);
 
     $fbrPayload = [
-        // "invoiceType" => "Goods at standard rate (default)",
         "invoiceType" => "Sale Invoice",
         "invoiceDate" => now()->format('Y-m-d'),
-
-        // "sellerNTNCNIC" => "3520228369157",
         "sellerNTNCNIC" => $businessData->cnic,
         "sellerBusinessName" => $businessData->business_name,
         "sellerProvince" => $businessData->state,
         "sellerAddress" => $businessData->address,
-
         "buyerNTNCNIC" => "",
         "buyerBusinessName" => $customer->name,
         "buyerProvince" => $customer->province ?? "Punjab",
         "buyerAddress" => $customer->address ?? "",
         "buyerRegistrationType" => $customer->is_registered ? "Registered" : "Unregistered",
-
         "invoiceRefNo" => "INV-" . $order->id,
         "scenarioId" => "SN002",
-
         "items" => $fbrItems
     ];
 
-    // dd($fbrPayload);
-    // $this->checkUOMUsingHsCode();
-
     // SEND TO FBR API
     $token = env('FBR_TOKEN');
-
 
    try {
     $response = Http::withOptions([
@@ -285,14 +277,26 @@ if (str_ends_with($rate_of_tax, '%')) {
 
     PosCart::where('user_id', auth()->id())->delete();
 
-    // FINAL RESPONSE
+     $responseJson = $response->json();
 
+    $errorCode =
+    data_get($responseJson, 'validationResponse.invoiceStatuses.0.errorCode')
+    ?? data_get($responseJson, 'errorCode');
+
+    // update fbr api status and response in orders table
+    Order::where('id', $order->id)->update([            
+        'api_status' => $response->status(),
+        'error_code' => $errorCode,
+    ]);
+
+    // FINAL RESPONSE
     return response()->json([
         'message' => 'Order completed successfully!',
-        // 'order' => $order,
         'fbr_payload_sent' => $fbrPayload,
         'fbr_api_response' => $response->json(),
+        'fbr_api_response_statu' => $response->status(),
     ], 200);
+
 
     // return response()->json(['message' => 'Order completed successfully', 'order' => $order], 200);
 }

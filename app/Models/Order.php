@@ -11,7 +11,7 @@ class Order extends Model
 {
     use HasFactory;
 
-    protected $fillable=['business_id','user_id','customer_id','discount','sub_total','total','paid','due','note','is_retured','status'];
+    protected $fillable=['business_id','user_id','customer_id','discount','sub_total','total','paid','due','note','is_retured','status','api_status','error_code'];
 
     protected $guarded = [];
     protected $appends = ['total_item'];
