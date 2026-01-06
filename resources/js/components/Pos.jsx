@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 import Cart from "./Cart";
@@ -33,7 +33,7 @@ export default function Pos() {
         async (search = "", page = 1, barcode = "") => {
             setLoading(true);
             try {
-                const res = await axios.get('/admin/get/products', {
+                const res = await axios.get("/admin/get/products", {
                     params: { search, page, barcode },
                 });
                 const productsData = res.data;
@@ -53,7 +53,7 @@ export default function Pos() {
     );
     const getUpdatedProducts = useCallback(async () => {
         try {
-            const res = await axios.get('/admin/get/products');
+            const res = await axios.get("/admin/get/products");
             const productsData = res.data;
             setProducts(productsData.data);
             setTotalPages(productsData.meta.last_page); // Get total pages
@@ -67,7 +67,7 @@ export default function Pos() {
 
     const getCarts = async () => {
         try {
-            const res = await axios.get('/admin/cart');
+            const res = await axios.get("/admin/cart");
             const data = res.data;
             setTotal(data?.total);
             setUpdateTotal(data?.total - orderDiscount);
@@ -110,7 +110,7 @@ export default function Pos() {
     useEffect(() => {
         if (searchBarcode) {
             setProducts([]);
-           getProducts("", currentPage, searchBarcode);
+            getProducts("", currentPage, searchBarcode);
         }
     }, [searchBarcode]);
 
@@ -202,24 +202,78 @@ export default function Pos() {
         }).then((result) => {
             if (result.isConfirmed) {
                 axios
-                    .put("/admin/order/create", {
-                        customer_id: customerId,
-                        order_discount: parseFloat(orderDiscount) || 0,
-                        paid: parseFloat(paid) || 0,
+                    .put(
+                        "/admin/order/create",
+                        {
+                            customer_id: customerId,
+                            order_discount: parseFloat(orderDiscount) || 0,
+                            paid: parseFloat(paid) || 0,
 
-                        //  Add full cart here
-                        cart: carts
-                    },{headers: {
-                            "Content-Type": "application/json"
-            }})
+                            //  Add full cart here
+                            cart: carts,
+                        },
+                        {
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                        }
+                    )
+                    // .then((res) => {
+                    //     setCartUpdated(!cartUpdated);
+                    //     setProductUpdated(!productUpdated);
+                    //     toast.success(res?.data?.message);
+                    //     // window.location.href = `orders/invoice/${res?.data?.order?.id}`;
+                    //     // window.location.href = `orders/pos-invoice/${res?.data?.order?.id}`;
+                    //     console.log("API Full Response:", res.data);
+                    // })
                     .then((res) => {
                         setCartUpdated(!cartUpdated);
                         setProductUpdated(!productUpdated);
-                        toast.success(res?.data?.message);
-                        // window.location.href = `orders/invoice/${res?.data?.order?.id}`;
-                        // window.location.href = `orders/pos-invoice/${res?.data?.order?.id}`;
+
+                        // ✅ 1️⃣ ORDER CREATED TOASTER (ALWAYS)
+                        toast.success("Order completed successfully!", {
+                            duration: 4000,
+                        });
+
+                        // ⏳ Small delay so second toaster comes UNDER it
+                        setTimeout(() => {
+                            const fbr =
+                                res?.data?.fbr_api_response?.validationResponse;
+
+                            if (!fbr) {
+                                toast.warning("FBR response not received", {
+                                    duration: 5000,
+                                });
+                                return;
+                            }
+
+                            // ✅ 2️⃣ FBR STATUS TOASTER
+                            if (fbr.statusCode === "00") {
+                                // GREEN
+                                toast.success(
+                                    `FBR Invoice Validated
+                                    Status: ${fbr.status}
+                                    Status Code: ${fbr.statusCode}`,
+                                    {
+                                        duration: 7000,
+                                    }
+                                );
+                            } else {
+                                // RED
+                                toast.error(
+                                    `FBR Validation Failed
+                                    Status: ${fbr.status}
+                                    Message: ${fbr.error}`,
+                                    {
+                                        duration: 9000,
+                                    }
+                                );
+                            }
+                        }, 800); // delay so it appears under first toaster
+
                         console.log("API Full Response:", res.data);
                     })
+
                     .catch((err) => {
                         // toast.error(err.response.data.message);
                         console.error(err);
@@ -383,15 +437,15 @@ export default function Pos() {
                                     </button>
                                 </div>
                                 <div className="col">
-                                <button
-                                    onClick={() => {
-                                        orderCreate();
-                                    }}
-                                    type="button"
-                                    className="btn checkout-btn btn-block text-white text-bold"
+                                    <button
+                                        onClick={() => {
+                                            orderCreate();
+                                        }}
+                                        type="button"
+                                        className="btn checkout-btn btn-block text-white text-bold"
                                     >
-                                    Checkout
-                                </button>
+                                        Checkout
+                                    </button>
                                 </div>
                             </div>
                         </div>

@@ -21,6 +21,7 @@
                 <th>Paid {{currency()->symbol??''}}</th>
                 <th>Due {{currency()->symbol??''}}</th>
                 <th>Status</th>
+                <th>FBR Status</th>
                 <th data-orderable="false">Action</th>
               </tr>
             </thead>
