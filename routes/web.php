@@ -118,6 +118,8 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
         Route::put('/cart/delete', [CartController::class, 'delete']);
         Route::put('/cart/empty', [CartController::class, 'empty']);
         Route::put('/order/create', [OrderController::class, 'store']);
+        Route::get('orders/fbr-status/{id}', [OrderController::class, 'fbrStatus'])->name('orders.fbr-status');
+
         Route::get('/get/customers',[CustomerController::class,'getCustomers']);
         Route::post('/create/customers', [CustomerController::class, 'store']);
     //end pos

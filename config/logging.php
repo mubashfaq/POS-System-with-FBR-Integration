@@ -126,6 +126,20 @@ return [
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),
         ],
+
+        'fbr' => [
+        'driver' => 'single',
+        'path' => storage_path('logs/fbr.log'),
+        'level' => 'info',
+        ],
+
+        'schedule' => [
+        'driver' => 'single',
+        'path' => storage_path('logs/schedule.log'),
+        'level' => 'info',
+        ],
+
+
     ],
 
 ];
