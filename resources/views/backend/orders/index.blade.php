@@ -31,6 +31,25 @@
     </div>
   </div>
 </div>
+
+<!-- FBR STATUS MODAL  -->
+<div id="fbrStatusModal" class="modal fade" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">FBR Status</h5>
+        <button type="button" class="btn btn-light btn-sm rounded-circle shadow-sm" data-bs-dismiss="modal" aria-label="Close" style="position: absolute; top: 10px; right: 10px;">
+          <i class="fas fa-times text-dark"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p id="fbrStatusMessage"></p>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- /END MODAL -->
+
 @endsection
 
 @push('script')
@@ -88,6 +107,12 @@
           data: 'status',
           name: 'status'
         },
+       
+        {
+          data: 'fbr_status',
+          name: 'fbr_status', orderable:false, 
+          searchable:false },
+
         {
           data: 'action',
           name: 'action'
@@ -95,5 +120,32 @@
       ]
     });
   });
+
+  $(document).on('click', '.fbr-status', function (e) {
+    e.preventDefault();
+
+    var id = $(this).data('id');
+      
+    $.ajax({
+      url: "{{ route('backend.admin.orders.fbr-status', ':id') }}".replace(':id', id),
+      type: 'GET',
+      dataType: 'json',
+      success: function(response) {
+        console.log("fbr api response:", response);
+
+        // Set the message returned by your Laravel controller
+        $('#fbrStatusMessage').html(response.message);
+
+        // Show the modal
+        $('#fbrStatusModal').modal('show');
+      },
+      error: function(xhr, status, error) {
+        console.error('Error fetching FBR status:', error);
+      }
+    });
+
+     
+  });
+
 </script>
 @endpush

@@ -40,5 +40,6 @@ return [
     'fbr' => [
         'token' => env('FBR_TOKEN'),
     ],
+    
 
 ];
