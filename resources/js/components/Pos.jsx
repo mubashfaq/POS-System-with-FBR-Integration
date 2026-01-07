@@ -180,109 +180,204 @@ export default function Pos() {
             }
         });
     }
+    // function orderCreate() {
+    //     if (total <= 0) {
+    //         return;
+    //     }
+    //     if (!customerId) {
+    //         toast.error("Please select customer");
+    //         return;
+    //     }
+    //     Swal.fire({
+    //         title: `Are you sure you want to complete this order? <br>Due: ${due}`,
+    //         showDenyButton: true,
+    //         confirmButtonText: "Yes",
+    //         denyButtonText: "No",
+    //         customClass: {
+    //             actions: "my-actions",
+    //             cancelButton: "order-1 right-gap",
+    //             confirmButton: "order-2",
+    //             denyButton: "order-3",
+    //         },
+    //     }).then((result) => {
+    //         if (result.isConfirmed) {
+    //             axios
+    //                 .put(
+    //                     "/admin/order/create",
+    //                     {
+    //                         customer_id: customerId,
+    //                         order_discount: parseFloat(orderDiscount) || 0,
+    //                         paid: parseFloat(paid) || 0,
+
+    //                         //  Add full cart here
+    //                         cart: carts,
+    //                     },
+    //                     {
+    //                         headers: {
+    //                             "Content-Type": "application/json",
+    //                         },
+    //                     }
+    //                 )
+    //                 // .then((res) => {
+    //                 //     setCartUpdated(!cartUpdated);
+    //                 //     setProductUpdated(!productUpdated);
+    //                 //     toast.success(res?.data?.message);
+    //                 //     // window.location.href = `orders/invoice/${res?.data?.order?.id}`;
+    //                 //     // window.location.href = `orders/pos-invoice/${res?.data?.order?.id}`;
+    //                 //     console.log("API Full Response:", res.data);
+    //                 // })
+    //                 .then((res) => {
+    //                     setCartUpdated(!cartUpdated);
+    //                     setProductUpdated(!productUpdated);
+
+    //                     // ✅ 1️⃣ ORDER CREATED TOASTER (ALWAYS)
+    //                     toast.success("Order completed successfully!", {
+    //                         duration: 4000,
+    //                     });
+
+    //                     // ⏳ Small delay so second toaster comes UNDER it
+    //                     setTimeout(() => {
+    //                         const fbr =
+    //                             res?.data?.fbr_api_response?.validationResponse;
+
+    //                         if (!fbr) {
+    //                             toast.warning("FBR response not received", {
+    //                                 duration: 5000,
+    //                             });
+    //                             return;
+    //                         }
+
+    //                         // ✅ 2️⃣ FBR STATUS TOASTER
+    //                         if (fbr.statusCode === "00") {
+    //                             // GREEN
+    //                             toast.success(
+    //                                 `FBR Invoice Validated
+    //                                 Status: ${fbr.status}
+    //                                 Status Code: ${fbr.statusCode}`,
+    //                                 {
+    //                                     duration: 7000,
+    //                                 }
+    //                             );
+    //                         } else {
+    //                             // RED
+    //                             toast.error(
+    //                                 `FBR Validation Failed
+    //                                 Status: ${fbr.status}
+    //                                 Message: ${fbr.error}`,
+    //                                 {
+    //                                     duration: 9000,
+    //                                 }
+    //                             );
+    //                         }
+    //                     }, 800); // delay so it appears under first toaster
+
+    //                     console.log("API Full Response:", res.data);
+    //                 })
+
+    //                 .catch((err) => {
+    //                     // toast.error(err.response.data.message);
+    //                     console.error(err);
+    //                 });
+    //         } else if (result.isDenied) {
+    //             return;
+    //         }
+    //     });
+    // }
     function orderCreate() {
-        if (total <= 0) {
-            return;
+    if (total <= 0) return;
+    if (!customerId) {
+        toast.error("Please select customer");
+        return;
+    }
+
+    // Step 1: Pehle server se duplicate check
+    axios.put(
+        "/admin/order/create",
+        {
+            customer_id: customerId,
+            order_discount: parseFloat(orderDiscount) || 0,
+            paid: parseFloat(paid) || 0,
+            cart: carts,
+            check_duplicate: true, // flag to only check duplicate
+        },
+        { headers: { "Content-Type": "application/json" } }
+    )
+    .then((res) => {
+        // Agar duplicate hai
+        if (res.data.duplicate) {
+            Swal.fire({
+                title: res.data.message,
+                showDenyButton: true,
+                confirmButtonText: "Yes, create it",
+                denyButtonText: "No, cancel",
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // User ne "Yes" click kiya → ab actual order create karo
+                    createOrder();
+                } else {
+                    // User ne "No" click kiya → kuch na kare
+                    toast.info("Order not created.");
+                }
+            });
+        } else {
+            // Duplicate nahi → seedha order create
+            createOrder();
         }
-        if (!customerId) {
-            toast.error("Please select customer");
-            return;
-        }
-        Swal.fire({
-            title: `Are you sure you want to complete this order? <br>Due: ${due}`,
-            showDenyButton: true,
-            confirmButtonText: "Yes",
-            denyButtonText: "No",
-            customClass: {
-                actions: "my-actions",
-                cancelButton: "order-1 right-gap",
-                confirmButton: "order-2",
-                denyButton: "order-3",
-            },
-        }).then((result) => {
-            if (result.isConfirmed) {
-                axios
-                    .put(
-                        "/admin/order/create",
-                        {
-                            customer_id: customerId,
-                            order_discount: parseFloat(orderDiscount) || 0,
-                            paid: parseFloat(paid) || 0,
+    })
+    .catch((err) => {
+        console.error(err);
+        toast.error("Something went wrong while checking order.");
+    });
+}
 
-                            //  Add full cart here
-                            cart: carts,
-                        },
-                        {
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                        }
-                    )
-                    // .then((res) => {
-                    //     setCartUpdated(!cartUpdated);
-                    //     setProductUpdated(!productUpdated);
-                    //     toast.success(res?.data?.message);
-                    //     // window.location.href = `orders/invoice/${res?.data?.order?.id}`;
-                    //     // window.location.href = `orders/pos-invoice/${res?.data?.order?.id}`;
-                    //     console.log("API Full Response:", res.data);
-                    // })
-                    .then((res) => {
-                        setCartUpdated(!cartUpdated);
-                        setProductUpdated(!productUpdated);
+// Actual order create karne ka function
+function createOrder() {
+    axios.put(
+        "/admin/order/create",
+        {
+            customer_id: customerId,
+            order_discount: parseFloat(orderDiscount) || 0,
+            paid: parseFloat(paid) || 0,
+            cart: carts,
+        },
+        { headers: { "Content-Type": "application/json" } }
+    )
+    .then((res) => {
+        setCartUpdated(!cartUpdated);
+        setProductUpdated(!productUpdated);
 
-                        // ✅ 1️⃣ ORDER CREATED TOASTER (ALWAYS)
-                        toast.success("Order completed successfully!", {
-                            duration: 4000,
-                        });
+        toast.success("Order completed successfully!", { duration: 4000 });
 
-                        // ⏳ Small delay so second toaster comes UNDER it
-                        setTimeout(() => {
-                            const fbr =
-                                res?.data?.fbr_api_response?.validationResponse;
+        // FBR response check
+        setTimeout(() => {
+            const fbr = res?.data?.fbr_api_response?.validationResponse;
 
-                            if (!fbr) {
-                                toast.warning("FBR response not received", {
-                                    duration: 5000,
-                                });
-                                return;
-                            }
-
-                            // ✅ 2️⃣ FBR STATUS TOASTER
-                            if (fbr.statusCode === "00") {
-                                // GREEN
-                                toast.success(
-                                    `FBR Invoice Validated
-                                    Status: ${fbr.status}
-                                    Status Code: ${fbr.statusCode}`,
-                                    {
-                                        duration: 7000,
-                                    }
-                                );
-                            } else {
-                                // RED
-                                toast.error(
-                                    `FBR Validation Failed
-                                    Status: ${fbr.status}
-                                    Message: ${fbr.error}`,
-                                    {
-                                        duration: 9000,
-                                    }
-                                );
-                            }
-                        }, 800); // delay so it appears under first toaster
-
-                        console.log("API Full Response:", res.data);
-                    })
-
-                    .catch((err) => {
-                        // toast.error(err.response.data.message);
-                        console.error(err);
-                    });
-            } else if (result.isDenied) {
+            if (!fbr) {
+                toast.warning("FBR response not received", { duration: 5000 });
                 return;
             }
-        });
-    }
+
+            if (fbr.statusCode === "00") {
+                toast.success(
+                    `FBR Invoice Validated\nStatus: ${fbr.status}\nStatus Code: ${fbr.statusCode}`,
+                    { duration: 7000 }
+                );
+            } else {
+                toast.error(
+                    `FBR Validation Failed\nStatus: ${fbr.status}\nMessage: ${fbr.error}`,
+                    { duration: 9000 }
+                );
+            }
+        }, 800);
+
+        console.log("API Full Response:", res.data);
+    })
+    .catch((err) => {
+        console.error(err);
+        toast.error("Order creation failed.");
+    });
+}
+
     return (
         <>
             <div className="card">
