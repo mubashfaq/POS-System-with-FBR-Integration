@@ -11,7 +11,7 @@ class Order extends Model
 {
     use HasFactory;
 
-    protected $fillable=['business_id','user_id','customer_id','discount','sub_total','total','paid','due','note','is_retured','status','api_status','error_code'];
+    protected $fillable=['business_id','user_id','customer_id','discount','sub_total','total','paid','due','note','is_retured','status','api_status','error_code','error_message','api_message'];
 
     protected $guarded = [];
     protected $appends = ['total_item'];
@@ -30,9 +30,11 @@ class Order extends Model
     {
         return $this->products()->sum('quantity');
     }
-    // public function business()
-    // {
-    //     return $this->belongsTo(Business::class);
-    // }
+    
+public function business()
+{
+    return $this->belongsTo(Business::class, 'business_id');
+}
+    
    
 }
