@@ -345,9 +345,15 @@ function createOrder() {
     .then((res) => {
         setCartUpdated(!cartUpdated);
         setProductUpdated(!productUpdated);
-
-        toast.success("Order completed successfully!", { duration: 4000 });
-
+        const fbr = res?.data?.fbr_api_response?.validationResponse;
+        if (fbr.statusCode === "00") {
+            toast.success("Order completed successfully!", { duration: 4000 });
+        }else{
+            toast.error(
+                    "Order Not Created",
+                    { duration: 4000 }
+                );
+        }
         // FBR response check
         setTimeout(() => {
             const fbr = res?.data?.fbr_api_response?.validationResponse;
