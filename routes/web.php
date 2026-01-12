@@ -82,6 +82,10 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::resource('suppliers', SupplierController::class);
     Route::resource('customers', CustomerController::class);
     Route::resource('products', ProductController::class);
+    Route::get('/import-stock', [ProductController::class, 'importStockForm'])
+    ->name('products.import-stock');
+    Route::post('/import-stocks', [ProductController::class, 'importStock'])
+    ->name('products.import-stock.process');
     Route::get('products/hsCode-desc/{hs_code}', [ProductController::class, 'getDescription'])->name('products.hsCode-desc');
     Route::get('products/sale-type/{sale_type}', [ProductController::class, 'getSaleTypeId'])->name('products.sale-type');
     Route::get('products/sro-schedule/{rate_tax_id}', [ProductController::class, 'getSroSchedule'])->name('products.sro-schedule');
