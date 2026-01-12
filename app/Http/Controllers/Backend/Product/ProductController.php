@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Backend\Product;
 use App\Exports\DemoProductsExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\ImportStockRequest;
 use App\Http\Requests\UpdateProductRequest;
 use App\Http\Resources\ProductResource;
 use App\Imports\ProductsImport;
@@ -19,8 +20,10 @@ use App\Models\Uom;
 use App\Trait\FileHandler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\DataTables;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
@@ -245,6 +248,443 @@ class ProductController extends Controller
         $product->delete();
         return redirect()->back()->with('success', 'Product Deleted Successfully');
     }
+
+    public function importStockForm()
+    {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_create'), 403);
+        
+        Log::info('Stock Import Form Accessed', [
+            'business_id' => session('business_id'),
+            'user_id' => auth()->id()
+        ]);
+        
+        return view('backend.products.import-stock');
+    }
+
+    public function importStock(ImportStockRequest $request)
+    {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_create'), 403);
+        
+        $businessId = session('business_id');
+        
+        Log::info('Stock Import Started', [
+            'business_id' => $businessId,
+            'user_id' => auth()->id(),
+            'file_name' => $request->file('stock_file')->getClientOriginalName()
+        ]);
+        
+        DB::beginTransaction();
+        
+        try {
+            $file = $request->file('stock_file');
+            $extension = $file->getClientOriginalExtension();
+            
+            Log::info('File Extension Detected', ['extension' => $extension]);
+            
+            // Read file based on extension
+            if ($extension === 'csv') {
+                $data = $this->readCSV($file);
+            } else {
+                $data = $this->readExcel($file);
+            }
+            
+            Log::info('File Data Read', [
+                'total_rows' => count($data),
+                'sample_rows' => array_slice($data, 0, 5)
+            ]);
+            
+            $results = [
+                'success' => [],
+                'errors' => [],
+                'total' => count($data),
+                'updated' => 0,
+                'failed' => 0
+            ];
+            
+            foreach ($data as $index => $row) {
+                $rowNumber = $index + 2;
+                
+                Log::info("Processing Row {$rowNumber}", [
+                    'row_data' => $row,
+                    'all_keys' => array_keys($row)
+                ]);
+                
+                // Map Excel columns to expected fields
+                $slug = '';
+                $hsCode = '';
+                $quantity = 0;
+                
+                // Try to find the values in different possible column names
+                foreach ($row as $key => $value) {
+                    $keyLower = strtolower(trim($key));
+                    $valueTrimmed = is_string($value) ? trim($value) : $value;
+                    
+                    // Match ITEMS column
+                    if (in_array($keyLower, ['items', 'item', 'product', 'slug'])) {
+                        $slug = $valueTrimmed;
+                    }
+                    
+                    // Match HS CODE column
+                    if (in_array($keyLower, ['hs code', 'hscode', 'hs_code', 'h.s code'])) {
+                        // Handle HS Code - preserve exact format
+                        if (is_numeric($valueTrimmed)) {
+                            $hsCode = strval($valueTrimmed);
+                            
+                            // Check if it's in scientific notation
+                            if (strpos($hsCode, 'E') !== false || strpos($hsCode, 'e') !== false) {
+                                $hsCode = sprintf('%.10f', $valueTrimmed);
+                                $hsCode = rtrim(rtrim($hsCode, '0'), '.');
+                            }
+                        } else {
+                            $hsCode = strval($valueTrimmed);
+                        }
+                        
+                        // Remove commas, spaces, and other formatting
+                        $hsCode = str_replace([',', ' ', "\t"], '', $hsCode);
+                        $hsCode = trim($hsCode);
+                    }
+                    
+                    // Match No. of CONT column
+                    if (in_array($keyLower, ['no. of cont', 'no of cont', 'no.of cont', 'quantity', 'qty', 'cont'])) {
+                        $quantity = floatval($valueTrimmed);
+                    }
+                }
+                
+                Log::info("Row {$rowNumber} Extracted Values", [
+                    'slug' => $slug,
+                    'hsCode' => $hsCode,
+                    'quantity' => $quantity
+                ]);
+                
+                // Validate required fields
+                if (empty($slug) || empty($hsCode) || empty($quantity)) {
+                    $error = "Row {$rowNumber}: ITEMS ('{$slug}'), HS CODE ('{$hsCode}'), and No. of CONT ('{$quantity}') are required.";
+                    $results['errors'][] = $error;
+                    $results['failed']++;
+                    
+                    Log::warning("Row {$rowNumber} Validation Failed", [
+                        'slug' => $slug ?: 'missing',
+                        'hscode' => $hsCode ?: 'missing',
+                        'quantity' => $quantity ?: 'missing'
+                    ]);
+                    continue;
+                }
+                
+                // Validate quantity
+                if ($quantity <= 0) {
+                    $error = "Row {$rowNumber}: No. of CONT must be greater than 0.";
+                    $results['errors'][] = $error;
+                    $results['failed']++;
+                    
+                    Log::warning("Row {$rowNumber} Invalid Quantity", ['quantity' => $quantity]);
+                    continue;
+                }
+                
+                // Find product by Slug + HsCode and Business ID
+                // Try exact match first
+                $product = Product::where('slug', $slug)
+                                ->where('hsCode', $hsCode)
+                                ->where('business_id', $businessId)
+                                ->first();
+                
+                // If no exact match, try matching by removing trailing zeros/dots from both sides
+                if (!$product) {
+                    $hsCodeNormalized = rtrim(rtrim($hsCode, '0'), '.');
+                    
+                    Log::info("Row {$rowNumber} Trying Normalized Match", [
+                        'original_hscode' => $hsCode,
+                        'normalized_hscode' => $hsCodeNormalized
+                    ]);
+                    
+                    // Find products with matching slug and business
+                    $candidateProducts = Product::where('slug', $slug)
+                                            ->where('business_id', $businessId)
+                                            ->get();
+                    
+                    // Try to match by normalized HS code
+                    foreach ($candidateProducts as $candidate) {
+                        $dbHsCodeNormalized = rtrim(rtrim($candidate->hsCode, '0'), '.');
+                        
+                        if ($dbHsCodeNormalized === $hsCodeNormalized) {
+                            $product = $candidate;
+                            Log::info("Row {$rowNumber} Matched via Normalization", [
+                                'excel_hscode' => $hsCode,
+                                'db_hscode' => $candidate->hsCode,
+                                'normalized_match' => $hsCodeNormalized
+                            ]);
+                            break;
+                        }
+                    }
+                }
+                
+                if (!$product) {
+                    $error = "Row {$rowNumber}: Product with ITEMS '{$slug}' and HS CODE '{$hsCode}' not found.";
+                    $results['errors'][] = $error;
+                    $results['failed']++;
+                    
+                    Log::warning("Row {$rowNumber} Product Not Found", [
+                        'slug' => $slug,
+                        'hscode' => $hsCode,
+                        'business_id' => $businessId
+                    ]);
+                    continue;
+                }
+                
+                // Update stock (quantity column)
+                $oldStock = $product->quantity ?? 0;
+                $newStock = $oldStock + $quantity;
+                $product->quantity = $newStock;
+                $product->save();
+                
+                $success = "Row {$rowNumber}: Product '{$product->name}' (ITEMS: {$slug}, HS CODE: {$hsCode}) stock updated from {$oldStock} to {$newStock}.";
+                $results['success'][] = $success;
+                $results['updated']++;
+                
+                Log::info("Row {$rowNumber} Stock Updated", [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'slug' => $slug,
+                    'hscode' => $hsCode,
+                    'old_stock' => $oldStock,
+                    'new_stock' => $newStock,
+                    'added_quantity' => $quantity
+                ]);
+            }
+            
+            DB::commit();
+            
+            Log::info('Stock Import Completed', [
+                'total' => $results['total'],
+                'updated' => $results['updated'],
+                'failed' => $results['failed']
+            ]);
+            
+            // Prepare session message
+            $message = "Stock import completed. ";
+            $message .= "{$results['updated']} products updated successfully. ";
+            
+            if ($results['failed'] > 0) {
+                $message .= "{$results['failed']} rows failed.";
+                session()->flash('import_errors', array_slice($results['errors'], 0, 50));
+                session()->flash('successes', $results['success']);
+                return redirect()->route('backend.admin.products.index')
+                            ->with('warning', $message);
+            }
+            
+            session()->flash('successes', $results['success']);
+            return redirect()->route('backend.admin.products.index')
+                        ->with('success', $message);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            Log::error('Stock Import Failed', [
+                'error_message' => $e->getMessage(),
+                'error_trace' => $e->getTraceAsString()
+            ]);
+            
+            return redirect()->back()
+                        ->with('error', 'Error importing stock: ' . $e->getMessage());
+        }
+    }
+
+    private function readExcel($file)
+    {
+        Log::info('Reading Excel File');
+        
+        try {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath());
+            $worksheet = $spreadsheet->getActiveSheet();
+            
+            $highestRow = $worksheet->getHighestRow();
+            $highestColumn = $worksheet->getHighestColumn();
+            
+            $allRows = [];
+            
+            // Read rows and preserve cell values (especially for HS CODE)
+            for ($row = 1; $row <= $highestRow; $row++) {
+                $rowData = [];
+                for ($col = 'A'; $col <= $highestColumn; $col++) {
+                    $cell = $worksheet->getCell($col . $row);
+                    
+                    // Get all possible values
+                    $formattedValue = $cell->getFormattedValue();
+                    $rawValue = $cell->getValue();
+                    $dataType = $cell->getDataType();
+                    $numberFormat = $cell->getStyle()->getNumberFormat()->getFormatCode();
+                    
+                    // Determine the best value to use
+                    if ($dataType === \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING) {
+                        // It's text, use raw value as-is
+                        $value = $rawValue;
+                    } else if ($numberFormat === '@') {
+                        // Formatted as text
+                        $value = $formattedValue;
+                    } else {
+                        // For numeric values, try to preserve as much precision as possible
+                        if (is_numeric($rawValue)) {
+                            // Convert to string with maximum precision
+                            $value = rtrim(rtrim(sprintf('%.15f', $rawValue), '0'), '.');
+                        } else {
+                            $value = $rawValue;
+                        }
+                        
+                        // Clean formatted value
+                        $formattedClean = str_replace([',', ' ', '$', '€', '£'], '', $formattedValue);
+                        
+                        // If formatted value has more decimal places, prefer it
+                        if (strpos($formattedClean, '.') !== false && strpos($value, '.') !== false) {
+                            $formattedDecimals = strlen(substr($formattedClean, strpos($formattedClean, '.') + 1));
+                            $valueDecimals = strlen(substr($value, strpos($value, '.') + 1));
+                            
+                            if ($formattedDecimals > $valueDecimals) {
+                                $value = $formattedClean;
+                            }
+                        }
+                    }
+                    
+                    $rowData[] = $value;
+                }
+                $allRows[] = $rowData;
+            }
+            
+            Log::info('Excel All Rows Read', [
+                'total_rows' => count($allRows),
+                'first_10_rows' => array_slice($allRows, 0, 10)
+            ]);
+            
+            // Find the header row (look for row containing "Items" or "ITEMS")
+            $headerRowIndex = null;
+            foreach ($allRows as $index => $row) {
+                foreach ($row as $cell) {
+                    if (stripos($cell, 'items') !== false || stripos($cell, 'hs code') !== false) {
+                        $headerRowIndex = $index;
+                        break 2;
+                    }
+                }
+            }
+            
+            if ($headerRowIndex === null) {
+                Log::error('Could not find header row in Excel');
+                throw new \Exception('Could not find header row with ITEMS, HS CODE columns');
+            }
+            
+            Log::info('Excel Header Found', [
+                'header_row_index' => $headerRowIndex,
+                'header_row' => $allRows[$headerRowIndex]
+            ]);
+            
+            // Get header and normalize
+            $header = array_map('strtolower', array_map('trim', $allRows[$headerRowIndex]));
+            
+            Log::info('Excel Header Processed', ['header' => $header]);
+            
+            $data = [];
+            // Read data rows after header
+            for ($i = $headerRowIndex + 1; $i < count($allRows); $i++) {
+                $row = $allRows[$i];
+                
+                // Skip empty rows
+                if (empty(array_filter($row))) {
+                    continue;
+                }
+                
+                if (count($row) >= count($header)) {
+                    // Take only the columns we have headers for
+                    $rowData = array_slice($row, 0, count($header));
+                    $data[] = array_combine($header, $rowData);
+                }
+            }
+            
+            Log::info('Excel File Processing Complete', [
+                'total_data_rows' => count($data),
+                'sample_data' => array_slice($data, 0, 3)
+            ]);
+            
+            return $data;
+            
+        } catch (\Exception $e) {
+            Log::error('Excel Reading Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
+
+    private function readCSV($file)
+    {
+        Log::info('Reading CSV File');
+        
+        try {
+            $data = [];
+            $handle = fopen($file->getRealPath(), 'r');
+            
+            if ($handle === false) {
+                Log::error('Failed to open CSV file');
+                throw new \Exception('Could not open CSV file');
+            }
+            
+            $allRows = [];
+            while (($row = fgetcsv($handle)) !== false) {
+                $allRows[] = $row;
+            }
+            fclose($handle);
+            
+            Log::info('CSV All Rows Read', [
+                'total_rows' => count($allRows),
+                'first_10_rows' => array_slice($allRows, 0, 10)
+            ]);
+            
+            // Find the header row
+            $headerRowIndex = null;
+            foreach ($allRows as $index => $row) {
+                foreach ($row as $cell) {
+                    if (stripos($cell, 'items') !== false || stripos($cell, 'hs code') !== false) {
+                        $headerRowIndex = $index;
+                        break 2;
+                    }
+                }
+            }
+            
+            if ($headerRowIndex === null) {
+                Log::error('Could not find header row in CSV');
+                throw new \Exception('Could not find header row with ITEMS, HS CODE columns');
+            }
+            
+            Log::info('CSV Header Found', [
+                'header_row_index' => $headerRowIndex,
+                'header' => $allRows[$headerRowIndex]
+            ]);
+            
+            $header = array_map('strtolower', array_map('trim', $allRows[$headerRowIndex]));
+            
+            // Read data rows after header
+            for ($i = $headerRowIndex + 1; $i < count($allRows); $i++) {
+                $row = $allRows[$i];
+                if (count($row) === count($header) && !empty(array_filter($row))) {
+                    $data[] = array_combine($header, $row);
+                }
+            }
+            
+            Log::info('CSV File Processing Complete', [
+                'total_data_rows' => count($data),
+                'sample_data' => array_slice($data, 0, 3)
+            ]);
+            
+            return $data;
+            
+        } catch (\Exception $e) {
+            Log::error('CSV Reading Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
+
     public function import(Request $request)
     {
         if ($request->query('download-demo')) {

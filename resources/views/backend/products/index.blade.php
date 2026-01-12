@@ -11,6 +11,10 @@
       <i class="fas fa-plus-circle"></i>
       Add New
     </a>
+    <a href="{{ route('backend.admin.products.import-stock') }}" class="btn action-button ml-2">
+      <i class="fas fa-plus-circle"></i>
+      Add Stock
+    </a>
   </div>
   @endcan
   <div class="card-body p-2 p-md-4 pt-0">
