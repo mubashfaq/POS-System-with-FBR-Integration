@@ -15,6 +15,8 @@ class Business extends Model
         'logo','currency','facebook_link','whatsapp_link','youtube_link','instagram_link',
         'industry',
         'ntn',
+        'cnic',
+        'state',
         'country',
         'city','address',
     ];
