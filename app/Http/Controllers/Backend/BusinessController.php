@@ -72,6 +72,8 @@ class BusinessController extends Controller
             'city' => 'required|string|max:255',
             'email'           => 'nullable|email|max:255',
             'phone'           => 'nullable|string|max:50',
+            'cnic'           => 'required|string|max:50',
+            'state'           => 'required|string|max:50',
             'logo'            => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'currency'        => 'nullable|string|max:10',
             'facebook_link'   => 'nullable|url|max:255',
@@ -140,7 +142,7 @@ class BusinessController extends Controller
 
         
         Business::create($validated);
-        // Business::create($request->only(['business_name','industry','ntn','country','city']));
+        Business::create($request->only(['business_name','industry','ntn','country','city']));
 
         return redirect()->route('backend.admin.business.index')
                          ->with('success', 'Business created successfully!');

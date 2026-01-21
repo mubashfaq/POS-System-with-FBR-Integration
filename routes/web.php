@@ -54,8 +54,8 @@ Route::post('/select-business', [BusinessController::class, 'select'])->name('bu
 Route::post('/switch-business', [BusinessController::class, 'switchBusiness'])->name('business.switch');
 
 Route::get('logout', [AuthController::class, 'logout'])->name('logout');
-// Route::match(['post', 'get'], 'sign-up', [AuthController::class, 'register'])->name('signup');
-Route::match(['post', 'get'], 'sign-up', [AuthController::class, 'login'])->name('signup');
+Route::match(['post', 'get'], 'sign-up', [AuthController::class, 'register'])->name('signup');
+// Route::match(['post', 'get'], 'sign-up', [AuthController::class, 'login'])->name('signup');
 Route::match(['get', 'post'], 'forget-password', [AuthController::class, 'forgetPassword'])->name('forget.password');
 Route::match(['get', 'post'], 'new-password', [AuthController::class, 'newPassword'])->name('new.password');
 Route::match(['get', 'post'], 'password-reset', [AuthController::class, 'resetPassword'])->name('password.reset');

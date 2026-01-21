@@ -122,9 +122,9 @@
                 </div>
                 
             </form>
-            <!-- <div class="authentication-form-footer">
+            <div class="authentication-form-footer">
                     <p>Don’t have an account? <a href="{{ route('signup') }}">Sign up </a></p>
-                </div> -->
+                </div>
             
         </div>
     </section>
