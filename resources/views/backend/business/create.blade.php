@@ -36,14 +36,14 @@
               name="ntn" value="{{ old('ntn') }}">
           </div>
 
-           <!-- NTN
+          <!-- CNIC -->
           <div class="mb-3 col-md-6">
-            <label for="ntn" class="form-label">
+            <label for="cnic" class="form-label">
               CNIC
             </label>
-            <input type="text" class="form-control" id="ntn" placeholder="Enter NTN" 
-              name="ntn" value="{{ old('ntn') }}">
-          </div> -->
+            <input type="text" class="form-control" id="cnic" placeholder="Enter CNIC" 
+              name="cnic" value="{{ old('cnic') }}">
+          </div>
 
           <!-- Country -->
         <div class="mb-3 col-md-6">
@@ -53,6 +53,17 @@
                 @foreach($countries as $code => $country)
                     <option value="{{ $country['name']['common'] }}" 
                         {{ old('country') == $country['name']['common'] ? 'selected' : '' }}>
+                        {{ $country['name']['common'] }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+
+        <!-- state -->
+         <div class="mb-3 col-md-6">
+            <label for="state" class="form-label">State</label>
+            <input type="text" class="form-control" id="state" placeholder="Enter state" 
+              name="state" value="{{ old('state') }}">
                         {{ $country['name']['common'] }}
                     </option>
                 @endforeach

@@ -85,11 +85,11 @@
                         @endif
 
                         <!-- Button to show create form -->
-                        <!-- <div class="text-center mb-3">
+                        <div class="text-center mb-3">
                             <button id="toggleCreateForm" class="btn btn-create">
                                 + Create New Business
                             </button>
-                        </div> -->
+                        </div>
 
                         <!-- Hidden Create Business Form -->
                         <div id="createForm" style="display: none;">
@@ -112,6 +112,10 @@
                                         <input type="text" class="form-control" id="ntn" name="ntn">
                                     </div>
                                     <div class="col-md-6 mb-3">
+                                        <label for="ntn" class="form-label">CNIC *</label>
+                                        <input type="text" class="form-control" id="cnic" name="cnic" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
                                         <label for="country" class="form-label">Country *</label>
                                         <select name="country" id="country" class="form-control">
                                             <option value="">-- Select Country --</option>
@@ -123,7 +127,12 @@
                                             @endforeach
                                         </select>
                                     </div>
+                                    <div class="col-md-6 mb-3">
+                                    <label for="city" class="form-label">State *</label>
+                                    <input type="text" class="form-control" id="state" name="state" required>
                                 </div>
+                                </div>
+                                
                                 <div class="mb-3">
                                     <label for="city" class="form-label">City *</label>
                                     <input type="text" class="form-control" id="city" name="city" required>
@@ -132,15 +141,13 @@
 
                                 <div class="row">
                                       <div class="mb-3 col-md-6">
-                                        <label for="email" class="form-label">Email</label>
-                                        <input type="email" class="form-control" placeholder="Enter Email" name="email"
-                                        >
+                                        <label for="email" class="form-label">Email *</label>
+                                        <input type="email" class="form-control" placeholder="Enter Email" name="email" required>
                                     </div>
 
                                     <div class="mb-3 col-md-6">
-                                        <label for="phone" class="form-label">Phone</label>
-                                        <input type="text" class="form-control" placeholder="Enter Phone" name="phone"
-                                        >
+                                        <label for="phone" class="form-label">Phone *</label>
+                                        <input type="text" class="form-control" placeholder="Enter Phone" name="phone" required>
                                     </div>
                                 </div>
 
@@ -187,9 +194,8 @@
                                 </div>
                                 <div class="row">
                                     <div class="mb-3 col-md-6">
-                                        <label for="address" class="form-label">Address</label>
-                                        <input type="text" class="form-control" placeholder="Enter address" name="address"
-                                        >
+                                        <label for="address" class="form-label">Address *</label>
+                                        <input type="text" class="form-control" placeholder="Enter address" name="address" required>
                                     </div>
                                 </div>
 

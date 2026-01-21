@@ -92,294 +92,7 @@ class OrderController extends Controller
      */
 
 
-//     public function storee(Request $request)
-// {
-//     // ===============================
-//     // VALIDATION
-//     // ===============================
-//     $request->validate([
-//         'customer_id' => [
-//             'required',
-//             'exists:customers,id',
-//             'integer',
-//         ],
-//         'order_discount' => [
-//             'nullable',
-//             'numeric',
-//             'min:0',
-//         ],
-//         'paid' => [
-//             'nullable',
-//             'numeric',
-//             'min:0',
-//         ],
-//     ], [
-//         'customer_id.required' => 'Please select a customer.',
-//         'customer_id.exists'   => 'The selected customer does not exist.',
-//         'order_discount.numeric' => 'The order discount must be a number.',
-//         'paid.numeric'           => 'The amount paid must be a number.',
-//     ]);
-
-//     $businessId = session('business_id'); // yahan se business_id mil raha hai
-
-//     if (!$businessId) {
-//         return response()->json(['error' => 'No business selected'], 422);
-//     }
-
-//     $carts = PosCart::with('product')->where('user_id', auth()->id())->get();
-
-//     if ($carts->isEmpty()) {
-//         return response()->json(['error' => 'Cart is empty'], 422);
-//     }
-
-//     // ===============================
-//     // DUPLICATE ORDER CHECK
-//     // ===============================
-//     if ($request->check_duplicate) {
-//         $cartProductIds = $carts->pluck('product.id')->toArray();
-
-//         $duplicateOrder = Order::where('customer_id', $request->customer_id)
-//             ->where('business_id', $businessId)
-//             ->whereHas('products', function ($q) use ($cartProductIds) {
-//                 $q->whereIn('product_id', $cartProductIds);
-//             })
-//             ->first();
-
-//         if ($duplicateOrder) {
-//             return response()->json([
-//                 'duplicate' => true,
-//                 'message' => 'Same order already exists. Do you want to create it again?',
-//             ]);
-//         }
-
-//         return response()->json([
-//             'duplicate' => false
-//         ]);
-//     }
-
-//     // ===============================
-//     // CREATE ORDER
-//     // ===============================
-//     $order = Order::create([
-//         'customer_id' => $request->customer_id,
-//         'user_id'     => $request->user()->id,
-//         'business_id' => $businessId,
-//     ]);
-
-//     $totalAmountOrder = 0;
-//     $orderDiscount = $request->order_discount ?? 0;
-
-//     foreach ($carts as $cart) {
-//         $product = $cart->product;
-//         $mainTotal = $product->price * $cart->quantity;
-//         $totalAfterDiscount = $product->discounted_price * $cart->quantity;
-//         $discount = $mainTotal - $totalAfterDiscount;
-//         $totalAmountOrder += $totalAfterDiscount;
-
-//         $order->products()->create([
-//             'quantity'       => $cart->quantity,
-//             'price'          => $product->price,
-//             'purchase_price' => $product->purchase_price,
-//             'sub_total'      => $mainTotal,
-//             'discount'       => $discount,
-//             'total'          => $totalAfterDiscount,
-//             'product_id'     => $product->id,
-//         ]);
-
-//         $product->decrement('quantity', $cart->quantity);
-//     }
-
-//     $total = $totalAmountOrder - $orderDiscount;
-//     $due   = $total - ($request->paid ?? 0);
-
-//     $order->sub_total = $totalAmountOrder;
-//     $order->discount  = $orderDiscount;
-//     $order->paid      = $request->paid ?? 0;
-//     $order->total     = round((float)$total, 2);
-//     $order->due       = round((float)$due, 2);
-//     $order->status    = $due <= 0;
-//     $order->save();
-
-//     // ===============================
-//     // BUILD FBR ITEMS ARRAY WITH MULTI-ITEM ROUNDING FIX
-//     // ===============================
-//     $fbrItems = [];
-//     $sumValueExTax = 0;
-//     $sumSalesTax   = 0;
-//     $sumDiscount   = 0;
-//     $sumTotal      = 0;
-
-//     $lastIndex = count($carts) - 1;
-
-//     foreach ($carts as $index => $cart) {
-
-//         $product = $cart->product;
-
-//         $quantity = round($cart->quantity, 4);
-//         $lineTotal = round($product->discounted_price * $quantity, 2);
-//         $discount = round(($product->price * $quantity) - $lineTotal, 2);
-
-//         $rateText = trim($product->rate_of_tax);
-
-//         if (str_ends_with($rateText, '%')) {
-//             $numericRate = floatval(str_replace('%', '', $rateText));
-//             $valueExTax = round($lineTotal / (1 + ($numericRate / 100)), 2);
-//             $salesTax   = round($lineTotal - $valueExTax, 2);
-//         } elseif (str_starts_with($rateText, 'Rs')) {
-//             $numericRate = floatval(preg_replace('/[^0-9.]/', '', $rateText));
-//             $salesTax   = $numericRate;
-//             $valueExTax = round($lineTotal - $salesTax, 2);
-//         } else {
-//             $numericRate = floatval($rateText);
-//             $valueExTax = round($lineTotal / (1 + ($numericRate / 100)), 2);
-//             $salesTax   = round($lineTotal - $valueExTax, 2);
-//         }
-
-//         $sumValueExTax += $valueExTax;
-//         $sumSalesTax   += $salesTax;
-//         $sumDiscount   += $discount;
-//         $sumTotal      += $lineTotal;
-
-//         $fbrItems[] = [
-//             "hsCode" => $product->hsCode,
-//             "productDescription" => $product->hs_description,
-//             "rate" => $rateText,
-//             "uoM" => $product->uom,
-//             "quantity" => (float) number_format($quantity, 4, '.', ''),
-//             "totalValues" => (float) number_format($lineTotal, 2, '.', ''),
-//             "valueSalesExcludingST" => (float) number_format($valueExTax, 2, '.', ''),
-//             "fixedNotifiedValueOrRetailPrice" => 0,
-//             "salesTaxApplicable" => (float) number_format($salesTax, 2, '.', ''),
-//             "salesTaxWithheldAtSource" => (float) number_format($cart->salesTaxWithheldAtSource, 2, '.', ''),
-//             "extraTax" => 0.00,
-//             "furtherTax" => 0,
-//             "sroScheduleNo" => $product->sro_schedule,
-//             "fedPayable" => 0,
-//             "discount" => (float) number_format($discount, 2, '.', ''),
-//             "saleType" => $product->sale_type,
-//             "sroItemSerialNo" => $product->sro_item,
-//         ];
-
-//         // Fix rounding difference on last item
-//         if ($index === $lastIndex) {
-//             $totalValueSum = round($sumValueExTax + $sumSalesTax + $sumDiscount, 2);
-//             $difference = round($sumTotal - $totalValueSum, 2);
-//             if ($difference != 0) {
-//                 $fbrItems[$index]['totalValues'] = round($fbrItems[$index]['totalValues'] + $difference, 2);
-//             }
-//         }
-//     }
-
-//     // ===============================
-//     // BUILD FBR PAYLOAD
-//     // ===============================
-//     $customer = Customer::find($request->customer_id);
-//     $businessData = Business::find($businessId);
-
-//     $fbrPayload = [
-//         "invoiceType" => "Sale Invoice",
-//         "invoiceDate" => now()->format('Y-m-d'),
-//         "sellerNTNCNIC" => $businessData->cnic,
-//         "sellerBusinessName" => $businessData->business_name,
-//         "sellerProvince" => $businessData->state,
-//         "sellerAddress" => $businessData->address,
-//         "buyerNTNCNIC" => "",
-//         "buyerBusinessName" => $customer->name,
-//         "buyerProvince" => $customer->province ?? "Punjab",
-//         "buyerAddress" => $customer->address ?? "",
-//         "buyerRegistrationType" => $customer->is_registered ? "Registered" : "Unregistered",
-//         "invoiceRefNo" => "INV-" . $order->id,
-//         "scenarioId" => "SN002",
-//         "items" => $fbrItems
-//     ];
-
-//     // ===============================
-//     // SEND TO FBR API
-//     // ===============================
-//     $token = env('FBR_TOKEN');
-
-//     try {
-//         $response = Http::withOptions([
-//             'timeout' => 620,
-//             'connect_timeout' => 620,
-//         ])->withHeaders([
-//             'Authorization' => "Bearer $token",
-//             'Content-Type' => 'application/json',
-//             'Accept-Encoding' => 'gzip, deflate, br',
-//             'Accept' => 'application/json'
-//         ])->post("https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb", $fbrPayload);
-
-//     } catch (\Illuminate\Http\Client\ConnectionException $e) {
-//         info('Connection Exception: ' . $e->getMessage());
-//     }
-
-//     // ===============================
-//     // RECORD PAYMENT (IF ANY)
-//     // ===============================
-//     if ($request->paid > 0) {
-//         $order->transactions()->create([
-//             'amount'      => $request->paid,
-//             'customer_id' => $order->customer_id,
-//             'user_id'     => auth()->id(),
-//             'paid_by'     => 'cash',
-//         ]);
-//     }
-
-//     PosCart::where('user_id', auth()->id())->delete();
-
-//     $responseJson = $response->json();
-
-//     $errorCode = data_get($responseJson, 'validationResponse.invoiceStatuses.0.errorCode') 
-//                  ?? data_get($responseJson, 'errorCode');
-
-//     $errorMessage = data_get($responseJson, 'validationResponse.invoiceStatuses.0.error') 
-//                     ?? data_get($responseJson, 'error');
-
-//     // update fbr api status and response in orders table
-//     Order::where('id', $order->id)->update([            
-//         'api_status' => $response->status(),
-//         'error_code' => $errorCode,
-//         'error_message' => $errorMessage,
-//         'api_message' => $response->ok(),
-//     ]);
-
-//     // Save Order logs 
-//     OrderLog::create([
-//         'order_id'       => $order->id,
-//         'request_payload'=> $fbrPayload,
-//         'response'       => $responseJson,
-//         'status_code'    => $response->status(),
-//         'error_code'     => $errorCode,
-//         'error_message'  => $errorMessage,
-//         'success'        => $response->ok(),
-//     ]);
-
-//     // FBR Logs
-//     Log::channel('fbr')->info('FBR API Request', [
-//         'order_id' => $order->id,
-//         'payload'  => $fbrPayload
-//     ]);
-
-//     Log::channel('fbr')->info('FBR API Response', [
-//         'order_id'       => $order->id,
-//         'response'       => $responseJson,
-//         'status_code'    => $response->status(),
-//         'error_code'     => $errorCode,
-//         'error_message'  => $errorMessage,
-//         'success'        => $response->ok(),
-//     ]);
-
-//     // ===============================
-//     // FINAL RESPONSE
-//     // ===============================
-//     return response()->json([
-//         'message' => 'Order completed successfully!',
-//         'fbr_payload_sent' => $fbrPayload,
-//         'fbr_api_response' => $response->json(),
-//         'fbr_api_response_statu' => $response->status(),
-//         'fbr_api_response_message' => $response->ok(),
-//     ], 200);
-// }
+//     
 
 
 // <<<<<<<<<<<<<<<<<<<<< first sennd fbi ten save in  >>>>>>>>>>>>>>>>>>>>>
@@ -400,6 +113,7 @@ public function store(Request $request)
 
     $carts = PosCart::with('product')
         ->where('user_id', auth()->id())
+        ->lockForUpdate()
         ->get();
 
     if ($carts->isEmpty()) {
@@ -488,7 +202,9 @@ public function store(Request $request)
         if (str_ends_with($rateText, '%')) {
             $rate = floatval(str_replace('%', '', $rateText));
             $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
-            $salesTax = round($lineTotal - $valueExTax, 2);
+            // $salesTax = round($lineTotal - $valueExTax, 2);
+            $salesTax  = round($valueExTax * ($rate / 100), 2);
+
         } else {
             $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
             $valueExTax = round($lineTotal - $salesTax, 2);
@@ -496,7 +212,8 @@ public function store(Request $request)
 
         $fbrItems[] = [
             "hsCode" => $product->hsCode,
-            "productDescription" => $product->hs_description,
+            "productDescription" => $product->name,
+            // "productDescription" => $product->hs_description,
             "rate" => $rateText,
             "uoM" => $product->uom,
             "quantity" => $qty,
@@ -531,7 +248,8 @@ public function store(Request $request)
         "buyerAddress" => $customer->address ?? "",
         "buyerRegistrationType" => $customer->is_registered ? "Registered" : "Unregistered",
         "invoiceRefNo" => "INV-" . $order->id,
-        "scenarioId" => "SN002",
+        // "invoiceRefNo" => "INV-" . "INV00112200",
+        "scenarioId" => "SN015",
         "items" => $fbrItems
     ];
 
@@ -554,11 +272,12 @@ public function store(Request $request)
 
     
     $responseJson = $response->json();
+    
+    $statusCode = data_get($responseJson, 'validationResponse.statusCode');
+    $errorCode = data_get($responseJson, 'validationResponse.errorCode');
 
-    $errorCode = data_get($responseJson, 'validationResponse.invoiceStatuses.0.errorCode')
-        ?? data_get($responseJson, 'errorCode');
-
-    $errorMessage = data_get($responseJson, 'validationResponse.invoiceStatuses.0.error')
+   
+    $errorMessage = data_get($responseJson, 'validationResponse.error')
         ?? data_get($responseJson, 'error');
 
     /* ================= SAVE API STATUS & LOGS (NO ROLLBACK) ================= */
@@ -579,13 +298,16 @@ public function store(Request $request)
         'success'        => $response->ok(),
     ]);
 
+
     Log::channel('fbr')->info('FBR API Response', [
         'order_id' => $order->id,
         'response' => $responseJson,
     ]);
 
+
     /* ================= FINAL DECISION ================= */
-    if (!empty($errorCode)) {
+    if ($statusCode != "00" || $statusCode != 00) {
+
         DB::rollBack();
 
         return response()->json([
@@ -596,7 +318,33 @@ public function store(Request $request)
         ]);
     }
 
+
     DB::commit();
+    //  try {
+    //         $post_api_response = Http::withOptions([
+    //             'timeout' => 620,
+    //             'connect_timeout' => 620,
+    //         ])->withHeaders([
+    //             'Authorization' => "Bearer $token",
+    //             'Content-Type' => 'application/json',
+    //             'Accept-Encoding' => 'gzip, deflate, br',
+    //             'Accept' => 'application/json'
+    //         ])->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb", $fbrPayload);
+
+    //     } catch (\Illuminate\Http\Client\ConnectionException $e) {
+    //         info('Connection Exception: ' . $e->getMessage());
+    //     }
+
+    //     $postResponseJson = $post_api_response->json();
+
+        
+    //     $fbr_invoice_number = data_get($postResponseJson, 'invoiceNumber');
+        
+    //         /* ================= SAVE API STATUS & LOGS (NO ROLLBACK) ================= */
+    //         Order::where('id', $order->id)->update([
+    //             'fbr_invoice_no'    => $fbr_invoice_number,
+    //         ]);
+           
 
     PosCart::where('user_id', auth()->id())->delete();
 
@@ -1162,7 +910,10 @@ public function store(Request $request)
     public function invoice($id)
     {
         $order = Order::with(['customer', 'products.product'])->findOrFail($id);
-        return view('backend.orders.print-invoice', compact('order'));
+        $businessId = session('business_id');
+        $business = Business::where('id', $businessId)->first();
+       
+        return view('backend.orders.print-invoice', compact('order', 'business'));
     }
     public function collection(Request $request, $id)
     {
