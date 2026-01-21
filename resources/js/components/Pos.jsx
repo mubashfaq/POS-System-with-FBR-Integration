@@ -10,6 +10,8 @@ import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
 
 export default function Pos() {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     const [products, setProducts] = useState([]);
     const [carts, setCarts] = useState([]);
     const [orderDiscount, setOrderDiscount] = useState(0);
@@ -180,110 +182,9 @@ export default function Pos() {
             }
         });
     }
-    // function orderCreate() {
-    //     if (total <= 0) {
-    //         return;
-    //     }
-    //     if (!customerId) {
-    //         toast.error("Please select customer");
-    //         return;
-    //     }
-    //     Swal.fire({
-    //         title: `Are you sure you want to complete this order? <br>Due: ${due}`,
-    //         showDenyButton: true,
-    //         confirmButtonText: "Yes",
-    //         denyButtonText: "No",
-    //         customClass: {
-    //             actions: "my-actions",
-    //             cancelButton: "order-1 right-gap",
-    //             confirmButton: "order-2",
-    //             denyButton: "order-3",
-    //         },
-    //     }).then((result) => {
-    //         if (result.isConfirmed) {
-    //             axios
-    //                 .put(
-    //                     "/admin/order/create",
-    //                     {
-    //                         customer_id: customerId,
-    //                         order_discount: parseFloat(orderDiscount) || 0,
-    //                         paid: parseFloat(paid) || 0,
-
-    //                         //  Add full cart here
-    //                         cart: carts,
-    //                     },
-    //                     {
-    //                         headers: {
-    //                             "Content-Type": "application/json",
-    //                         },
-    //                     }
-    //                 )
-    //                 // .then((res) => {
-    //                 //     setCartUpdated(!cartUpdated);
-    //                 //     setProductUpdated(!productUpdated);
-    //                 //     toast.success(res?.data?.message);
-    //                 //     // window.location.href = `orders/invoice/${res?.data?.order?.id}`;
-    //                 //     // window.location.href = `orders/pos-invoice/${res?.data?.order?.id}`;
-    //                 //     console.log("API Full Response:", res.data);
-    //                 // })
-    //                 .then((res) => {
-    //                     setCartUpdated(!cartUpdated);
-    //                     setProductUpdated(!productUpdated);
-
-    //                     // ✅ 1️⃣ ORDER CREATED TOASTER (ALWAYS)
-    //                     toast.success("Order completed successfully!", {
-    //                         duration: 4000,
-    //                     });
-
-    //                     // ⏳ Small delay so second toaster comes UNDER it
-    //                     setTimeout(() => {
-    //                         const fbr =
-    //                             res?.data?.fbr_api_response?.validationResponse;
-
-    //                         if (!fbr) {
-    //                             toast.warning("FBR response not received", {
-    //                                 duration: 5000,
-    //                             });
-    //                             return;
-    //                         }
-
-    //                         // ✅ 2️⃣ FBR STATUS TOASTER
-    //                         if (fbr.statusCode === "00") {
-    //                             // GREEN
-    //                             toast.success(
-    //                                 `FBR Invoice Validated
-    //                                 Status: ${fbr.status}
-    //                                 Status Code: ${fbr.statusCode}`,
-    //                                 {
-    //                                     duration: 7000,
-    //                                 }
-    //                             );
-    //                         } else {
-    //                             // RED
-    //                             toast.error(
-    //                                 `FBR Validation Failed
-    //                                 Status: ${fbr.status}
-    //                                 Message: ${fbr.error}`,
-    //                                 {
-    //                                     duration: 9000,
-    //                                 }
-    //                             );
-    //                         }
-    //                     }, 800); // delay so it appears under first toaster
-
-    //                     console.log("API Full Response:", res.data);
-    //                 })
-
-    //                 .catch((err) => {
-    //                     // toast.error(err.response.data.message);
-    //                     console.error(err);
-    //                 });
-    //         } else if (result.isDenied) {
-    //             return;
-    //         }
-    //     });
-    // }
+ 
     function orderCreate() {
+        document.getElementsByClassName("checkout-btn")[0].disabled = true;
     if (total <= 0) return;
     if (!customerId) {
         toast.error("Please select customer");
@@ -382,6 +283,8 @@ function createOrder() {
         console.error(err);
         toast.error("Order creation failed.");
     });
+
+    document.getElementsByClassName("checkout-btn")[0].disabled = false;
 }
 
     return (
