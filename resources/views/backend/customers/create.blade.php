@@ -29,9 +29,24 @@
           <div class="mb-3 col-md-6">
             <label for="title" class="form-label">
               Address
+              <span class="text-danger">*</span>
+
             </label>
             <input type="text" class="form-control" placeholder="Enter Address" name="address"
-              value="{{ old('Address') }}">
+              value="{{ old('Address') }}" required>
+          </div>
+
+          <div class="mb-3 col-md-6">
+            <label for="title" class="form-label">
+              Status
+            <span class="text-danger">*</span>
+
+            </label>
+            <select name="is_registered" id="is_registered" class="form-control" required>
+              <option value="">Select Status</option>
+              <option value="Registered" {{ old('is_registered') == 'Registered' ? 'selected' : '' }}>Registered</option>
+              <option value="Unregistered" {{ old('is_registered') == 'Unregistered' ? 'selected' : '' }}>Unregistered</option>
+            </select>
           </div>
         </div>
         <div class="row">

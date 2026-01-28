@@ -7,6 +7,7 @@ use App\Http\Controllers\Backend\Report\ReportController;
 use App\Http\Controllers\Backend\SupplierController;
 use App\Http\Controllers\CustomerController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Backend\BusinessController;
@@ -68,6 +69,11 @@ Route::get('auth/google/callback', [GoogleController::class, 'handleGoogleCallba
 // ====================== /FRONTEND =====================
 
 // ====================== BACKEND =======================
+Route::post('/admin/set-customer-session', function(Request $request) {
+    session(['customer_is_registered' => $request->is_registered]);
+    return response()->json(['success' => true]);
+})->middleware(['admin']);
+
 
 Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
@@ -76,6 +82,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     // Route::resource('business', BusinessController::class);
     Route::resource('business', BusinessController::class)
     ->middleware('current.business');
+
 
     Route::resource('orders', OrderController::class);
     Route::resource('purchase', PurchaseController::class);
@@ -87,11 +94,13 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::get('products/sro-schedule/{rate_tax_id}', [ProductController::class, 'getSroSchedule'])->name('products.sro-schedule');
     Route::get('products/sro-Items-details/{sro_schedule_id}', [ProductController::class, 'getSroItemDetail'])->name('products.sro-Items-details');
 
+    
     Route::resource('units', UnitController::class);
     Route::resource('currencies', CurrencyController::class);
     Route::match(['get', 'post'], 'import/products', [ProductController::class,'import'])->name('products.import');
     Route::get('currencies/default/{id}', [CurrencyController::class, 'setDefault'])->name('currencies.setDefault');
     Route::get('customers/orders/{id}', [CustomerController::class, 'orders'])->name('customers.orders');
+    Route::post('select-customer/{id}', [CustomerController::class, 'selectCustomer'])->name('select-customer');
     Route::get('purchase/products/{id}', [PurchaseController::class, 'purchaseProducts'])->name('purchase.products');
     Route::get('orders/invoice/{id}', [OrderController::class,'invoice'])->name('orders.invoice');
     Route::get('orders/pos-invoice/{id}', [OrderController::class, 'posInvoice'])->name('orders.pos-invoice');
@@ -112,6 +121,8 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
         Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
 
         Route::put('/cart/update-quantity', [CartController::class, 'updateQuantity']);
+        Route::put('/cart/update-price', [CartController::class, 'updatePrice']);
+
 
         Route::put('/cart/increment', [CartController::class, 'increment']);
         Route::put('/cart/decrement', [CartController::class, 'decrement']);

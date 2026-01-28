@@ -27,9 +27,18 @@ class PurchaseController extends Controller
             return response()->json(['error' => 'No business selected'], 422);
         }
         if ($request->ajax()) {
-            $purchases = Purchase::with('supplier')
-            ->where('business_id', $businessId)
+            // $purchases = Purchase::with('supplier')
+            // ->where('business_id', $businessId)
+            // ->get();
+
+            $purchases = Purchase::where('business_id', $businessId)
+            ->whereHas('supplier', function($query) use ($businessId) {
+                $query->where('business_id', $businessId);
+            })
+            ->with('supplier')
             ->get();
+
+
             return DataTables::of($purchases)
                 ->addIndexColumn()
                 ->addColumn('supplier', fn($data) => $data->supplier->name)
@@ -198,9 +207,10 @@ class PurchaseController extends Controller
      */
     public function show(Request $request, $id)
     {
-
         if ($request->wantsJson()) {
+            $businessId = session('business_id');
             $purchase = Purchase::with('items', 'supplier')->findOrFail($id);
+            
             return $purchase;
         }
     }
@@ -244,7 +254,8 @@ class PurchaseController extends Controller
     // purchaseProducts list by Purchase id
     public function purchaseProducts(Request $request, $id)
     {
-        $purchase = Purchase::with('items.product')->findOrFail($id);
+        $businessId = session('business_id');
+        $purchase = Purchase::with('items.product')->where('business_id', $businessId)->findOrFail($id);
         return view('backend.purchase.products', compact('id', 'purchase'));
     }
 }
