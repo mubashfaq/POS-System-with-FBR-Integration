@@ -21,6 +21,7 @@ class SupplierController extends Controller
     // abort_if(!auth()->user()->can('supplier_view'), 403);
 
         $businessId = session('business_id');
+        
         if ($request->ajax()) {
             $suppliers = Supplier::where('business_id', $businessId) // 👈 filter by business
             ->latest()
@@ -53,7 +54,8 @@ class SupplierController extends Controller
                 ->toJson();
         }
         if ($request->wantsJson()) {
-            return response()->json(Supplier::latest()->get());
+
+            return response()->json(Supplier::where('business_id', $businessId)->latest()->get());
         }
 
 
