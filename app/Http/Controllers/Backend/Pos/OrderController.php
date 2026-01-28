@@ -111,6 +111,9 @@ public function store(Request $request)
         return response()->json(['error' => 'No business selected'], 422);
     }
 
+    $customer = Customer::find($request->customer_id);
+
+
     $carts = PosCart::with('product')
         ->where('user_id', auth()->id())
         ->lockForUpdate()
@@ -154,28 +157,33 @@ public function store(Request $request)
     $totalAmountOrder = 0;
     $orderDiscount = $request->order_discount ?? 0;
 
+
     foreach ($carts as $cart) {
-        $product = $cart->product;
+    $product = $cart->product;
 
-        $mainTotal = $product->price * $cart->quantity;
-        $totalAfterDiscount = $product->discounted_price * $cart->quantity;
-        $discount = $mainTotal - $totalAfterDiscount;
+    // Use price_override if exists
+    $unitPrice = $cart->price_override ?? $product->discounted_price;
 
-        $totalAmountOrder += $totalAfterDiscount;
+    $mainTotal = $product->price * $cart->quantity; // original price
+    $totalAfterDiscount = $unitPrice * $cart->quantity;
+    $discount = ($product->price - $unitPrice) * $cart->quantity;
 
-        $order->products()->create([
-            'quantity'       => $cart->quantity,
-            'price'          => $product->price,
-            'purchase_price' => $product->purchase_price,
-            'sub_total'      => $mainTotal,
-            'discount'       => $discount,
-            'total'          => $totalAfterDiscount,
-            'product_id'     => $product->id,
-        ]);
+    $totalAmountOrder += $totalAfterDiscount;
 
-        $product->quantity -= $cart->quantity;
-        $product->save();
-    }
+    $order->products()->create([
+        'quantity'       => $cart->quantity,
+        'price'          => $unitPrice,  // ✅ override price here
+        'purchase_price' => $product->purchase_price,
+        'sub_total'      => $mainTotal,
+        'discount'       => $discount,
+        'total'          => $totalAfterDiscount,
+        'product_id'     => $product->id,
+    ]);
+
+    $product->quantity -= $cart->quantity;
+    $product->save();
+}
+
 
     $total = $totalAmountOrder - $orderDiscount;
     $due   = $total - ($request->paid ?? 0);
@@ -194,9 +202,13 @@ public function store(Request $request)
 
     foreach ($carts as $cart) {
         $product = $cart->product;
+        
 
-        $qty = round($cart->quantity, 4);
-        $lineTotal = round($product->discounted_price * $qty, 2);
+        $qty = round($cart->quantity, 2);
+        // $lineTotal = round($product->discounted_price * $qty, 2);
+        $unitPrice = $cart->price_override ?? $product->discounted_price;
+        $lineTotal = round($unitPrice * $qty, 2);
+
         $rateText = trim($product->rate_of_tax);
 
         if (str_ends_with($rateText, '%')) {
@@ -205,9 +217,23 @@ public function store(Request $request)
             // $salesTax = round($lineTotal - $valueExTax, 2);
             $salesTax  = round($valueExTax * ($rate / 100), 2);
 
+            if($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods'){
+                $furtherTax = round($valueExTax * (4 / 100), 2);
+  
+            }else{
+                $furtherTax = 0;
+            }
+
         } else {
             $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
             $valueExTax = round($lineTotal - $salesTax, 2);
+
+             if($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods'){
+                $furtherTax = round($valueExTax * (4 / 100), 2);
+  
+            }else{
+                $furtherTax = 0;
+            }
         }
 
         $fbrItems[] = [
@@ -217,13 +243,13 @@ public function store(Request $request)
             "rate" => $rateText,
             "uoM" => $product->uom,
             "quantity" => $qty,
-            "totalValues" => $lineTotal,
+            "totalValues" => $lineTotal + $furtherTax,
             "valueSalesExcludingST" => $valueExTax,
-            "fixedNotifiedValueOrRetailPrice" => 0,
+            "fixedNotifiedValueOrRetailPrice" => $product->price,
             "salesTaxApplicable" => $salesTax,
             "salesTaxWithheldAtSource" => 0,
             "extraTax" => 0,
-            "furtherTax" => 0,
+            "furtherTax" => $furtherTax,
             "sroScheduleNo" => $product->sro_schedule,
             "fedPayable" => 0,
             "discount" => 0,
@@ -242,11 +268,11 @@ public function store(Request $request)
         "sellerBusinessName" => $business->business_name,
         "sellerProvince" => $business->state,
         "sellerAddress" => $business->address,
-        "buyerNTNCNIC" => "",
+        "buyerNTNCNIC" => "3312253889075",
         "buyerBusinessName" => $customer->name,
         "buyerProvince" => $customer->province ?? "Punjab",
         "buyerAddress" => $customer->address ?? "",
-        "buyerRegistrationType" => $customer->is_registered ? "Registered" : "Unregistered",
+        "buyerRegistrationType" => "Unregistered",
         "invoiceRefNo" => "INV-" . $order->id,
         // "invoiceRefNo" => "INV-" . "INV00112200",
         "scenarioId" => "SN015",
@@ -254,6 +280,11 @@ public function store(Request $request)
     ];
 
     /* ================= FBR API CALL ================= */
+    Log::info('FBR Payload', [
+    'order_id' => $order->id ?? null,
+    'payload'  => $fbrPayload
+]);
+
     $token = env('FBR_TOKEN');
     try {
         $response = Http::withOptions([
@@ -288,25 +319,9 @@ public function store(Request $request)
         'api_message'   => $response->ok(),
     ]);
 
-    OrderLog::create([
-        'order_id'       => $order->id,
-        'request_payload'=> $fbrPayload,
-        'response'       => $responseJson,
-        'status_code'    => $response->status(),
-        'error_code'     => $errorCode,
-        'error_message'  => $errorMessage,
-        'success'        => $response->ok(),
-    ]);
-
-
-    Log::channel('fbr')->info('FBR API Response', [
-        'order_id' => $order->id,
-        'response' => $responseJson,
-    ]);
-
 
     /* ================= FINAL DECISION ================= */
-    if ($statusCode != "00" || $statusCode != 00) {
+    if ($statusCode != "00") {
 
         DB::rollBack();
 

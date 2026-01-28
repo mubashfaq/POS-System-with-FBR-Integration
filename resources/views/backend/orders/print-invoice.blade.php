@@ -156,7 +156,7 @@
             <div class="row">
 
 
-              <div class="col-md-2 mt-3">
+              <div class="col-md-1 mt-2">
                   <!-- <h3>FBR Dig</h3> -->
                   <div id="qrcode"></div>
                    
@@ -164,11 +164,17 @@
 
               <div class="col-md-1">
                  <div class="img">
-                      <img src="{{ asset('assets/images/fbr_logo-icon.png') }}" width="120px" alt="">
+                      <img src="{{ asset('assets/images/fbr_logo-icon.png') }}" style="width: 100%;" alt="">
                   </div>
               </div>
 
-              <div class="col-md-9"></div>
+              <div class="col-md-8"></div>
+
+              <div class="col-md-2">
+                 <div class="img">
+                      <img src="{{ asset('assets/images/imc.jpeg') }}" style="width: 100%;" alt="">
+                  </div>
+              </div>
 
             </div>
             <div class="row no-print">
@@ -200,8 +206,8 @@ window.addEventListener("load", window.print());
 
 new QRCode(document.getElementById("qrcode"), {
     text: "{{ $order->fbr_invoice_no }}",
-    width: 100,
-    height: 100
+    width: 60,
+    height: 60
 });
 </script>
 @endpush

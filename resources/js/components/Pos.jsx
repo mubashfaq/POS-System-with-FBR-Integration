@@ -20,6 +20,7 @@ export default function Pos() {
     const [total, setTotal] = useState(0);
     const [updateTotal, setUpdateTotal] = useState(0);
     const [customerId, setCustomerId] = useState();
+    const [isRegistered, setIsRegistered] = useState("Registered"); 
     const [cartUpdated, setCartUpdated] = useState(false);
     const [productUpdated, setProductUpdated] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -28,6 +29,52 @@ export default function Pos() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [loading, setLoading] = useState(false);
+    const [furtherTaxTotal, setFurtherTaxTotal] = useState(0);
+
+
+    const handlePriceChange = (cartId, newPrice) => {
+    const price = parseFloat(newPrice);
+
+    if (isNaN(price) || price < 0) return;
+
+     // Update cart state (UI will reflect immediately)
+    setCarts(prev =>
+        prev.map(item =>
+            item.id === cartId
+                ? { ...item, unit_price: price }
+                : item
+        )
+    );
+
+    // 2️⃣ Backend API update
+    axios.put("/admin/cart/update-price", {
+        id: cartId,
+        price: price,
+    }).then(() => {
+        setCartUpdated(prev => !prev);
+    }).catch(err => {
+        console.error("Price update failed", err);
+    });
+};
+
+    
+
+    // POS.jsx ke andar, CustomerSelect ke pass karne ke liye
+const emptyCartOnCustomerChange = async () => {
+    try {
+        await axios.put("/admin/cart/empty"); // backend empty cart
+        setCarts([]); // frontend cart clear
+        setCartUpdated(prev => !prev); // Cart component ko update karne ke liye
+        playSound(SuccessSound);
+        toast.success("Cart emptied due to customer change");
+    } catch (err) {
+        playSound(WarningSound);
+        toast.error("Failed to empty cart");
+        console.error(err);
+    }
+};
+
+
     const fullDomainWithPort = `${protocol}//${hostname}${
         port ? `:${port}` : ""
     }`;
@@ -65,6 +112,13 @@ export default function Pos() {
     }, []);
     useEffect(() => {
         getUpdatedProducts();
+
+        
+        // Send to backend
+        axios.post('/admin/set-customer-session', {
+            is_registered: 'Registered'
+        }).catch(err => console.error("Could not set session:", err));
+
     }, [productUpdated]);
 
     const getCarts = async () => {
@@ -74,6 +128,8 @@ export default function Pos() {
             setTotal(data?.total);
             setUpdateTotal(data?.total - orderDiscount);
             setCarts(data?.carts);
+console.log("CART FROM API", data?.carts);
+
         } catch (error) {
             console.error("Error fetching carts:", error);
         }
@@ -183,8 +239,8 @@ export default function Pos() {
         });
     }
  
-    function orderCreate() {
-        document.getElementsByClassName("checkout-btn")[0].disabled = true;
+function orderCreate() {
+    document.getElementsByClassName("checkout-btn")[0].disabled = true;
     if (total <= 0) return;
     if (!customerId) {
         toast.error("Please select customer");
@@ -196,15 +252,15 @@ export default function Pos() {
         "/admin/order/create",
         {
             customer_id: customerId,
+            is_registered: isRegistered, // ✅ IMPORTANT: Send registration status
             order_discount: parseFloat(orderDiscount) || 0,
             paid: parseFloat(paid) || 0,
             cart: carts,
-            check_duplicate: true, // flag to only check duplicate
+            check_duplicate: true,
         },
         { headers: { "Content-Type": "application/json" } }
     )
     .then((res) => {
-        // Agar duplicate hai
         if (res.data.duplicate) {
             Swal.fire({
                 title: res.data.message,
@@ -213,15 +269,12 @@ export default function Pos() {
                 denyButtonText: "No, cancel",
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // User ne "Yes" click kiya → ab actual order create karo
                     createOrder();
                 } else {
-                    // User ne "No" click kiya → kuch na kare
                     toast.info("Order not created.");
                 }
             });
         } else {
-            // Duplicate nahi → seedha order create
             createOrder();
         }
     })
@@ -231,12 +284,29 @@ export default function Pos() {
     });
 }
 
-// Actual order create karne ka function
+
+const handleCartTotals = (subTotalCalc, furtherTaxCalc, grandTotalCalc) => {
+    setTotal(grandTotalCalc); // ✅ include further tax
+    setUpdateTotal(grandTotalCalc - orderDiscount); // after discount
+    setDue(grandTotalCalc - orderDiscount - paid); // due
+    setFurtherTaxTotal(furtherTaxCalc); // optional display
+};
+
+
+
 function createOrder() {
+    const cartForOrder = carts.map(item => ({
+        id: item.id,
+        product_id: item.product.id,
+        quantity: item.quantity,
+        further_tax: item.further_tax,
+        price: item.product.discounted_price, // ✅ frontend updated price
+    }));
     axios.put(
         "/admin/order/create",
         {
             customer_id: customerId,
+            is_registered: isRegistered, // ✅ IMPORTANT: Send registration status
             order_discount: parseFloat(orderDiscount) || 0,
             paid: parseFloat(paid) || 0,
             cart: carts,
@@ -276,7 +346,7 @@ function createOrder() {
                 );
             }
         }, 800);
-
+        
         console.log("API Full Response:", res.data);
     })
     .catch((err) => {
@@ -312,6 +382,8 @@ function createOrder() {
                                 <div className="col-12">
                                     <CustomerSelect
                                         setCustomerId={setCustomerId}
+                                        setIsRegistered={setIsRegistered}
+                                        emptyCart={emptyCartOnCustomerChange}
                                     />
                                 </div>
                                 {/* <div className="col-6">
@@ -332,6 +404,9 @@ function createOrder() {
                                 carts={carts}
                                 setCartUpdated={setCartUpdated}
                                 cartUpdated={cartUpdated}
+                                isRegistered={isRegistered}
+                                onPriceChange={handlePriceChange}
+                                onTotalsChange={handleCartTotals}
                             />
                             <div className="card">
                                 <div className="card-body">
@@ -536,3 +611,12 @@ function createOrder() {
         </>
     );
 }
+
+const emptyCartOnCustomerChange = async () => {
+    await axios.put("/admin/cart/empty");
+    setCartUpdated(prev => !prev);
+};
+
+
+
+
