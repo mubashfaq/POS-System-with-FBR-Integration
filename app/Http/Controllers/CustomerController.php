@@ -94,6 +94,8 @@ class CustomerController extends Controller
     public function store(Request $request)
     {
         $currentBusiness = currentUserBusiness();
+                $businessId = session('business_id');
+
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('customer_create'), 403);
 
         // abort_if(!auth()->user()->can('customer_create'), 403);
@@ -112,7 +114,8 @@ class CustomerController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|string|max:20|unique:customers,phone',
-            'address' => 'nullable|string|max:255',
+            'address' => 'required|string|max:255',
+            'is_registered' => 'required|string|max:255',
         ]);
 
         $businessId = session('business_id'); // business_id 
@@ -124,6 +127,7 @@ class CustomerController extends Controller
             'name'        => $request->name,
             'phone'       => $request->phone,
             'address'     => $request->address,
+            'is_registered' => $request->is_registered,
             'business_id' => $businessId, 
         ]);
 
@@ -194,8 +198,10 @@ class CustomerController extends Controller
     }
     public function getCustomers(Request $request)
     {
+        $businessId = session('business_id');
+
         if ($request->wantsJson()) {
-            return response()->json(Customer::latest()->get());
+            return response()->json(Customer::where('business_id', $businessId)->latest()->get());
         }
     }
     //get orders by customer id
@@ -205,4 +211,19 @@ class CustomerController extends Controller
         $orders = $customer->orders()->paginate(100);
         return view('backend.orders.index', compact('orders'));
     }
+
+    public function selectCustomer($id)
+{
+    // Example: store selected customer in session
+    $customerData = Customer::findOrFail($id);
+    $isRegistered = $customerData->is_registered;
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Customer selected successfully',
+        'customer' => $customerData,
+        'isRegistered' => $isRegistered,
+    ]);
+}
+
 }

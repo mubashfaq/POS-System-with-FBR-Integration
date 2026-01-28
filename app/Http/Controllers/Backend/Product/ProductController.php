@@ -96,6 +96,8 @@ class ProductController extends Controller
             ]);
 
             // Initialize the query
+           
+
             $products = Product::query();
 
             // Apply filters based on the search term
@@ -104,7 +106,7 @@ class ProductController extends Controller
                     ->orWhere('sku', $request->search);
             });
             // Get the results
-            $products = $products->get();
+            $products = $products->where('business_id', $businessId)->get();
             // Return the results as a JSON response
             return ProductResource::collection($products);
         }
