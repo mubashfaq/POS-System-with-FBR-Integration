@@ -8,14 +8,14 @@
         @yield('title', 'Dashboard') | {{'site_name'}}
     </title>
 
-    <!-- FAVICON ICON -->
-    {{-- <link rel="shortcut icon" href="{{ assetImage(readconfig('favicon_icon')) }}" type="image/svg+xml"> --}}
+     <!-- FAVICON ICON -->
+     <link rel="shortcut icon" href="{{ assetImage(readconfig('favicon_icon')) }}" type="image/svg+xml"> 
 
     <!-- FAVICON ICON APPLE -->
-    {{-- <link href="{{ assetImage(readconfig('favicon_icon_apple')) }}" rel="apple-touch-icon">
+     <link href="{{ assetImage(readconfig('favicon_icon_apple')) }}" rel="apple-touch-icon">
     <link href="{{ assetImage(readconfig('favicon_icon_apple')) }}" rel="apple-touch-icon" sizes="72x72">
     <link href="{{ assetImage(readconfig('favicon_icon_apple')) }}" rel="apple-touch-icon" sizes="114x114">
-    <link href="{{ assetImage(readconfig('favicon_icon_apple')) }}" rel="apple-touch-icon" sizes="144x144"> --}}
+    <link href="{{ assetImage(readconfig('favicon_icon_apple')) }}" rel="apple-touch-icon" sizes="144x144"> 
 
     <!-- Google Font: Source Sans Pro -->
     <link rel="stylesheet"
