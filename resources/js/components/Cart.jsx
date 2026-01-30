@@ -304,7 +304,8 @@ export default function Cart({
                                                     <td className="text-right">
                                                         <input
                                                         type="number"
-                                                        className="border px-2 w-24 text-right"
+                                                        className="border text-right"
+                                                        style={{ width: "80px" }}
                                                        value={item.unit_price ?? item.product.discounted_price}
 
                                                         onChange={(e) => {
@@ -364,12 +365,12 @@ export default function Cart({
                                                                     </del>
                                                                 </div>
                                                                 <div className="small text-danger">
-                                                                    (+
+                                                                    +
                                                                     {
                                                                         item.further_tax
                                                                     }{" "}
-                                                                    4% further
-                                                                    tax)
+                                                                    further
+                                                                    tax
                                                                 </div>
                                                             </>
                                                         ) : (

@@ -15,7 +15,10 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('phone')->unique()->nullable();
-            $table->string('address')->nullable();
+            $table->string('is_registered')->nullable();
+            $table->string('ntn_cnic');
+            $table->string('province');
+            $table->string('address');
             $table->timestamps();
         });
     }

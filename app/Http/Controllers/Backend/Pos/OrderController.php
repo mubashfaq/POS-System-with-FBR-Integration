@@ -163,27 +163,46 @@ public function store(Request $request)
 
     // Use price_override if exists
     $unitPrice = $cart->price_override ?? $product->discounted_price;
+    $qty = $cart->quantity;
+    $lineTotal = round($unitPrice * $qty, 2);
+    $subTotal  = round($product->price * $qty, 2);
+    $discount  = round(($product->price - $unitPrice) * $qty, 2);
 
-    $mainTotal = $product->price * $cart->quantity; // original price
-    $totalAfterDiscount = $unitPrice * $cart->quantity;
-    $discount = ($product->price - $unitPrice) * $cart->quantity;
+   // 🔹 FURTHER TAX (NEW)
+        $rateText = trim($product->rate_of_tax);
+        $furtherTax = 0;
 
-    $totalAmountOrder += $totalAfterDiscount;
+        if (str_ends_with($rateText, '%')) {
+            $rate = floatval(str_replace('%', '', $rateText));
+            $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
+
+            if (
+                $customer->is_registered &&
+                strtolower($customer->is_registered) === 'unregistered' &&
+                $product->sale_type != '3rd Schedule Goods'
+            ) {
+                $furtherTax = round($valueExTax * 0.04, 2);
+            }
+        }
+
+        // ✅ FINAL TOTAL = line total + further tax
+        $finalTotal = round($lineTotal + $furtherTax, 2);
+
+    $totalAmountOrder += $finalTotal;
 
     $order->products()->create([
         'quantity'       => $cart->quantity,
         'price'          => $unitPrice,  // ✅ override price here
         'purchase_price' => $product->purchase_price,
-        'sub_total'      => $mainTotal,
+        'sub_total'      => $subTotal,
         'discount'       => $discount,
-        'total'          => $totalAfterDiscount,
+        'total'          => $finalTotal,
         'product_id'     => $product->id,
     ]);
 
     $product->quantity -= $cart->quantity;
     $product->save();
 }
-
 
     $total = $totalAmountOrder - $orderDiscount;
     $due   = $total - ($request->paid ?? 0);
@@ -199,7 +218,8 @@ public function store(Request $request)
 
     /* ================= FBR ITEMS ================= */
     $fbrItems = [];
-
+    $furtherTax = 0;
+    $lineTotal = 0;
     foreach ($carts as $cart) {
         $product = $cart->product;
         
@@ -268,11 +288,11 @@ public function store(Request $request)
         "sellerBusinessName" => $business->business_name,
         "sellerProvince" => $business->state,
         "sellerAddress" => $business->address,
-        "buyerNTNCNIC" => "3312253889075",
+        "buyerNTNCNIC" => $customer->ntn_cnic,
         "buyerBusinessName" => $customer->name,
-        "buyerProvince" => $customer->province ?? "Punjab",
-        "buyerAddress" => $customer->address ?? "",
-        "buyerRegistrationType" => "Unregistered",
+        "buyerProvince" => $customer->province,
+        "buyerAddress" => $customer->address,
+        "buyerRegistrationType" => $customer->is_registered,
         "invoiceRefNo" => "INV-" . $order->id,
         // "invoiceRefNo" => "INV-" . "INV00112200",
         "scenarioId" => "SN015",
@@ -359,7 +379,8 @@ public function store(Request $request)
     //         Order::where('id', $order->id)->update([
     //             'fbr_invoice_no'    => $fbr_invoice_number,
     //         ]);
-           
+
+    
 
     PosCart::where('user_id', auth()->id())->delete();
 
@@ -367,6 +388,7 @@ public function store(Request $request)
         'message' => 'Order completed successfully!',
         'fbr_payload_sent' => $fbrPayload,
         'fbr_api_response' => $responseJson,
+        'order' => $order
     ], 200);
 }
 
