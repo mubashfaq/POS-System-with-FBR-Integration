@@ -17,7 +17,7 @@
                     </h2>
                 </div>
                 <div class="col-4">
-                    <h4 class="page-header">Invoice</h4>
+                    <h4 class="page-header" align="center">Invoice</h4>
                 </div>
                 <div class="col-4">
                     <small class="float-right text-small">Date: {{date('d/m/Y')}}</small>
