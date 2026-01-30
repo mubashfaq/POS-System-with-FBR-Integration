@@ -88,7 +88,7 @@ const emptyCartOnCustomerChange = async () => {
                 const productsData = res.data;
                 setProducts((prev) => [...prev, ...productsData.data]); // Append new products
                 if (productsData.data.length === 1 && barcode != "") {
-                    addProductToCart(productsData.data[0].id);
+                    addProductToCart(productsData.data[0].id , customerId);
                     getCarts();
                 }
                 setTotalPages(productsData.meta.last_page); // Get total pages
@@ -192,7 +192,12 @@ console.log("CART FROM API", data?.carts);
         };
     }, [currentPage, totalPages]);
 
-    function addProductToCart(id) {
+    function addProductToCart(id , customerId) {
+         if(!customerId){
+            toast.error("Please Select Customer");
+            return;
+         }
+
         axios
             .post("/admin/cart", { id })
             .then((res) => {
@@ -269,13 +274,16 @@ function orderCreate() {
                 denyButtonText: "No, cancel",
             }).then((result) => {
                 if (result.isConfirmed) {
-                    createOrder();
+                    createOrder(true);
+                    // createOrderWithRedirect();
+                    
                 } else {
                     toast.info("Order not created.");
                 }
             });
         } else {
-            createOrder();
+            createOrder(true);
+            // createOrderWithRedirect();  
         }
     })
     .catch((err) => {
@@ -294,7 +302,7 @@ const handleCartTotals = (subTotalCalc, furtherTaxCalc, grandTotalCalc) => {
 
 
 
-function createOrder() {
+function createOrder(redirect = false) {
     const cartForOrder = carts.map(item => ({
         id: item.id,
         product_id: item.product.id,
@@ -345,8 +353,18 @@ function createOrder() {
                     { duration: 9000 }
                 );
             }
+           
         }, 800);
-        
+        // After order API response, inside createOrder()
+            const orderId = res?.data?.order?.id;
+
+            if (orderId) {
+                // Add leading slash for correct path
+                window.location.href = `orders/pos-invoice/${orderId}`;
+            } else {
+                toast.error("Order ID not found, cannot redirect.");
+    }
+
         console.log("API Full Response:", res.data);
     })
     .catch((err) => {
@@ -413,10 +431,11 @@ function createOrder() {
                                     <div className="row text-bold mb-1">
                                         <div className="col">Sub Total:</div>
                                         <div className="col text-right mr-2">
-                                            {total}
+                                            {/* {total} */}
+                                            {Number(total).toFixed(2)}
                                         </div>
                                     </div>
-                                    <div className="row text-bold mb-1">
+                                    {/* <div className="row text-bold mb-1">
                                         <div className="col">Discount:</div>
                                         <div className="col text-right mr-2">
                                             <input
@@ -440,8 +459,8 @@ function createOrder() {
                                                 }}
                                             />
                                         </div>
-                                    </div>
-                                    <div className="row text-bold mb-1">
+                                    </div> */}
+                                    {/* <div className="row text-bold mb-1">
                                         <div className="col">
                                             Apply Fractional Discount:
                                         </div>
@@ -465,7 +484,7 @@ function createOrder() {
                                                 }}
                                             />
                                         </div>
-                                    </div>
+                                    </div> */}
                                     <div className="row text-bold mb-1">
                                         <div className="col">Total:</div>
                                         <div className="col text-right mr-2">
@@ -564,7 +583,7 @@ function createOrder() {
                                     products.map((product, index) => (
                                         <div
                                             onClick={() =>
-                                                addProductToCart(product.id)
+                                                addProductToCart(product.id , customerId)
                                             }
                                             className="col-6 col-md-4 col-lg-3 mb-3"
                                             key={index}

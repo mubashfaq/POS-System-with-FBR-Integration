@@ -102,7 +102,7 @@
                             </option>
                             @endforeach
                         </select>
-                       
+
                     </div>
 
                     <div class="mb-3 col-md-6">
@@ -112,7 +112,7 @@
                         </label>
                         <input type="number" class="form-control " placeholder="Enter sales Tax HeldAtSource"
                             name="salesTaxWithheldAtSource" value="0" required>
-                      
+
                     </div>
 
 
@@ -141,13 +141,13 @@
                         <select class="form-control select2" style="width: 100%;" name="rate_of_tax" id="rate_of_tax"
                             required>
                             <option value="">Select Sale Tax</option>
-                           
+
                         </select>
 
                         <input type="hidden" name="rate_of_tax_id" id="rate_of_tax_id">
                     </div>
 
-                    
+
 
                     <!-- sro schedule -->
                     <div class="mb-3 col-md-6">
@@ -155,8 +155,7 @@
                             Sro Schedule
                             <span class="text-danger"></span>
                         </label>
-                        <select class="form-control select2" style="width: 100%;" name="sro_schedule" id="sro_schedule"
-                            >
+                        <select class="form-control select2" style="width: 100%;" name="sro_schedule" id="sro_schedule">
                             <option value="">Select SRO Schedule</option>
 
                         </select>
@@ -171,9 +170,9 @@
                             Sro Item Code
                             <span class="text-danger"></span>
                         </label>
-                        <select class="form-control select2" style="width: 100%;" name="sro_item" id="sro_item" >
+                        <select class="form-control select2" style="width: 100%;" name="sro_item" id="sro_item">
                             <option value="">Select SRO Item</option>
-                           
+
                         </select>
                     </div>
 
@@ -298,28 +297,28 @@ $(document).ready(function() {
             type: 'GET',
             dataType: 'json',
             success: function(response) {
+
+                // Description set
                 $('#description').val(response.description);
-                // Get UOM description (e.g. KG)
-                let uomDescription = response.uom[0].description;
 
-                // If option does not exist, add it
-                if ($('#uom option[value="' + uomDescription + '"]').length === 0) {
-                    let newOption = new Option(
-                        uomDescription, // text
-                        uomDescription, // value
-                        true,
-                        true
+                // Clear previous UOM options (optional but recommended)
+                $('#uom').empty();
+
+                // Loop through all UOM records
+                $.each(response.uom, function(index, uom) {
+                    let option = new Option(
+                        uom.description, // text
+                        uom.uoM_ID, // value (better to use ID)
+                        false,
+                        false
                     );
-                    $('#uom').append(newOption);
-                }
+                    $('#uom').append(option);
+                });
 
-                // Select the UOM (IMPORTANT for Select2)
-                $('#uom').val(uomDescription).trigger('change');
+                // Refresh Select2
+                $('#uom').trigger('change');
             },
-            error: function(xhr, status, error) {
-                console.log(xhr);
-                console.error('Error fetching units:', error);
-            }
+
         });
     });
 

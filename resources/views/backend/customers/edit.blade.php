@@ -27,6 +27,26 @@
             <input type="text" class="form-control" placeholder="Enter phone" name="phone"
               value="{{ $customer->phone }}" required>
           </div>
+
+           <div class="mb-3 col-md-6">
+            <label for="title" class="form-label">
+              NTN / CNIC
+              <span class="text-danger">*</span>
+
+            </label>
+            <input type="number" class="form-control" placeholder="Enter NTN or CNIC" name="ntn_cnic"
+              value="{{ $customer->ntn_cnic }}" required >
+          </div>
+          <div class="mb-3 col-md-6">
+            <label for="title" class="form-label">
+              Province
+              <span class="text-danger">*</span>
+
+            </label>
+            <input type="text" class="form-control" placeholder="Enter Province" name="province"
+              value="{{ $customer->province }}" required>
+          </div>
+
           <div class="mb-3 col-md-6">
             <label for="title" class="form-label">
               Address

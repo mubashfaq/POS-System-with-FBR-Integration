@@ -82,7 +82,7 @@ class CategoryController extends Controller
 
         // abort_if(!auth()->user()->can('category_create'), 403);
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:categories,name',
             'description' => 'nullable|string',
             'category_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'status' => 'required|boolean',

@@ -114,6 +114,8 @@ class CustomerController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|string|max:20|unique:customers,phone',
+            'ntn_cnic' => 'required|integer|unique:customers,ntn_cnic',
+            'province' => 'required|string|max:255',
             'address' => 'required|string|max:255',
             'is_registered' => 'required|string|max:255',
         ]);
@@ -126,6 +128,8 @@ class CustomerController extends Controller
         $customer = Customer::create([
             'name'        => $request->name,
             'phone'       => $request->phone,
+            'ntn_cnic'    => $request->ntn_cnic,
+            'province'    => $request->province,
             'address'     => $request->address,
             'is_registered' => $request->is_registered,
             'business_id' => $businessId, 
@@ -172,10 +176,13 @@ class CustomerController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|string|max:20|unique:customers,phone,' . $customer->id, // Corrected syntax
-            'address' => 'nullable|string|max:255',
+            'ntn_cnic' => 'required|integer',
+            'province' => 'required|string|max:255',
+            'address' => 'required|string|max:255',
+            'is_registered' => 'required|string|max:255',
         ]);
 
-        $customer->update($request->only(['name', 'phone', 'address']));
+        $customer->update($request->only(['name', 'phone', 'ntn_cnic', 'province', 'address', 'is_registered']));
 
         session()->flash('success', 'Customer updated successfully.');
         return to_route('backend.admin.customers.index');

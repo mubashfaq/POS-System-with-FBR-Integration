@@ -86,7 +86,7 @@ class BrandController extends Controller
         // abort_if(!auth()->user()->can('brand_create'), 403);
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:brands,name',
             'description' => 'nullable|string',
             'brand_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'status' => 'required|boolean',
