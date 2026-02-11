@@ -16,6 +16,7 @@
                 <th>SKU</th>
                 <th>Price</th>
                 <th>Stock</th>
+                <th>Total Price</th>
               </tr>
             </thead>
           </table>
@@ -85,6 +86,10 @@
           data: 'quantity',
           name: 'quantity'
         },
+        {
+          data: 'total_value',
+          name: 'total_value'
+        }
       ],
       dom: 'lBfrtip', // Enables the buttons
       buttons: [{

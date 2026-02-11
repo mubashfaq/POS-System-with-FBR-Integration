@@ -12,6 +12,8 @@ use App\Models\OrderProduct;
 use App\Models\OrderTransaction;
 use App\Models\PosCart;
 use App\Models\Product;
+use App\Models\Purchase;
+use App\Models\PurchaseItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -35,7 +37,18 @@ class OrderController extends Controller
             $orders = Order::with('customer')
                 ->where('business_id', $businessId)
                 ->get();
-            
+                $orderIds = $orders->pluck('id');
+
+
+            $orderProducts = OrderProduct::select('product_id')->whereIn('order_id', $orderIds)->get();
+
+            $orderProductsIds = $orderProducts->pluck('product_id');
+            $purchase_id = PurchaseItem::select('purchase_id')->whereIn('product_id', $orderProductsIds)->get();
+           
+            $purchaseIds = $purchase_id->pluck('purchase_id');
+            $stockTotal = Purchase::select('grand_total')->where('id', $purchaseIds)->get();
+
+           
             return DataTables::of($orders)
                 ->addIndexColumn()
                 ->addColumn('saleId', fn($data) => "#" . $data->id)
@@ -46,6 +59,7 @@ class OrderController extends Controller
                 ->addColumn('total', fn($data) => number_format($data->total, 2, '.', ','))
                 ->addColumn('paid', fn($data) => number_format($data->paid, 2, '.', ','))
                 ->addColumn('due', fn($data) => number_format($data->due, 2, '.', ','))
+                ->addColumn('stock_total', fn($data) => number_format($stockTotal->sum('grand_total'), 2, '.', ','))
                 ->addColumn('status', fn($data) => $data->status
                     ? '<span class="badge bg-primary">Paid</span>'
                     : '<span class="badge bg-danger">Due</span>')
