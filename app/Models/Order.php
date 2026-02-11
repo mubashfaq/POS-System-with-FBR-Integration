@@ -31,6 +31,8 @@ class Order extends Model
         return $this->products()->sum('quantity');
     }
     
+    
+    
 public function business()
 {
     return $this->belongsTo(Business::class, 'business_id');
