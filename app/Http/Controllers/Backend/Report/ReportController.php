@@ -106,10 +106,26 @@ class ReportController extends Controller
         $businessId = session('business_id');
 
         if ($request->ajax()) {
-            $products = Product::where('business_id', $businessId) // ✅ filter by business
-            ->latest()
-            ->active()
-            ->get();
+            // $products = Product::select('products.* , sum(purchase_items.purchase_price) as total_purchase_price , sum(purchase_items.quantity) as purchase_quantity')
+            // ->where('business_id', $businessId) 
+            // ->leftJoin('purchase_items', 'products.id', '=', 'purchase_items.product_id')
+            // ->latest()
+            // ->active()
+            // ->get();
+            $products = Product::where('business_id', $businessId)
+                ->active()
+                ->with(['purchaseItems' => function ($query) {
+                    $query->select('id', 'product_id', 'purchase_price', 'quantity');
+                }])
+                ->latest()
+                ->get();
+
+            $products->each(function ($product) {
+                $product->total_purchase_price = $product->purchaseItems->sum('purchase_price');
+                $product->purchase_quantity = $product->purchaseItems->sum('quantity');
+            });
+
+            
             return DataTables::of($products)
                 ->addIndexColumn()
                 ->addColumn('name', fn($data) => $data->name)
@@ -122,7 +138,9 @@ class ReportController extends Controller
                             : '')
                 )
                 ->addColumn('quantity', fn($data) => $data->quantity . ' ' . optional($data->unit)->short_name)
-                ->rawColumns(['name', 'sku', 'price', 'quantity', 'status'])
+                ->addColumn('total_value', fn($data) => $data->total_purchase_price / ($data->purchase_quantity ?: 1) * $data->quantity)
+               
+                ->rawColumns(['name', 'sku', 'price', 'quantity', 'status' , 'total_value' ])
                 ->toJson();
         }
         return view('backend.reports.inventory');
