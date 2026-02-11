@@ -62,6 +62,13 @@ class Product extends Model
 
         return $count ? "{$slug}-{$count}" : $slug;
     }
+   public function purchaseItems()
+    {
+        return $this->hasMany(PurchaseItem::class, 'product_id');
+    }
+
+    // agar scope active hai
+   
 
     public function brand()
     {
