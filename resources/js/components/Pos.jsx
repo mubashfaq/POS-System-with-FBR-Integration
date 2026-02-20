@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
-import Cart from "./Cart";
+import Cart1 from "./Cart1";
 import toast, { Toaster } from "react-hot-toast";
 import CustomerSelect from "./CutomerSelect";
 
@@ -294,7 +294,8 @@ function orderCreate() {
 
 
 const handleCartTotals = (subTotalCalc, furtherTaxCalc, grandTotalCalc) => {
-    setTotal(grandTotalCalc); // ✅ include further tax
+    // setTotal(grandTotalCalc); // ✅ include further tax
+    setTotal(subTotalCalc); // ✅ include further tax
     setUpdateTotal(grandTotalCalc - orderDiscount); // after discount
     setDue(grandTotalCalc - orderDiscount - paid); // due
     setFurtherTaxTotal(furtherTaxCalc); // optional display
@@ -322,10 +323,11 @@ function createOrder(redirect = false) {
         { headers: { "Content-Type": "application/json" } }
     )
     .then((res) => {
+        console.log("Order Creation Response:", res);
         setCartUpdated(!cartUpdated);
         setProductUpdated(!productUpdated);
-        const fbr = res?.data?.fbr_api_response?.validationResponse;
-        if (fbr.statusCode === "00") {
+        const fbr = res?.data?.fbr_api_response;
+        if (fbr.Code === "100") {
             toast.success("Order completed successfully!", { duration: 4000 });
         }else{
             toast.error(
@@ -418,7 +420,7 @@ function createOrder(redirect = false) {
                                 </form>
                             </div> */}
                             </div>
-                            <Cart
+                            <Cart1
                                 carts={carts}
                                 setCartUpdated={setCartUpdated}
                                 cartUpdated={cartUpdated}

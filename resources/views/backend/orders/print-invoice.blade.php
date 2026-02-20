@@ -164,8 +164,12 @@
 
               <div class="col-md-1">
                  <div class="img">
+                    @if($order->type == 'pos_invoice')
+                      <img src="{{ asset('assets/images/fbr_pos_invoice_system.png') }}" style="width: 100%;" alt="">
+                    @else
                       <img src="{{ asset('assets/images/fbr_logo-icon.png') }}" style="width: 100%;" alt="">
-                  </div>
+                    @endif
+                </div>
               </div>
 
               <div class="col-md-8"></div>

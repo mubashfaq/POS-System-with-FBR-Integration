@@ -118,6 +118,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     // start pos
         Route::get('/get/products', [CartController::class, 'getProducts'])->name('getProducts');
         Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+        Route::get('/digitalCart', [CartController::class, 'digitalInvoice'])->name('cart.digitalInvoice');
         Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
 
         Route::put('/cart/update-quantity', [CartController::class, 'updateQuantity']);
@@ -129,6 +130,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
         Route::put('/cart/delete', [CartController::class, 'delete']);
         Route::put('/cart/empty', [CartController::class, 'empty']);
         Route::put('/order/create', [OrderController::class, 'store']);
+        Route::put('/order/createDigital', [OrderController::class, 'storeDigital']);
         Route::get('orders/fbr-status/{id}', [OrderController::class, 'fbrStatus'])->name('orders.fbr-status');
 
         Route::get('/get/customers',[CustomerController::class,'getCustomers']);
