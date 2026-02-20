@@ -46,7 +46,6 @@ class OrderController extends Controller
             $purchase_id = PurchaseItem::select('purchase_id')->whereIn('product_id', $orderProductsIds)->get();
            
             $purchaseIds = $purchase_id->pluck('purchase_id');
-            $stockTotal = Purchase::select('grand_total')->where('id', $purchaseIds)->get();
 
            
             return DataTables::of($orders)
@@ -59,7 +58,7 @@ class OrderController extends Controller
                 ->addColumn('total', fn($data) => number_format($data->total, 2, '.', ','))
                 ->addColumn('paid', fn($data) => number_format($data->paid, 2, '.', ','))
                 ->addColumn('due', fn($data) => number_format($data->due, 2, '.', ','))
-                ->addColumn('stock_total', fn($data) => number_format($stockTotal->sum('grand_total'), 2, '.', ','))
+                // ->addColumn('stock_total', fn($data) => number_format($stockTotal->sum('grand_total'), 2, '.', ','))
                 ->addColumn('status', fn($data) => $data->status
                     ? '<span class="badge bg-primary">Paid</span>'
                     : '<span class="badge bg-danger">Due</span>')
@@ -112,6 +111,376 @@ class OrderController extends Controller
 // <<<<<<<<<<<<<<<<<<<<< first sennd fbi ten save in  >>>>>>>>>>>>>>>>>>>>>
 
 public function store(Request $request)
+{
+    $request->validate([
+        'customer_id' => ['required', 'exists:customers,id', 'integer'],
+        'order_discount' => ['nullable', 'numeric', 'min:0'],
+        'paid' => ['nullable', 'numeric', 'min:0'],
+    ]);
+
+    $businessId = session('business_id');
+
+    if (!$businessId) {
+        return response()->json(['error' => 'No business selected'], 422);
+    }
+
+    $customer = Customer::find($request->customer_id);
+
+
+    $carts = PosCart::with('product')
+        ->where('user_id', auth()->id())
+        ->lockForUpdate()
+        ->get();
+
+    if ($carts->isEmpty()) {
+        return response()->json(['error' => 'Cart is empty'], 422);
+    }
+
+    /* ================= DUPLICATE CHECK ================= */
+    if ($request->check_duplicate) {
+
+        $cartProductIds = $carts->pluck('product.id')->toArray();
+
+        $duplicateOrder = Order::where('customer_id', $request->customer_id)
+            ->where('business_id', $businessId)
+            ->whereHas('products', function ($q) use ($cartProductIds) {
+                $q->whereIn('product_id', $cartProductIds);
+            })
+            ->first();
+
+        if ($duplicateOrder) {
+            return response()->json([
+                'duplicate' => true,
+                'message' => 'Same order already exists. Do you want to create it again?',
+            ]);
+        }
+
+        return response()->json(['duplicate' => false]);
+    }
+
+    /* ================= ORDER TRANSACTION ================= */
+    DB::beginTransaction();
+
+    $order = Order::create([
+        'customer_id' => $request->customer_id,
+        'user_id'     => auth()->id(),
+        'business_id' => $businessId,
+    ]);
+
+    $totalAmountOrder = 0;
+    $orderDiscount = $request->order_discount ?? 0;
+
+
+    foreach ($carts as $cart) {
+    $product = $cart->product;
+
+    // Use price_override if exists
+    $unitPrice = $cart->price_override ?? $product->discounted_price;
+    $qty = $cart->quantity;
+    $lineTotal = round($unitPrice * $qty, 2);
+    $subTotal  = round($product->price * $qty, 2);
+    $discount  = round(($product->price - $unitPrice) * $qty, 2);
+
+   // 🔹 FURTHER TAX (NEW)
+        $rateText = trim($product->rate_of_tax);
+        // $furtherTax = 0;
+
+        if (str_ends_with($rateText, '%')) {
+            $rate = floatval(str_replace('%', '', $rateText));
+            $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
+
+            // if (
+            //     $customer->is_registered &&
+            //     strtolower($customer->is_registered) === 'unregistered' &&
+            //     $product->sale_type != '3rd Schedule Goods'
+            // ) {
+            //     $furtherTax = round($valueExTax * 0.04, 2);
+            // }
+        }
+
+        // ✅ FINAL TOTAL = line total + further tax
+        $finalTotal = round($lineTotal , 2);
+
+    $totalAmountOrder += $finalTotal;
+
+    $order->products()->create([
+        'quantity'       => $cart->quantity,
+        'price'          => $unitPrice,  // ✅ override price here
+        'purchase_price' => $product->purchase_price,
+        'sub_total'      => $subTotal,
+        'discount'       => $discount,
+        'total'          => $finalTotal,
+        'product_id'     => $product->id,
+    ]);
+
+    $product->quantity -= $cart->quantity;
+    $product->save();
+}
+
+    $total = $totalAmountOrder - $orderDiscount;
+    $due   = $total - ($request->paid ?? 0);
+
+    $order->update([
+        'sub_total' => $totalAmountOrder,
+        'discount'  => $orderDiscount,
+        'paid'      => $request->paid,
+        'total'     => round($total, 2),
+        'due'       => round($due, 2),
+        'status'    => round($due, 2) <= 0,
+    ]);
+
+    /* ================= FBR ITEMS ================= */
+    $fbrItems = [];
+    // $furtherTax = 0;
+    $lineTotal = 0;
+    foreach ($carts as $cart) {
+        $product = $cart->product;
+        
+
+        $qty = round($cart->quantity, 2);
+        // $lineTotal = round($product->discounted_price * $qty, 2);
+        $unitPrice = $cart->price_override ?? $product->discounted_price;
+        $lineTotal = round($unitPrice * $qty, 2);
+
+        $rateText = trim($product->rate_of_tax); // 18%
+        $taxRate  = (float) str_replace('%', '', $rateText); // 18
+        if (str_ends_with($rateText, '%')) {
+            $rate = floatval(str_replace('%', '', $rateText));
+            $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
+            // $salesTax = round($lineTotal - $valueExTax, 2);
+            $salesTax  = round($valueExTax * ($rate / 100), 2);
+
+            // if($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods'){
+            //     $furtherTax = round($valueExTax * (4 / 100), 2);
+  
+            // }else{
+            //     $furtherTax = 0;
+            // }
+
+        } else {
+            $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+            $valueExTax = round($lineTotal - $salesTax, 2);
+
+            //  if($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods'){
+            //     $furtherTax = round($valueExTax * (4 / 100), 2);
+  
+            // }else{
+            //     $furtherTax = 0;
+            // }
+        }
+
+
+       
+        $fbrItems[] = [
+            // "hsCode" => $product->hsCode,
+            // "productDescription" => $product->name,
+            // "rate" => $rateText,
+            // "uoM" => $product->uom
+            // "quantity" => $qty,
+            // "totalValues" => $lineTotal + $furtherTax,
+            // "valueSalesExcludingST" => $valueExTax,
+            // "fixedNotifiedValueOrRetailPrice" => $product->price,
+            // "salesTaxApplicable" => $salesTax,
+            // "salesTaxWithheldAtSource" => 0,
+            // "extraTax" => 0,
+            // "furtherTax" => $furtherTax,
+            // "sroScheduleNo" => $product->sro_schedule,
+            // "fedPayable" => 0,
+            "ItemCode"=> $product->sku,
+            "ItemName" => $product->name,
+            "quantity" => $qty,
+            "PCTCode" => "11001010",
+            "TaxRate" => $taxRate,
+            "SaleValue" => $valueExTax,
+            "TotalAmount" => $lineTotal ,//+ $furtherTax,
+            "TaxCharged" => $salesTax,
+            "discount" => 0,
+            //  "FurtherTax" => $furtherTax,
+             "InvoiceType" => 1,
+            // "saleType" => $product->sale_type,
+            // "sroItemSerialNo" => $product->sro_item,
+        ];
+    }
+
+    $customer = Customer::find($request->customer_id);
+    $business = Business::find($businessId);
+
+    $fbrPayload = [
+        "POSID" => 819045,
+        "USIN" => "USIN0",
+        "DateTime" => now()->format('Y-m-d'),
+        // "invoiceType" => "Sale Invoice",
+        // "invoiceDate" => now()->format('Y-m-d'),
+        // "sellerNTNCNIC" => $business->cnic,
+        // "sellerBusinessName" => $business->business_name,
+        // "sellerProvince" => $business->state,
+        // "sellerAddress" => $business->address,
+        "buyerNTN" => $customer->ntn_cnic,
+        "buyerCNIC" => $customer->ntn_cnic,
+        "BuyerName" => $customer->name,
+         "BuyerPhoneNumber" => $customer->phone,
+        // "buyerBusinessName" => $customer->name,
+        // "buyerProvince" => $customer->province,
+        // "buyerAddress" => $customer->address,
+        // "buyerRegistrationType" => $customer->is_registered,
+        // "invoiceRefNo" => "INV-" . $order->id,
+        // "invoiceRefNo" => "INV-" . "INV00112200",
+        // "scenarioId" => "SN015",
+        "items" => $fbrItems,
+
+        "TotalBillAmount" => $lineTotal  ,
+        "TotalQuantity" => $qty,
+        "TotalSaleValue" => $valueExTax,
+        "TotalTaxCharged" => $salesTax,
+        "PaymentMode" => 2,
+        "InvoiceType" => 1
+    ];
+
+    /* ================= FBR API CALL ================= */
+    Log::info('FBR Payload', [
+    'order_id' => $order->id ?? null,
+    'payload'  => $fbrPayload
+]);
+
+    // $token = env('FBR_TOKEN');
+    // try {
+    //     $response = Http::withOptions([
+    //         'timeout' => 620,
+    //         'connect_timeout' => 620,
+    //     ])->withHeaders([
+    //         'Authorization' => "Bearer $token",
+    //         'Content-Type' => 'application/json',
+    //         'Accept-Encoding' => 'gzip, deflate, br',
+    //         'Accept' => 'application/json'
+    //     ])->post("https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb", $fbrPayload);
+
+    // } catch (\Illuminate\Http\Client\ConnectionException $e) {
+    //     info('Connection Exception: ' . $e->getMessage());
+    // }
+
+    
+    // $responseJson = $response->json();
+    
+    // $statusCode = data_get($responseJson, 'validationResponse.statusCode');
+    // $errorCode = data_get($responseJson, 'validationResponse.errorCode');
+
+   
+    // $errorMessage = data_get($responseJson, 'validationResponse.error')
+    //     ?? data_get($responseJson, 'error');
+
+    /* ================= SAVE API STATUS & LOGS (NO ROLLBACK) ================= */
+    // Order::where('id', $order->id)->update([
+    //     'api_status'    => $response->status(),
+    //     'error_code'    => $errorCode,
+    //     'error_message' => $errorMessage,
+    //     'api_message'   => $response->ok(),
+    // ]);
+
+
+    /* ================= FINAL DECISION ================= */
+    // if ($statusCode != "00") {
+
+    //     DB::rollBack();
+
+        // return response()->json([
+        //     'error' => 'FBR validation failed',
+        //     'error_code' => $errorCode,
+        //     'error_message' => $errorMessage,
+        //     'fbr_api_response' => $responseJson,
+        // ]);
+    // }
+
+
+    $post_api_response=null;
+     try {
+            // $post_api_response = Http::withOptions([
+            //     'timeout' => 620,
+            //     'connect_timeout' => 620,
+            // ])->withHeaders([
+            //     'Authorization' => "Bearer $token",
+            //     'Content-Type' => 'application/json',
+            //     'Accept-Encoding' => 'gzip, deflate, br',
+            //     'Accept' => 'application/json'
+            // ])->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb", $fbrPayload);
+
+
+            $post_api_response = Http::withOptions([
+                'timeout' => 620,
+                'connect_timeout' => 620,
+                'verify' => false,
+                //   CURLOPT_SSL_VERIFYHOST => false,
+                // CURLOPT_SSL_VERIFYPEER => false,
+            ])->withHeaders([
+                'Authorization' => "Bearer 1298b5eb-b252-3d97-8622-a4a69d5bf818",
+                'Content-Type' => 'application/json',
+                'Accept-Encoding' => 'gzip, deflate, br',
+                'Accept' => 'application/json'
+            ])->post("https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData", $fbrPayload);
+    //         ])->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb", $fbrPayload);
+    
+
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            // info('Connection Exception: ' . $e->getMessage());
+            dd($e->getMessage()); 
+        }
+
+
+        $postResponseJson = $post_api_response->json();
+
+        // dd($postResponseJson['Response']);
+         
+        
+        $fbr_invoice_number = data_get($postResponseJson, 'InvoiceNumber');
+
+
+        if($postResponseJson['Response'] == "Invoice received successfully"){
+            DB::commit(); // save order data in db now 
+
+            Order::where('id', $order->id)->update([
+                'fbr_invoice_no'    => $fbr_invoice_number,
+                 'api_status'    => $post_api_response->status(),
+                'api_message'   => 1,
+                'type' => 'pos_invoice',
+            ]);
+
+
+        }else{
+             DB::rollBack();
+
+            return response()->json([
+                'error' => $postResponseJson->Response,
+                'error_code' => $postResponseJson->Code ?? null,
+                'error_message' => $postResponseJson->Message ?? null,
+                'fbr_api_response' => $postResponseJson,
+            ]);
+        }
+        
+            /* ================= SAVE API STATUS & LOGS (NO ROLLBACK) ================= */
+            // Order::where('id', $order->id)->update([
+            //     'fbr_invoice_no'    => $fbr_invoice_number,
+            // ]);
+
+
+             // Order::where('id', $order->id)->update([
+    //     'api_status'    => $response->status(),
+    //     'error_code'    => $errorCode,
+    //     'error_message' => $errorMessage,
+    //     'api_message'   => $response->ok(),
+    // ]);
+    
+
+    PosCart::where('user_id', auth()->id())->delete();
+
+    return response()->json([
+        'message' => 'Order completed successfully!',
+        'fbr_payload_sent' => $fbrPayload,
+        'fbr_api_response' => $postResponseJson,
+        'order' => $order
+    ], 200);
+}
+
+
+public function storeDigital(Request $request)
 {
     $request->validate([
         'customer_id' => ['required', 'exists:customers,id', 'integer'],
@@ -369,30 +738,32 @@ public function store(Request $request)
 
 
     DB::commit();
-    //  try {
-    //         $post_api_response = Http::withOptions([
-    //             'timeout' => 620,
-    //             'connect_timeout' => 620,
-    //         ])->withHeaders([
-    //             'Authorization' => "Bearer $token",
-    //             'Content-Type' => 'application/json',
-    //             'Accept-Encoding' => 'gzip, deflate, br',
-    //             'Accept' => 'application/json'
-    //         ])->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb", $fbrPayload);
+     try {
+            $post_api_response = Http::withOptions([
+                'timeout' => 620,
+                'connect_timeout' => 620,
+               
+            ])->withHeaders([
+                'Authorization' => "Bearer $token",
+                'Content-Type' => 'application/json',
+                'Accept-Encoding' => 'gzip, deflate, br',
+                'Accept' => 'application/json'
+         ])->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb", $fbrPayload);
+    
+              
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            info('Connection Exception: ' . $e->getMessage());
+        }
 
-    //     } catch (\Illuminate\Http\Client\ConnectionException $e) {
-    //         info('Connection Exception: ' . $e->getMessage());
-    //     }
-
-    //     $postResponseJson = $post_api_response->json();
+        $postResponseJson = $post_api_response->json();
 
         
-    //     $fbr_invoice_number = data_get($postResponseJson, 'invoiceNumber');
+        $fbr_invoice_number = data_get($postResponseJson, 'invoiceNumber');
         
-    //         /* ================= SAVE API STATUS & LOGS (NO ROLLBACK) ================= */
-    //         Order::where('id', $order->id)->update([
-    //             'fbr_invoice_no'    => $fbr_invoice_number,
-    //         ]);
+            /* ================= SAVE API STATUS & LOGS (NO ROLLBACK) ================= */
+            Order::where('id', $order->id)->update([
+                'fbr_invoice_no'    => $fbr_invoice_number,
+            ]);
 
     
 
@@ -402,10 +773,9 @@ public function store(Request $request)
         'message' => 'Order completed successfully!',
         'fbr_payload_sent' => $fbrPayload,
         'fbr_api_response' => $responseJson,
-        'order' => $order
+        // 'order' => $order
     ], 200);
 }
-
 
 // <<<<<<<<<<<<<<< some changes add dublicate check init >>>>>>>>>>>>>>>>>>>
 //     public function store(Request $request)

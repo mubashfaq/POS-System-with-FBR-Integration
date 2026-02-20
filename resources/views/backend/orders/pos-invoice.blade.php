@@ -7,11 +7,11 @@
   <div class="receipt-container mt-0" id="printable-section" style="max-width: {{ $maxWidth}}; font-size: 12px; font-family: 'Courier New', Courier, monospace;">
     <div class="text-center">
  @if(!empty($invoiceSettings->logo) && $invoiceSettings->logo == 1 && !empty($business->logo))
-    <img src="{{ asset('storage/'.$business->logo) }}" height="30" width="70" alt="Logo"><br>
+    <img src="{{ asset('storage/'.$business->logo) }}" height="50" width="50" alt="Logo"><br>
   @endif
 
   @if(!empty($invoiceSettings->site_name) && $invoiceSettings->site_name == 1)
-    <h3>{{ $business->name ?? '' }}</h3> <br>
+    <h6>{{ $business->business_name ?? '' }}</h6> <br>
   @endif
 
   @if(!empty($invoiceSettings->address) && $invoiceSettings->address == 1)
@@ -22,6 +22,10 @@
     {{ $business->phone ?? '' }}<br>
   @endif
 
+   
+    {{ $business->ntn ?? 'NTN' }}<br>
+  
+
   @if(!empty($invoiceSettings->email) && $invoiceSettings->email == 1)
     {{ $business->email ?? '' }}<br>
   @endif
@@ -30,15 +34,18 @@
     {{ 'Order: #'.$order->id}}<br>
     <hr>
     <div class="row justify-content-between mx-auto">
+     
       <div class="text-left">
         @if(readConfig('is_show_customer_invoice'))
         <address>
           Name: {{ $order->customer->name ?? 'N/A' }}<br>
-          Address: {{ $order->customer->address ?? 'N/A' }}<br>
-          Phone: {{ $order->customer->phone ?? 'N/A' }}
+          <!-- Address: {{ $order->customer->address ?? 'N/A' }}<br> -->
+          Phone: {{ $order->customer->phone ?? 'N/A' }}<br>
+         
         </address>
         @endif
       </div>
+
       <div class="text-right">
         <address class="text-right">
           <p>{{ date('d-M-Y') }}</p>
@@ -95,6 +102,30 @@
     </div>
     <hr>
     <div class="text-center">
+      <h6>FBR invoice #</h6>
+      <h6>{{ $order->fbr_invoice_no }}</h6>
+      <!-- Qr and image -->
+      <div class="row justify-content-center">
+        <div class="col-md-3 mt-2">
+            <!-- <h3>FBR Dig</h3> -->
+            <div id="qrcode"></div>
+              
+        </div>
+
+        <div class="col-md-2 mr-4">
+          <div class="img">
+            @if($order->type == 'pos_invoice')
+              <img src="{{ asset('assets/images/fbr_pos_invoice_system.png') }}" style="width: 200%;" alt="">
+            @else
+              <img src="{{ asset('assets/images/fbr_logo-icon.png') }}" style="width: 200%;" alt="">
+            @endif
+          </div>
+        </div>
+      </div>
+
+    <p class="mt-2">Verify this invoice through FBR TaxAsaan MobileApp or SMS at 9966 and win exciting prizes in draw</p>
+
+    <p>POS software by techuick</p>
     @if(!empty($invoiceSettings->note_to_customer) && $invoiceSettings->note_to_customer == 1)
       <p class="text-muted" style="font-size: 12px;">{{ $invoiceSettings->note_msg ?? '' }}</p>
     @endif
@@ -149,7 +180,15 @@
 @endpush
 
 @push('script')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
 <script>
+  new QRCode(document.getElementById("qrcode"), {
+    text: "{{ $order->fbr_invoice_no }}",
+    width: 60,
+    height: 60
+});
+
   window.print();
 </script>
 @endpush
