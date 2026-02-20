@@ -142,7 +142,7 @@ class WebsiteSettingController extends Controller
         $invoiceSetting = InvoiceSetting::firstOrNew(['business_id' => $businessId]);
 
         $invoiceSetting->logo = $request->is_show_logo_invoice ?? 0;
-        $invoiceSetting->site_name = $request->is_show_site_name_invoice ?? 0;
+        $invoiceSetting->site_name = $request->is_show_site_invoice ?? 0;
         $invoiceSetting->phone = $request->is_show_phone_invoice ?? 0;
         $invoiceSetting->email = $request->is_show_email_invoice ?? 0;
         $invoiceSetting->address = $request->is_show_address_invoice ?? 0;

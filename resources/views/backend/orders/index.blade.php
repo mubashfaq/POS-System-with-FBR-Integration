@@ -20,7 +20,6 @@
                 <th>Total {{currency()->symbol??''}}</th>
                 <th>Paid {{currency()->symbol??''}}</th>
                 <th>Due {{currency()->symbol??''}}</th>
-                <th>Stock Total {{currency()->symbol??''}}</th>
                 <th>Status</th>
                 <th>FBR Status</th>
                 <th data-orderable="false">Action</th>
@@ -105,10 +104,10 @@
           data: 'due',
           name: 'due'
         },
-         {
-          data: 'stock_total',
-          name: 'stock_total'
-        }, 
+        //  {
+        //   data: 'stock_total',
+        //   name: 'stock_total'
+        // }, 
         {
           data: 'status',
           name: 'status'

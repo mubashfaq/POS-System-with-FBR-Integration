@@ -437,4 +437,110 @@ public function updateQuantity(Request $request)
     ], 200);
 }
 
+public function digitalInvoice(Request $request)
+{
+    if ($request->wantsJson()) {
+        // Get customer registration status from session 
+        $customerIsRegistered = session('customer_is_registered', 'Registered'); // ✅ Default "Registered" capital
+        
+        // $cartItems = PosCart::where('user_id', auth()->id())
+        //     ->with('product')
+        //     ->latest('created_at')
+        //     ->get()
+        //     ->map(function ($item) use ($customerIsRegistered) {
+        //         // Calculate base total
+        //         $baseTotal = round(($item->quantity * $item->product->discounted_price), 2);
+                
+        //         $furtherTax = 0;
+        //         if ($item->product->sale_type === "3rd Schedule Goods" && 
+        //             strtolower($customerIsRegistered) === "unregistered") { 
+        //             $furtherTax = round($baseTotal * 0.04, 2);
+        //         }
+                
+        //         // Calculate total with tax
+        //         $totalWithTax = $baseTotal + $furtherTax;
+                
+        //         // Add calculated values to item
+        //         $item->base_total = $baseTotal;
+        //         $item->further_tax = $furtherTax;
+        //         $item->row_total = $totalWithTax;
+        //         $item->customer_is_registered = $customerIsRegistered;
+                
+        //         return $item;
+        //     });
+
+        $cartItems = PosCart::where('user_id', auth()->id())
+            ->with('product')
+            ->latest('created_at')
+            ->get()
+            ->map(function ($item) use ($customerIsRegistered) {
+                $unitPrice = $item->price_override ?? $item->product->discounted_price;
+                $baseTotal = round($unitPrice * $item->quantity, 2);
+               
+
+                $furtherTax = 0;
+               $furtherTax = 0;
+$valueExTax = $baseTotal;
+$salesTax = 0;
+
+if (
+    $item->product->sale_type != "3rd Schedule Goods" &&
+    strtolower($customerIsRegistered) === "unregistered"
+) {
+    $rateText = trim($item->product->rate_of_tax); // e.g "18%"
+
+    if (str_ends_with($rateText, '%')) {
+
+        $rate = floatval(str_replace('%', '', $rateText)); // 18
+
+        // Price already includes GST
+        $valueExTax = round($baseTotal / (1 + ($rate / 100)), 2);
+
+        // Further tax = 4% of valueExTax
+        $furtherTax = round($valueExTax * 0.04, 2);
+
+        // Only for info (optional)
+        $salesTax = round($baseTotal - $valueExTax, 2);
+
+    } else {
+        // If fixed tax (rare case)
+        $fixedTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+
+        $valueExTax = round($baseTotal - $fixedTax, 2);
+
+        $furtherTax = round($valueExTax * 0.04, 2);
+    }
+}
+
+
+                $totalWithTax = $baseTotal + $furtherTax;
+
+                $item->unit_price = $unitPrice;
+                $item->base_total = $baseTotal;
+                $item->further_tax = $furtherTax;
+                $item->row_total = $totalWithTax;
+                $item->customer_is_registered = $customerIsRegistered;
+
+                return $item;
+        });
+
+            
+        $subTotal = $cartItems->sum('base_total');
+        $furtherTaxTotal = $cartItems->sum('further_tax');
+        $grandTotal = $cartItems->sum('row_total');
+
+        
+        return response()->json([
+            'carts' => $cartItems,
+            'sub_total' => round($subTotal, 2),
+            'further_tax_total' => round($furtherTaxTotal, 2),
+            'total' => round($grandTotal, 2)
+        ]);
+    }
+    // clear cart
+    PosCart::where('user_id', auth()->id())->delete();
+    return view('backend.cart.digital-invoice');
+
+}
+
 }
