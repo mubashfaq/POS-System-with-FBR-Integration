@@ -8,6 +8,7 @@ use App\Models\Product;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Yajra\DataTables\DataTables;
+use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
@@ -25,6 +26,7 @@ class ReportController extends Controller
 
         $start_date_input = $request->input('start_date', Carbon::today()->subDays(29)->format('Y-m-d'));
         $end_date_input = $request->input('end_date', Carbon::today()->format('Y-m-d'));
+        $customerId = $request->input('customer_id');
 
         // Parse and set start date
         $start_date = Carbon::createFromFormat('Y-m-d', $start_date_input) ?: Carbon::today()->subDays(29)->startOfDay();
@@ -33,11 +35,29 @@ class ReportController extends Controller
         // Parse and set end date
         $end_date = Carbon::createFromFormat('Y-m-d', $end_date_input) ?: Carbon::today()->endOfDay();
         $end_date = $end_date->endOfDay();
-        // Retrieve orders within the date range
+        // Retrieve orders within the date range with products for profit calculation
         $orders = Order::where('business_id', $businessId)
         ->whereBetween('created_at', [$start_date, $end_date])
-        ->with('customer')
+        ->when($customerId, function ($query) use ($customerId) {
+            return $query->where('customer_id', $customerId);
+        })
+        ->with(['customer', 'products'])
         ->get();
+
+        // Calculate profit/loss per order
+        $orders->each(function ($order) {
+            $order->order_purchase_price = $order->products->sum('purchase_price');
+            $order->order_cost = $order->products->sum(function ($product) {
+                return $product->purchase_price * $product->quantity;
+            });
+            $orderProfit = $order->total - $order->order_cost;
+            $order->order_profit = $orderProfit > 0 ? $orderProfit : 0;
+            $order->order_loss = $orderProfit < 0 ? abs($orderProfit) : 0;
+        });
+
+        // Aggregate totals
+        $total_profit = $orders->sum('order_profit');
+        $total_loss = $orders->sum('order_loss');
 
         // Calculate totals
         $data = [
@@ -49,6 +69,10 @@ class ReportController extends Controller
             'total' => $orders->sum('total'),
             'start_date' => $start_date->format('M d, Y'),
             'end_date' => $end_date->format('M d, Y'),
+            'profit' => $total_profit,
+            'loss' => $total_loss,
+            'total_cost' => $orders->sum('order_cost'), 
+            'customer' => $customerId ? \App\Models\Customer::find($customerId) : null,
         ];
 
         return view('backend.reports.sale-report', $data);

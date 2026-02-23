@@ -255,6 +255,14 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                         </a>
                     </li>
 
+                    <li class="nav-item">
+                        <a href="{{route('backend.admin.purchase.import')}}"
+                            class="nav-link {{ request()->routeIs(['backend.admin.purchase.import']) ? 'active' : '' }}">
+                            <i class="fas fa-circle nav-icon"></i>
+                            <p>Purchase Import</p>
+                        </a>
+                    </li>
+
                 </ul>
             </li>
             @endif

@@ -40,7 +40,8 @@ use App\Models\Supplier;
 
 // homepage
 Route::get('/', function () {
-    return to_route('login');
+    // return to_route('login');
+    return view('frontend.index');
 })->name('frontend.home');
 
 //authentication
@@ -87,8 +88,11 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::resource('orders', OrderController::class);
     Route::resource('purchase', PurchaseController::class);
     Route::resource('suppliers', SupplierController::class);
+    Route::get('customers/search', [CustomerController::class, 'search'])->name('customers.search');
     Route::resource('customers', CustomerController::class);
     Route::resource('products', ProductController::class);
+    Route::get('import/purchase', [PurchaseController::class, 'importForm'])->name('purchase.import');
+    Route::post('import/purchase', [PurchaseController::class, 'import'])->name('purchase.import.process');
     Route::get('products/hsCode-desc/{hs_code}', [ProductController::class, 'getDescription'])->name('products.hsCode-desc');
     Route::get('products/sale-type/{sale_type}', [ProductController::class, 'getSaleTypeId'])->name('products.sale-type');
     Route::get('products/sro-schedule/{rate_tax_id}', [ProductController::class, 'getSroSchedule'])->name('products.sro-schedule');
@@ -162,6 +166,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
                 Route::post('update-notification-settings', 'websiteNotificationSettingsUpdate')->name('settings.website.notification.settings.update');
                 Route::post('update-website-status', 'websiteStatusUpdate')->name('settings.website.status.update');
                 Route::post('update-invoice-settings', 'websiteInvoiceUpdate')->name('settings.website.invoice.update');
+                Route::post('update-fbr-tokens', 'websiteFbrTokenUpdate')->name('settings.website.fbr.token.update');
 
                 Route::post('/website/invoice/update', [WebsiteSettingController::class, 'websiteInvoiceUpdate'])
                 ->name('backend.admin.settings.website.invoice.update');
