@@ -112,9 +112,13 @@
                                         <input type="text" class="form-control" id="ntn" name="ntn">
                                     </div>
                                     <div class="col-md-6 mb-3">
-                                        <label for="ntn" class="form-label">CNIC *</label>
-                                        <input type="text" class="form-control" id="cnic" name="cnic" required>
-                                    </div>
+                                        <label for="business_type" class="form-label">Business type *</label>
+                                        <select name="business_type" id="business_type" class="form-control" required>
+                                            <option value="">-- Select Business Type --</option>
+                                                <option value="pos">POS</option>
+                                                <option value="digital">Digital</option>
+                                        </select>
+                                    </div>                                 
                                     <div class="col-md-6 mb-3">
                                         <label for="country" class="form-label">Country *</label>
                                         <select name="country" id="country" class="form-control">
@@ -128,17 +132,22 @@
                                         </select>
                                     </div>
                                     <div class="col-md-6 mb-3">
-                                    <label for="city" class="form-label">State *</label>
-                                    <input type="text" class="form-control" id="state" name="state" required>
+                                        <label for="city" class="form-label">State *</label>
+                                        <input type="text" class="form-control" id="state" name="state" required>
+                                    </div>
                                 </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="city" class="form-label">City *</label>
+                                        <input type="text" class="form-control" id="city" name="city" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="ntn" class="form-label">CNIC *</label>
+                                        <input type="text" class="form-control" id="cnic" name="cnic" required>
+                                    </div>
                                 </div>
+
                                 
-                                <div class="mb-3">
-                                    <label for="city" class="form-label">City *</label>
-                                    <input type="text" class="form-control" id="city" name="city" required>
-                                </div>
-
-
                                 <div class="row">
                                       <div class="mb-3 col-md-6">
                                         <label for="email" class="form-label">Email *</label>
