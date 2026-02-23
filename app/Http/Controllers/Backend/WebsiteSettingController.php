@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Artisan;
 use App\Models\InvoiceSetting;
 use App\Trait\FileHandler;
+use Illuminate\Support\Facades\DB;
 
 class WebsiteSettingController extends Controller
 {
@@ -22,12 +23,18 @@ class WebsiteSettingController extends Controller
     {
         $businessId = session('business_id');
         $invoiceSetting = null;
+        $fbrToken = null;
 
         if ($businessId) {
             $invoiceSetting = \App\Models\InvoiceSetting::where('business_id', $businessId)->first();
+            $fbrToken = DB::table('fbr_tokens')
+            ->where('business_id', $businessId)
+            ->latest('id')
+            ->first();
+            // dd($fbrToken);
         }
 
-        return view('backend.settings.website-settings.general', compact('invoiceSetting'));
+        return view('backend.settings.website-settings.general', compact('invoiceSetting', 'fbrToken'));
     }
 
     public function websiteInfoUpdate(Request $request)
@@ -155,5 +162,32 @@ class WebsiteSettingController extends Controller
 
         return to_route('backend.admin.settings.website.general', ['active-tab' => 'invoice-settings'])
             ->with('success', 'Invoice settings updated successfully');
+    }
+
+
+    public function websiteFbrTokenUpdate(Request $request)
+    {
+        $businessId = session('business_id');
+
+        if (!$businessId) {
+            return back()->with('error', 'Business not found in session');
+        }
+
+        // Update or insert record
+        DB::table('fbr_tokens')->updateOrInsert(
+            ['business_id' => $businessId], // condition to match existing record
+            [
+                'pos_sandbox_token'        => $request->pos_sandbox_token ?? null,
+                'pos_production_token'     => $request->pos_production_token ?? null,
+                'digital_sandbox_token'    => $request->digital_sandbox_token ?? null,
+                'digital_production_token' => $request->digital_production_token ?? null,
+                'environment'              => $request->environment ?? 0, // 0=sandbox, 1=production
+                'updated_at'               => now(),
+                'created_at'               => now(), // ignored if record exists
+            ]
+        );
+
+        return to_route('backend.admin.settings.website.general', ['active-tab' => 'fbr-token-settings'])
+            ->with('success', 'FBR Tokens updated successfully');
     }
 }

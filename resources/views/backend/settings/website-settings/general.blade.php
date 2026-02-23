@@ -63,6 +63,13 @@
                 &nbsp;Invoice Settings
             </a>
             @endcan
+            @can('invoice_settings')
+            <a class="nav-link {{ @$_GET['active-tab'] == 'fbr-token-settings' ? 'active' : '' }}" id="vert-tabs-9"
+                data-toggle="pill" href="#tabs-9" role="tab" aria-controls="tabs-9" aria-selected="false">
+                <i class="fas fa-key"></i>
+                &nbsp;Token Settings
+            </a>
+            @endcan
         </div>
     </div>
     <div class="col-8 col-sm-10">
@@ -606,6 +613,95 @@
                     <option value="500px" {{ (isset($invoiceSetting) && $invoiceSetting->post_invoice_width == '500px') ? 'selected' : '' }}>Large</option>
                 </select>
             </div>
+        </div>
+    </form>
+</div>
+@endcan
+@can('invoice_settings')
+<div class="tab-pane fade {{ @$_GET['active-tab'] == 'fbr-token-settings' ? 'active show' : '' }}" 
+     id="tabs-9" role="tabpanel" aria-labelledby="vert-tabs-9">
+    
+    <form action="{{ route('backend.admin.settings.website.fbr.token.update') }}" method="post">
+        @csrf
+
+        <div class="col-md-12 d-flex justify-content-between">
+            <h5>
+                <i class="fas fa-key"></i>
+                &nbsp;&nbsp;FBR Token Settings
+            </h5>
+            <button type="submit" class="btn action-button">
+                <i class="fas fa-save"></i>
+                &nbsp;Save Changes
+            </button>
+        </div>
+
+        <div class="col-md-12 mt-3">
+
+            {{-- POS Tokens --}}
+            <div class="card p-3 mb-3">
+                <h6 class="mb-3"><strong>POS Tokens</strong></h6>
+
+                <div class="form-group">
+                    <label>POS Sandbox Token</label>
+                    <input type="text" 
+                           name="pos_sandbox_token" 
+                           class="form-control"
+                           value="{{ $fbrToken->pos_sandbox_token ?? '' }}"
+                           placeholder="Enter POS sandbox token">
+                </div>
+
+                <div class="form-group">
+                    <label>POS Production Token</label>
+                    <input type="text" 
+                           name="pos_production_token" 
+                           class="form-control"
+                           value="{{ $fbrToken->pos_production_token ?? '' }}"
+                           placeholder="Enter POS production token">
+                </div>
+            </div>
+
+            {{-- Digital Tokens --}}
+            <div class="card p-3 mb-3">
+                <h6 class="mb-3"><strong>Digital Invoice Tokens</strong></h6>
+
+                <div class="form-group">
+                    <label>Digital Sandbox Token</label>
+                    <input type="text" 
+                           name="digital_sandbox_token" 
+                           class="form-control"
+                           value="{{ $fbrToken->digital_sandbox_token ?? '' }}"
+                           placeholder="Enter Digital sandbox token">
+                </div>
+
+                <div class="form-group">
+                    <label>Digital Production Token</label>
+                    <input type="text" 
+                           name="digital_production_token" 
+                           class="form-control"
+                           value="{{ $fbrToken->digital_production_token ?? '' }}"
+                           placeholder="Enter Digital production token">
+                </div>
+            </div>
+
+            {{-- Environment Selector --}}
+            <div class="form-group col-md-6">
+                <label>Select Environment</label>
+                <select name="environment" class="form-control">
+                    <option value="0"
+                        {{ (isset($fbrToken) && $fbrToken->environment == 0) ? 'selected' : '' }}>
+                        Sandbox
+                    </option>
+                
+                    <option value="1"
+                        {{ (isset($fbrToken) && $fbrToken->environment == 1) ? 'selected' : '' }}>
+                        Production
+                    </option>
+                </select>
+                <small class="text-muted">
+                    System will automatically use selected environment token.
+                </small>
+            </div>
+
         </div>
     </form>
 </div>

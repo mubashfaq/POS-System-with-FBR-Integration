@@ -4,8 +4,27 @@
 
 @section('content')
 <div class="card">
-  <div class="mt-n5 mb-3 d-flex justify-content-end">
-    <div class="form-group">
+  <div class="mt-n5 mb-3 d-flex justify-content-end align-items-center">
+    <div class="mr-2 position-relative">
+        <div class="input-group">
+             <input type="text" id="customer_search" class="form-control" placeholder="Search Customer..." autocomplete="off">
+             @if(request('customer_id') && isset($customer))
+             <div class="input-group-append">
+                <a href="{{ route('backend.admin.sale.report', request()->except(['customer_id'])) }}" class="btn btn-danger" title="Clear Filter">
+                    <i class="fas fa-times"></i>
+                </a>
+             </div>
+             @endif
+        </div>
+        
+        <div id="customer_search_results" class="list-group position-absolute w-100" style="z-index: 9999; display: none; max-height: 300px; overflow-y: auto;"></div>
+    </div>
+    @if(request('customer_id') && isset($customer))
+        <div class="mr-3">
+             <strong>Filtered by: {{ $customer->name }}</strong>
+        </div>
+    @endif
+    <div class="form-group mb-0">
       <div class="input-group">
         <button type="button" class="btn btn-default float-right" id="daterange-btn">
           <i class="far fa-calendar-alt"></i> Filter by date
@@ -47,11 +66,15 @@
                       <th>Customer</th>
                       <th>Date</th>
                       <th>Item</th>
+                      <th>Purchase Price {{currency()->symbol??''}}</th>
+                      <th>Cost {{currency()->symbol??''}}</th>
                       <th>Sub Total {{currency()->symbol??''}}</th>
                       <th>Discount {{currency()->symbol??''}}</th>
                       <th>Total {{currency()->symbol??''}}</th>
                       <th>Paid {{currency()->symbol??''}}</th>
                       <th>Due {{currency()->symbol??''}}</th>
+                      <th>Profit {{currency()->symbol??''}}</th>
+                      <th>Loss {{currency()->symbol??''}}</th>
                       <th>Status</th>
                     </tr>
                   </thead>
@@ -63,11 +86,15 @@
                       <td>{{ $order->customer->name ?? '-' }}</td>
                       <td>{{ $order->created_at->format('d-m-Y') }}</td>
                       <td>{{$order->total_item}}</td>
+                      <td>{{number_format($order->order_purchase_price,2,'.',',')}}</td>
+                      <td>{{number_format($order->order_cost,2,'.',',')}}</td>
                       <td>{{number_format($order->sub_total,2,'.',',')}}</td>
                       <td>{{number_format($order->discount,2,'.',',')}}</td>
                       <td>{{number_format($order->total,2,'.',',')}}</td>
                       <td>{{number_format($order->paid,2,'.',',')}}</td>
                       <td>{{number_format($order->due,2,'.',',')}}</td>
+                      <td>{{number_format($order->order_profit,2,'.',',')}}</td>
+                      <td>{{number_format($order->order_loss,2,'.',',')}}</td>
                       <td>
                         @if ($order->status)
                         Paid
@@ -82,6 +109,12 @@
                     </tr>
                     @endforelse
                   </tbody>
+                  <tfoot>
+                    <tr style="font-weight: bold;">
+                      <td colspan="12" class="text-end">Total Profit: {{number_format($profit,2,'.',',')}} | Total Loss: {{number_format($loss,2,'.',',')}}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
               <!-- /.col -->
@@ -141,6 +174,62 @@
 
     // Set the initial display text for the date range button
     $('#daterange-btn span').html(moment(startDate, "YYYY-MM-DD").format('MMMM D, YYYY') + ' - ' + moment(endDate, "YYYY-MM-DD").format('MMMM D, YYYY'));
+    // Customer Search Logic
+    let searchTimeout;
+    $('#customer_search').on('keyup', function() {
+        const query = $(this).val();
+        clearTimeout(searchTimeout);
+
+        if (query.length < 2) {
+            $('#customer_search_results').hide();
+            return;
+        }
+
+        searchTimeout = setTimeout(function() {
+            $.ajax({
+                url: "{{ route('backend.admin.customers.search') }}",
+                type: "GET",
+                data: { term: query },
+                success: function(data) {
+                    let html = '';
+                    if (data.length > 0) {
+                        data.forEach(function(customer) {
+                            html += `<a href="#" class="list-group-item list-group-item-action customer-item" data-id="${customer.id}">
+                                        <div class="d-flex w-100 justify-content-between">
+                                          <h6 class="mb-1">${customer.name}</h6>
+                                          <small>${customer.phone}</small>
+                                        </div>
+                                        <p class="mb-1 text-muted small">${customer.address || 'No Address'}</p>
+                                    </a>`;
+                        });
+                        $('#customer_search_results').html(html).show();
+                    } else {
+                         $('#customer_search_results').html('<div class="list-group-item">No customers found</div>').show();
+                    }
+                }
+            });
+        }, 300);
+    });
+
+    // Handle click on customer result
+    $(document).on('click', '.customer-item', function(e) {
+        e.preventDefault();
+        const customerId = $(this).data('id');
+        
+        // Get current URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set('customer_id', customerId);
+        
+        // Redirect to new URL
+        window.location.href = window.location.pathname + '?' + urlParams.toString();
+    });
+
+    // Hide search results when clicking outside
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#customer_search, #customer_search_results').length) {
+            $('#customer_search_results').hide();
+        }
+    });
   });
 </script>
 @endpush

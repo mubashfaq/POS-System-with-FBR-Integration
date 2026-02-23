@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\DataTables;
+use Illuminate\Support\Facades\Log;
 
 class PurchaseController extends Controller
 {
@@ -257,5 +258,444 @@ class PurchaseController extends Controller
         $businessId = session('business_id');
         $purchase = Purchase::with('items.product')->where('business_id', $businessId)->findOrFail($id);
         return view('backend.purchase.products', compact('id', 'purchase'));
+    }
+
+    public function importForm()
+    {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('purchase_create'), 403);
+        
+        return view('backend.purchase.import');
+    }
+
+    public function import(Request $request)
+    {
+
+        $validated = $request->validate([
+            'stock_file' => 'required|file|mimes:csv,xlsx,xls|max:2048',
+        ]);
+
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_create'), 403);
+        
+        $businessId = session('business_id');
+        
+        Log::info('Stock Import Started', [
+            'business_id' => $businessId,
+            'user_id' => auth()->id(),
+            'file_name' => $request->file('stock_file')->getClientOriginalName()
+        ]);
+        
+        DB::beginTransaction();
+        
+        try {
+            $file = $request->file('stock_file');
+            $extension = $file->getClientOriginalExtension();
+            
+            Log::info('File Extension Detected', ['extension' => $extension]);
+            
+            // Read file based on extension
+            if ($extension === 'csv') {
+                $data = $this->readCSV($file);
+            } else {
+                $data = $this->readExcel($file);
+            }
+            
+            
+            $results = [
+                'success' => [],
+                'errors' => [],
+                'total' => count($data),
+                'updated' => 0,
+                'failed' => 0
+            ];
+            
+            // Variables for purchase totals
+            $purchaseProducts = [];
+            $subTotal = 0;
+            
+            foreach ($data as $index => $row) {
+                $rowNumber = $index + 2;
+                
+                
+                // Map Excel columns to expected fields
+                $slug = '';
+                $hsCode = '';
+                $quantity = 0;
+                
+                // Try to find the values in different possible column names
+                foreach ($row as $key => $value) {
+                    $keyLower = strtolower(trim($key));
+                    $valueTrimmed = is_string($value) ? trim($value) : $value;
+                    
+                    // Match ITEMS column
+                    if (in_array($keyLower, ['items', 'item', 'product', 'slug'])) {
+                        $slug = $valueTrimmed;
+                    }
+                    
+                    // Match HS CODE column
+                    if (in_array($keyLower, ['hs code', 'hscode', 'hs_code', 'h.s code'])) {
+                        // Handle HS Code - preserve exact format
+                        if (is_numeric($valueTrimmed)) {
+                            $hsCode = strval($valueTrimmed);
+                            
+                            // Check if it's in scientific notation
+                            if (strpos($hsCode, 'E') !== false || strpos($hsCode, 'e') !== false) {
+                                $hsCode = sprintf('%.10f', $valueTrimmed);
+                                $hsCode = rtrim(rtrim($hsCode, '0'), '.');
+                            }
+                        } else {
+                            $hsCode = strval($valueTrimmed);
+                        }
+                        
+                        // Remove commas, spaces, and other formatting
+                        $hsCode = str_replace([',', ' ', "\t"], '', $hsCode);
+                        $hsCode = trim($hsCode);
+                    }
+                    
+                    // Match No. of CONT column
+                    if (in_array($keyLower, ['no. of cont', 'no of cont', 'no.of cont', 'quantity', 'qty', 'cont'])) {
+                        $quantity = floatval($valueTrimmed);
+                    }
+                }
+                
+                
+                // Validate required fields
+                if (empty($slug) || empty($hsCode) || empty($quantity)) {
+                    $error = "Row {$rowNumber}: ITEMS ('{$slug}'), HS CODE ('{$hsCode}'), and No. of CONT ('{$quantity}') are required.";
+                    $results['errors'][] = $error;
+                    $results['failed']++;
+                    
+                    continue;
+                }
+                
+                // Validate quantity
+                if ($quantity <= 0) {
+                    $error = "Row {$rowNumber}: No. of CONT must be greater than 0.";
+                    $results['errors'][] = $error;
+                    $results['failed']++;
+                    
+                    continue;
+                }
+                
+                // Find product by Slug + HsCode and Business ID
+                // Try exact match first
+                $product = Product::where('slug', $slug)
+                                ->where('hsCode', $hsCode)
+                                ->where('business_id', $businessId)
+                                ->first();
+                
+                // If no exact match, try matching by removing trailing zeros/dots from both sides
+                if (!$product) {
+                    $hsCodeNormalized = rtrim(rtrim($hsCode, '0'), '.');
+                    
+                    
+                    // Find products with matching slug and business
+                    $candidateProducts = Product::where('slug', $slug)
+                                            ->where('business_id', $businessId)
+                                            ->get();
+                    
+                    // Try to match by normalized HS code
+                    foreach ($candidateProducts as $candidate) {
+                        $dbHsCodeNormalized = rtrim(rtrim($candidate->hsCode, '0'), '.');
+                        
+                        if ($dbHsCodeNormalized === $hsCodeNormalized) {
+                            $product = $candidate;
+                            break;
+                        }
+                    }
+                }
+                
+                if (!$product) {
+                    $error = "Row {$rowNumber}: Product with ITEMS '{$slug}' and HS CODE '{$hsCode}' not found.";
+                    $results['errors'][] = $error;
+                    $results['failed']++;
+                    continue;
+                }
+                
+                // Store product info for purchase creation
+                $purchasePrice = $product->purchase_price ?? 0;
+                $price = $product->price ?? 0;
+                $itemTotal = $purchasePrice * $quantity;
+                
+                $purchaseProducts[] = [
+                    'product' => $product,
+                    'quantity' => $quantity,
+                    'purchase_price' => $purchasePrice,
+                    'price' => $price,
+                    'total' => $itemTotal
+                ];
+                
+                $subTotal += $itemTotal;
+                
+                $results['updated']++;
+                
+                Log::info("Row {$rowNumber} Product Prepared for Purchase", [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'quantity' => $quantity,
+                    'purchase_price' => $purchasePrice
+                ]);
+            }
+            
+            // Create Purchase record if we have valid products
+            if (count($purchaseProducts) > 0) {
+                // Get or create default supplier for imports
+                // $defaultSupplier = Supplier::findOrFail(1);
+
+                
+                $purchase = Purchase::create([
+                    'supplier_id' => 1,
+                    'user_id' => auth()->id(),
+                    'business_id' => $businessId,
+                    'sub_total' => $subTotal,
+                    'tax' => 0,
+                    'discount_value' => 0,
+                    'shipping' => 0,
+                    'grand_total' => $subTotal,
+                    'date' => now()->toDateString(),
+                    'status' => 1,
+                ]);
+                
+                Log::info('Purchase Created', [
+                    'purchase_id' => $purchase->id,
+                    'supplier_id' => 1,
+                    'grand_total' => $subTotal
+                ]);
+                
+                // Create purchase items and update product quantities
+                foreach ($purchaseProducts as $item) {
+                    $product = $item['product'];
+                    $oldStock = $product->quantity ?? 0;
+                    
+                    // Create purchase item
+                    PurchaseItem::create([
+                        'purchase_id' => $purchase->id,
+                        'product_id' => $product->id,
+                        'purchase_price' => $item['purchase_price'],
+                        'price' => $item['price'],
+                        'quantity' => $item['quantity'],
+                    ]);
+                    
+                    // Update product stock
+                    $product->increment('quantity', $item['quantity']);
+                    $newStock = $product->quantity;
+                    
+                    $success = "Product '{$product->name}' (ITEMS: {$product->slug}, HS CODE: {$product->hsCode}) stock updated from {$oldStock} to {$newStock}.";
+                    $results['success'][] = $success;
+                    
+                    Log::info("Product Stock Updated", [
+                        'product_id' => $product->id,
+                        'product_name' => $product->name,
+                        'old_stock' => $oldStock,
+                        'new_stock' => $newStock,
+                        'added_quantity' => $item['quantity']
+                    ]);
+                }
+            }
+            
+            DB::commit();
+            
+            Log::info('Stock Import Completed', [
+                'total' => $results['total'],
+                'updated' => $results['updated'],
+                'failed' => $results['failed'],
+                'purchase_id' => $purchase->id ?? null
+            ]);
+            
+            // Prepare session message
+            $message = "Stock import completed. ";
+            $message .= "{$results['updated']} products imported successfully. ";
+            
+            if (isset($purchase)) {
+                $message .= "Purchase #{$purchase->id} created with total: " . number_format($purchase->grand_total, 2) . ". ";
+            }
+            
+            if ($results['failed'] > 0) {
+                $message .= "{$results['failed']} rows failed.";
+                session()->flash('import_errors', array_slice($results['errors'], 0, 50));
+                session()->flash('successes', $results['success']);
+                return redirect()->route('backend.admin.purchase.index')
+                            ->with('warning', $message);
+            }
+            
+            session()->flash('successes', $results['success']);
+            return redirect()->route('backend.admin.purchase.index')
+                        ->with('success', $message);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            Log::error('Stock Import Failed', [
+                'error_message' => $e->getMessage(),
+                'error_trace' => $e->getTraceAsString()
+            ]);
+            
+            return redirect()->back()
+                        ->with('error', 'Error importing stock: ' . $e->getMessage());
+        }
+    }
+
+    private function readExcel($file)
+    {
+        
+        try {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath());
+            $worksheet = $spreadsheet->getActiveSheet();
+            
+            $highestRow = $worksheet->getHighestRow();
+            $highestColumn = $worksheet->getHighestColumn();
+            
+            $allRows = [];
+            
+            // Read rows and preserve cell values (especially for HS CODE)
+            for ($row = 1; $row <= $highestRow; $row++) {
+                $rowData = [];
+                for ($col = 'A'; $col <= $highestColumn; $col++) {
+                    $cell = $worksheet->getCell($col . $row);
+                    
+                    // Get all possible values
+                    $formattedValue = $cell->getFormattedValue();
+                    $rawValue = $cell->getValue();
+                    $dataType = $cell->getDataType();
+                    $numberFormat = $cell->getStyle()->getNumberFormat()->getFormatCode();
+                    
+                    // Determine the best value to use
+                    if ($dataType === \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING) {
+                        // It's text, use raw value as-is
+                        $value = $rawValue;
+                    } else if ($numberFormat === '@') {
+                        // Formatted as text
+                        $value = $formattedValue;
+                    } else {
+                        // For numeric values, try to preserve as much precision as possible
+                        if (is_numeric($rawValue)) {
+                            // Convert to string with maximum precision
+                            $value = rtrim(rtrim(sprintf('%.15f', $rawValue), '0'), '.');
+                        } else {
+                            $value = $rawValue;
+                        }
+                        
+                        // Clean formatted value
+                        $formattedClean = str_replace([',', ' ', '$', '€', '£'], '', $formattedValue);
+                        
+                        // If formatted value has more decimal places, prefer it
+                        if (strpos($formattedClean, '.') !== false && strpos($value, '.') !== false) {
+                            $formattedDecimals = strlen(substr($formattedClean, strpos($formattedClean, '.') + 1));
+                            $valueDecimals = strlen(substr($value, strpos($value, '.') + 1));
+                            
+                            if ($formattedDecimals > $valueDecimals) {
+                                $value = $formattedClean;
+                            }
+                        }
+                    }
+                    
+                    $rowData[] = $value;
+                }
+                $allRows[] = $rowData;
+            }
+             
+            // Find the header row (look for row containing "Items" or "ITEMS")
+            $headerRowIndex = null;
+            foreach ($allRows as $index => $row) {
+                foreach ($row as $cell) {
+                    if (stripos($cell, 'items') !== false || stripos($cell, 'hs code') !== false) {
+                        $headerRowIndex = $index;
+                        break 2;
+                    }
+                }
+            }
+            
+            if ($headerRowIndex === null) {
+                Log::error('Could not find header row in Excel');
+                throw new \Exception('Could not find header row with ITEMS, HS CODE columns');
+            }
+            
+            
+            // Get header and normalize
+            $header = array_map('strtolower', array_map('trim', $allRows[$headerRowIndex]));
+            
+            $data = [];
+            // Read data rows after header
+            for ($i = $headerRowIndex + 1; $i < count($allRows); $i++) {
+                $row = $allRows[$i];
+                
+                // Skip empty rows
+                if (empty(array_filter($row))) {
+                    continue;
+                }
+                
+                if (count($row) >= count($header)) {
+                    // Take only the columns we have headers for
+                    $rowData = array_slice($row, 0, count($header));
+                    $data[] = array_combine($header, $rowData);
+                }
+            }
+            
+            return $data;
+            
+        } catch (\Exception $e) {
+            Log::error('Excel Reading Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
+
+    private function readCSV($file)
+    {
+        
+        try {
+            $data = [];
+            $handle = fopen($file->getRealPath(), 'r');
+            
+            if ($handle === false) {
+                Log::error('Failed to open CSV file');
+                throw new \Exception('Could not open CSV file');
+            }
+            
+            $allRows = [];
+            while (($row = fgetcsv($handle)) !== false) {
+                $allRows[] = $row;
+            }
+            fclose($handle);
+            
+            // Find the header row
+            $headerRowIndex = null;
+            foreach ($allRows as $index => $row) {
+                foreach ($row as $cell) {
+                    if (stripos($cell, 'items') !== false || stripos($cell, 'hs code') !== false) {
+                        $headerRowIndex = $index;
+                        break 2;
+                    }
+                }
+            }
+            
+            if ($headerRowIndex === null) {
+                Log::error('Could not find header row in CSV');
+                throw new \Exception('Could not find header row with ITEMS, HS CODE columns');
+            }
+            
+            
+            $header = array_map('strtolower', array_map('trim', $allRows[$headerRowIndex]));
+            
+            // Read data rows after header
+            for ($i = $headerRowIndex + 1; $i < count($allRows); $i++) {
+                $row = $allRows[$i];
+                if (count($row) === count($header) && !empty(array_filter($row))) {
+                    $data[] = array_combine($header, $row);
+                }
+            }
+            
+            return $data;
+            
+        } catch (\Exception $e) {
+            Log::error('CSV Reading Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
     }
 }
