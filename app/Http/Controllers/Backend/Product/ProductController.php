@@ -21,6 +21,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\DataTables;
+use Illuminate\Support\Facades\Log;
+use App\Services\FbrTokenService;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
@@ -248,20 +251,145 @@ class ProductController extends Controller
         $product->delete();
         return redirect()->back()->with('success', 'Product Deleted Successfully');
     }
+    // public function import(Request $request)
+    // {
+    //     if ($request->query('download-demo')) {
+    //         return Excel::download(new DemoProductsExport, 'demo_products.xlsx');
+    //     }
+    //     if ($request->isMethod('post') && $request->hasFile('file')) {
+    //         Excel::import(new ProductsImport, $request->file('file'));
+    //         return redirect()->back()->with('success', 'Products imported successfully.');
+    //     }
+    //     return view('backend.products.import');
+    // }
+
     public function import(Request $request)
     {
         if ($request->query('download-demo')) {
             return Excel::download(new DemoProductsExport, 'demo_products.xlsx');
         }
         if ($request->isMethod('post') && $request->hasFile('file')) {
-            Excel::import(new ProductsImport, $request->file('file'));
-            return redirect()->back()->with('success', 'Products imported successfully.');
+            
+            $file = $request->file('file');
+            $businessId = session('business_id'); 
+            
+            try {
+                // Convert formulas to values before importing
+                $processedFile = $this->convertExcelFormulasToValues($file);
+                
+                // Import using the processed file
+                Excel::import(new ProductsImport($businessId), $processedFile);
+                
+                // Clean up temporary file if it's different from original
+                if ($processedFile !== $file->getRealPath() && file_exists($processedFile)) {
+                    unlink($processedFile);
+                }
+                
+                return redirect()->back()->with('success', 'Products imported successfully.');
+                
+            } catch (\Exception $e) {
+                Log::error('❌ Import failed: ' . $e->getMessage());
+                return redirect()->back()->with('error', 'Import failed: ' . $e->getMessage());
+            }
         }
+
         return view('backend.products.import');
     }
 
+    /**
+     * Convert Excel formulas to their calculated values
+     * This handles system-generated Excel files with formulas automatically
+     */
+    private function convertExcelFormulasToValues($uploadedFile)
+    {
+        try {
+            // Load the Excel file
+            $inputFileName = $uploadedFile->getRealPath();
+            
+            // Try to load with PhpSpreadsheet
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($inputFileName);
+            $worksheet = $spreadsheet->getActiveSheet();
+            
+            // Check if file has formulas
+            $hasFormulas = false;
+            $cellE9 = $worksheet->getCell('E9')->getValue();
+            
+            if (is_string($cellE9) && strpos($cellE9, '=') === 0) {
+                $hasFormulas = true;
+            }
+            
+            if (!$hasFormulas) {
+                return $inputFileName;
+            }
+            
+            // Create a new spreadsheet for output
+            $newSpreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $newWorksheet = $newSpreadsheet->getActiveSheet();
+            
+            // Copy all cell values (formulas will be evaluated)
+            $highestRow = $worksheet->getHighestRow();
+            $highestColumn = $worksheet->getHighestColumn();
+            $highestColumnIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestColumn);
+            
+            for ($row = 1; $row <= $highestRow; $row++) {
+                for ($col = 1; $col <= $highestColumnIndex; $col++) {
+                    $cellCoordinate = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col) . $row;
+                    $cell = $worksheet->getCell($cellCoordinate);
+                    
+                    // Get calculated value (this will evaluate formulas)
+                    try {
+                        $value = $cell->getCalculatedValue();
+                    } catch (\Exception $e) {
+                        // If formula can't be calculated, use the raw value
+                        $value = $cell->getValue();
+                    }
+                    
+                    // Special handling for column B (HS CODE) to preserve trailing zeros
+                    if ($col === 2 && $row >= 9) { // Column B, data rows
+                        // Force as string to preserve trailing zeros like 8544.4290
+                        $value = strval($value);
+                        $newWorksheet->setCellValueExplicit(
+                            $cellCoordinate, 
+                            $value, 
+                            \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING
+                        );
+                    } else {
+                        // Set the value in new worksheet
+                        $newWorksheet->setCellValue($cellCoordinate, $value);
+                    }
+                    
+                    // Copy formatting
+                    $newWorksheet->getCell($cellCoordinate)->getStyle()
+                        ->applyFromArray($cell->getStyle()->exportArray());
+                }
+            }
+            
+            // Copy column widths
+            foreach ($worksheet->getColumnDimensions() as $col => $dimension) {
+                $newWorksheet->getColumnDimension($col)->setWidth($dimension->getWidth());
+            }
+            
+            // Copy row heights
+            foreach ($worksheet->getRowDimensions() as $row => $dimension) {
+                $newWorksheet->getRowDimension($row)->setRowHeight($dimension->getRowHeight());
+            }
+            
+            // Save to temporary file
+            $tempFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'import_' . time() . '_' . uniqid() . '.xlsx';
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($newSpreadsheet);
+            $writer->save($tempFile);
+                        
+            return $tempFile;
+            
+        } catch (\Exception $e) {
+            Log::warning('⚠️ Could not convert formulas: ' . $e->getMessage());
+            return $uploadedFile->getRealPath();
+        }
+    }
+
     public function checkUOMUsingHsCode(){
-        $token = env('FBR_TOKEN');
+        // $token = env('FBR_TOKEN');
+        $token = FbrTokenService::getToken();
 
         try {
             $response = Http::withHeaders([
@@ -295,7 +423,8 @@ class ProductController extends Controller
 
     public function getFbrHscodes()
     {
-        $token = env('FBR_TOKEN');
+        // $token = env('FBR_TOKEN');
+        $token = FbrTokenService::getToken();
         try {
             $response = Http::withHeaders([
                'Authorization' => "Bearer $token",
@@ -325,7 +454,8 @@ class ProductController extends Controller
 
     public function getSroItem()
     {
-        $token = env('FBR_TOKEN');
+        // $token = env('FBR_TOKEN');
+        $token = FbrTokenService::getToken();
         try {
             $response = Http::withHeaders([
                'Authorization' => "Bearer $token",
@@ -356,7 +486,8 @@ class ProductController extends Controller
 
     public function getFbrSaleTypes()
     {
-        $token = env('FBR_TOKEN');
+        // $token = env('FBR_TOKEN');
+        $token = FbrTokenService::getToken();
         try {
             $response = Http::withHeaders([
                'Authorization' => "Bearer $token",
@@ -408,7 +539,8 @@ class ProductController extends Controller
     // UOM
     public function getFbrUOM()
     {
-        $token = env('FBR_TOKEN');
+        // $token = env('FBR_TOKEN');
+        $token = FbrTokenService::getToken();
 
         try {
             $response = Http::withHeaders([
@@ -439,7 +571,8 @@ class ProductController extends Controller
 
      public function getTransTypeCode()
     {
-        $token = env('FBR_TOKEN');
+        // $token = env('FBR_TOKEN');
+        $token = FbrTokenService::getToken();
 
         try {
             $response = Http::withHeaders([
@@ -539,7 +672,8 @@ class ProductController extends Controller
 
         if ($hs) {
 
-           $token = env('FBR_TOKEN');
+        //    $token = env('FBR_TOKEN');
+        $token = FbrTokenService::getToken();
 
             try {
                 $response = Http::withHeaders([
@@ -571,7 +705,8 @@ class ProductController extends Controller
        
         $saleTypeId = intval($st->transactioN_TYPE_ID);
        
-        $token = env('FBR_TOKEN');
+        // $token = env('FBR_TOKEN');
+        $token = FbrTokenService::getToken();
 
         try {
             $response = Http::withHeaders([
@@ -607,7 +742,8 @@ class ProductController extends Controller
     {
 
        
-        $token = env('FBR_TOKEN');
+        // $token = env('FBR_TOKEN');
+        $token = FbrTokenService::getToken();
 
         try {
             $response = Http::withHeaders([
@@ -641,7 +777,8 @@ class ProductController extends Controller
     {
 
        
-        $token = env('FBR_TOKEN');  
+        // $token = env('FBR_TOKEN');  
+        $token = FbrTokenService::getToken();
         try {
             $response = Http::withHeaders([
                'Authorization' => "Bearer $token",

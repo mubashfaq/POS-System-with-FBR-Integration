@@ -233,4 +233,22 @@ class CustomerController extends Controller
     ]);
 }
 
+public function search(Request $request)
+    {
+        $query = $request->get('term');
+        $businessId = session('business_id');
+
+        $customers = Customer::where('business_id', $businessId)
+            ->where(function ($q) use ($query) {
+                $q->where('name', 'LIKE', '%' . $query . '%')
+                  ->orWhere('phone', 'LIKE', '%' . $query . '%')
+                  ->orWhere('address', 'LIKE', '%' . $query . '%');
+            })
+            ->latest()
+            ->limit(20)
+            ->get(['id', 'name', 'phone', 'address']);
+
+        return response()->json($customers);
+    }
+
 }

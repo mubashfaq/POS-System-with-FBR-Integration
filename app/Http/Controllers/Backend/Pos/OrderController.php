@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
+use App\Services\FbrTokenService;
 
 class OrderController extends Controller
 {
@@ -689,7 +690,8 @@ public function storeDigital(Request $request)
     'payload'  => $fbrPayload
 ]);
 
-    $token = env('FBR_TOKEN');
+    // $token = env('FBR_TOKEN');
+    $token = FbrTokenService::getToken();
     try {
         $response = Http::withOptions([
             'timeout' => 620,
