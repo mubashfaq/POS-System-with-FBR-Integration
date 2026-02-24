@@ -82,7 +82,7 @@ class CategoryController extends Controller
 
         // abort_if(!auth()->user()->can('category_create'), 403);
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:categories,name',
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'category_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'status' => 'required|boolean',
@@ -92,6 +92,14 @@ class CategoryController extends Controller
         if (!$businessId) {
             return redirect()->back()->with('error', 'No business selected.');
         }
+
+        $allCatagories = Category::where('business_id', $businessId)->where('name', $validated['name'])->first();
+        if ($allCatagories) {
+            return redirect()->back()->with('error', 'Category already exists.');
+        }
+
+
+
 
         $category = Category::create([
             'business_id' => $businessId,
