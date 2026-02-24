@@ -2,7 +2,7 @@
 $route = request()->route()->getName();
 $currentBusiness = currentUserBusiness();
 $hasCurrentBusiness = !is_null($currentBusiness);
-
+$business_type = $currentBusiness?->business?->business_type;
 $canSaleCreate = $hasCurrentBusiness && $currentBusiness->hasPermissionTo('sale_create');
 $hasCustomerPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(['customer_view', 'customer_create']);
 $hasSupplierPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(['supplier_view', 'supplier_create']);
@@ -37,28 +37,28 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                 </a>
             </li>
 
-            @if ($canSaleCreate)
-            <li class="nav-item">
-                <a href="{{ route('backend.admin.cart.index') }}"
-                    class="nav-link {{ $route === 'backend.admin.cart.index' ? 'active' : '' }}">
+            @if ($canSaleCreate && $business_type === 'pos')
+                <li class="nav-item">
+                    <a href="{{ route('backend.admin.cart.index') }}"
+                        class="nav-link {{ $route === 'backend.admin.cart.index' ? 'active' : '' }}">
                     <i class="nav-icon fas fa-cart-plus"></i>
                     <p>
                         POS
                     </p>
-                </a>
-            </li>
+                    </a>
+                </li>
             @endif
 
-            @if ($canSaleCreate)
-            <li class="nav-item">
-                <a href="{{ route('backend.admin.cart.digitalInvoice') }}"
-                    class="nav-link {{ $route === 'backend.admin.cart.digitalInvoice' ? 'active' : '' }}">
+            @if ($canSaleCreate && $business_type === 'digital')
+                <li class="nav-item">
+                    <a href="{{ route('backend.admin.cart.digitalInvoice') }}"
+                        class="nav-link {{ $route === 'backend.admin.cart.digitalInvoice' ? 'active' : '' }}">
                     <i class="nav-icon fas fa-cart-plus"></i>
                     <p>
                         Digital Invoice
                     </p>
-                </a>
-            </li>
+                    </a>
+                </li>
             @endif
             {{-- Business Details --}}
             <li class="nav-item {{ request()->routeIs(['backend.admin.business.index','backend.admin.business.create','backend.admin.business.edit']) ? 'menu-open' : '' }}">
