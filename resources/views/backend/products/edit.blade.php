@@ -177,6 +177,16 @@
                     </div>
 
                     <div class="mb-3 col-md-6">
+                        <label for="salesTaxWithheldAtSource" class="form-label">
+                           PCT Code
+                            <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control " placeholder="Enter PCT Code"
+                            name="PCTCode" value="{{ old('PCTCode', $product->PCTCode) }}" required>
+
+                    </div>
+
+                    <div class="mb-3 col-md-6">
                         <label for="discount_type" class="form-label">
                             Discount Type
                         </label>

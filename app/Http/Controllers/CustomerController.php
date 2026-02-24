@@ -96,6 +96,8 @@ class CustomerController extends Controller
         $currentBusiness = currentUserBusiness();
                 $businessId = session('business_id');
 
+                $businessId = session('business_id');
+
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('customer_create'), 403);
 
         // abort_if(!auth()->user()->can('customer_create'), 403);
@@ -118,6 +120,10 @@ class CustomerController extends Controller
             'province' => 'required|string|max:255',
             'address' => 'required|string|max:255',
             'is_registered' => 'required|string|max:255',
+            'ntn_cnic' => 'required|integer|unique:customers,ntn_cnic',
+            'province' => 'required|string|max:255',
+            'address' => 'required|string|max:255',
+            'is_registered' => 'required|string|max:255',
         ]);
 
         $businessId = session('business_id'); // business_id 
@@ -130,7 +136,10 @@ class CustomerController extends Controller
             'phone'       => $request->phone,
             'ntn_cnic'    => $request->ntn_cnic,
             'province'    => $request->province,
+            'ntn_cnic'    => $request->ntn_cnic,
+            'province'    => $request->province,
             'address'     => $request->address,
+            'is_registered' => $request->is_registered,
             'is_registered' => $request->is_registered,
             'business_id' => $businessId, 
         ]);
@@ -180,8 +189,13 @@ class CustomerController extends Controller
             'province' => 'required|string|max:255',
             'address' => 'required|string|max:255',
             'is_registered' => 'required|string|max:255',
+            'ntn_cnic' => 'required|integer',
+            'province' => 'required|string|max:255',
+            'address' => 'required|string|max:255',
+            'is_registered' => 'required|string|max:255',
         ]);
 
+        $customer->update($request->only(['name', 'phone', 'ntn_cnic', 'province', 'address', 'is_registered']));
         $customer->update($request->only(['name', 'phone', 'ntn_cnic', 'province', 'address', 'is_registered']));
 
         session()->flash('success', 'Customer updated successfully.');
@@ -207,7 +221,10 @@ class CustomerController extends Controller
     {
         $businessId = session('business_id');
 
+        $businessId = session('business_id');
+
         if ($request->wantsJson()) {
+            return response()->json(Customer::where('business_id', $businessId)->latest()->get());
             return response()->json(Customer::where('business_id', $businessId)->latest()->get());
         }
     }

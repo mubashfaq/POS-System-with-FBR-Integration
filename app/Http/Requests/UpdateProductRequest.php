@@ -59,6 +59,7 @@ class UpdateProductRequest extends FormRequest
 
             'sale_type' => 'required|string|max:255',
             'sro_item' => 'nullable|string|max:10',
+            'PCTCode' => 'required|string|max:255',
             'uom' => 'required|string|max:255',
             'sro_schedule' => 'nullable|string|max:255',
 
