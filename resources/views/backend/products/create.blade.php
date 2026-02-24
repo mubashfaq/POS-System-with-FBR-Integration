@@ -176,6 +176,15 @@
                         </select>
                     </div>
 
+                    <div class="mb-3 col-md-6">
+                        <label for="sro_item" class="form-label">
+                           PCT Code
+                            <span class="text-danger">*</span>
+                        </label>
+                            <input type="text" class="form-control" name="PCTCode" id="pct_code" placeholder="Enter PCT Code" required>
+
+                    </div>
+
 
                     <div class="mb-3 col-md-6">
                         <label for="discount_type" class="form-label">

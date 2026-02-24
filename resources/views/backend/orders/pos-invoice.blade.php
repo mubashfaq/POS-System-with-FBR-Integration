@@ -7,23 +7,29 @@
   <div class="receipt-container mt-0" id="printable-section" style="max-width: {{ $maxWidth}}; font-size: 12px; font-family: 'Courier New', Courier, monospace;">
     <div class="text-center">
  @if(!empty($invoiceSettings->logo) && $invoiceSettings->logo == 1 && !empty($business->logo))
-    <img src="{{ asset('storage/'.$business->logo) }}" height="50" width="50" alt="Logo"><br>
+    <img src="{{ asset('storage/'.$business->logo) }}" height="100" width="100" alt="Logo"><br>
   @endif
 
   @if(!empty($invoiceSettings->site_name) && $invoiceSettings->site_name == 1)
-    <h6>{{ $business->business_name ?? '' }}</h6> <br>
+    <h6 align="center" class="mt-1">{{ $business->business_name ?? '' }}</h6> 
   @endif
 
   @if(!empty($invoiceSettings->address) && $invoiceSettings->address == 1)
-    {{ $business->address ?? '' }}<br>
+   <div align="center" class="mt-1"> {{ $business->address ?? '' }} </div> 
   @endif
 
-  @if(!empty($invoiceSettings->phone) && $invoiceSettings->phone == 1)
+  <div class="mt-1">NTN: {{ $business->ntn ?? 'NTN' }}</div>
+
+  <div class="mt-1">
+          <p>{{ date('d-M-Y') }} {{ date('h:i:s A') }}</p>
+  </div>
+
+  <!-- @if(!empty($invoiceSettings->phone) && $invoiceSettings->phone == 1)
     {{ $business->phone ?? '' }}<br>
-  @endif
+  @endif -->
 
    
-    {{ $business->ntn ?? 'NTN' }}<br>
+    
   
 
   @if(!empty($invoiceSettings->email) && $invoiceSettings->email == 1)
@@ -31,27 +37,29 @@
   @endif
     </div>
     {{ 'User: '.auth()->user()->name}}<br>
-    {{ 'Order: #'.$order->id}}<br>
-    <hr>
+    <!-- {{ 'Order: #'.$order->id}}<br> -->
+    <!-- <hr> -->
+      <!-- <div>Mode of Payment: {{ $order->payment_mode }}</div> -->
+
     <div class="row justify-content-between mx-auto">
      
       <div class="text-left">
         @if(readConfig('is_show_customer_invoice'))
         <address>
-          Name: {{ $order->customer->name ?? 'N/A' }}<br>
+          Customer : {{ $order->customer->name ?? 'N/A' }}<br>
           <!-- Address: {{ $order->customer->address ?? 'N/A' }}<br> -->
-          Phone: {{ $order->customer->phone ?? 'N/A' }}<br>
+          <!-- Phone: {{ $order->customer->phone ?? 'N/A' }}<br> -->
          
         </address>
         @endif
       </div>
-
+<!-- 
       <div class="text-right">
         <address class="text-right">
           <p>{{ date('d-M-Y') }}</p>
           <p>{{ date('h:i:s A') }}</p>
         </address>
-      </div>
+      </div> -->
     </div>
     <hr>
     <table style="width: 100%;">
@@ -61,44 +69,67 @@
           <th style="text-align: right;"></th>
           <!-- <th style="text-align: right;">Qty</th> -->
           <!-- <th style="text-align: right;">Price {{ currency()->symbol}}</th> -->
-          <th style="text-align: right;">Total {{ currency()->symbol}}</th>
+          <th style="text-align: right;">Total </th>
         </tr>
       </thead>
+      
+
+
       <tbody>
-        @foreach ($order->products as $item)
+    @php $totalTaxAmount = 0; @endphp
+    @foreach ($order->products as $item)
+    @php
+        // Har product ka apna tax rate
+        $taxRateRaw = str_replace('%', '', $item->product->rate_of_tax);
+        $taxRateNumeric = (float) $taxRateRaw;
+        
+        // Is product ka tax amount (Quantity ke sath)
+        // Agar discounted_price unit price hai, to total tax = price * qty * rate / 100
+        $currentProductTax = ($item->discounted_price * $item->quantity * $taxRateNumeric) / 100;
+        
+        // Poore order ka total tax jama karna
+        $totalTaxAmount += $currentProductTax;
+
+        $pfinalPricePerUnit = $item->discounted_price - ($item->discounted_price * $taxRateNumeric / 100);
+        $pfinalLineTotal = $item->total - $currentProductTax;
+    @endphp
+    <tr>
+        <td>{{ $item->product->name }}  </td>
+         <!-- <br> <small>(Tax: {{ $item->product->rate_of_tax }})</small> -->
+        <td class="text-center">{{ $item->quantity }} * {{ number_format($pfinalPricePerUnit, 2) }}</td>
+        <td class="text-right">{{ number_format($pfinalLineTotal, 2) }}</td>
+    </tr>
+    @endforeach
+</tbody>
+</table>
+
+<hr>
+
+<div class="summary">
+    <table style="width: 100%;">
         <tr>
-          <td>{{ $item->product->name }}</td>
-          <!-- <td class="text-right">{{ $item->quantity }}</td> -->
-          <td class="text-right">{{ $item->quantity }}*{{ $item->discounted_price}}</td>
-          <td class="text-right">{{ $item->total }}</td>
+            @php $subTotalMinusTax = $order->sub_total - $totalTaxAmount; @endphp
+            <td class="text-right"> Subtotal (Excl. Tax): {{ number_format($subTotalMinusTax, 2) }}</td>
         </tr>
-        @endforeach
-      </tbody>
+        <tr>
+            <td class="text-right"> Sales Tax: {{ number_format($totalTaxAmount, 2) }}</td>
+        </tr>
+        <tr>
+            <td class="text-right"> Discount: {{ number_format($order->discount, 2) }}</td>
+        </tr>
+        <tr>
+            <td class="text-right"> PoS Fee: 1.00</td>
+        </tr>
+        <tr>
+            {{-- Total calculation: Subtotal - Discount + POS Fee --}}
+            <td class="text-right"> Total: <strong>{{ number_format($order->total + 1, 2) }}</strong></td>
+        </tr>
+         <tr>
+          <!-- <td>Due:</td> -->
+          <td class="text-right"> Due: {{number_format($order->due, 2) }}</td>
+        </tr>
     </table>
-    <hr>
-    <div class="summary">
-      <table style="width: 100%;">
-        <tr>
-          <td>Subtotal:</td>
-          <td class="text-right">{{number_format($order->sub_total, 2) }}</td>
-        </tr>
-        <tr>
-          <td>Discount:</td>
-          <td class="text-right">{{number_format($order->discount, 2) }}</td>
-        </tr>
-        <tr>
-          <td><strong>Total:</strong></td>
-          <td class="text-right"><strong>{{number_format($order->total, 2) }}</strong></td>
-        </tr>
-        <tr>
-          <td>Paid:</td>
-          <td class="text-right">{{number_format($order->paid, 2) }}</td>
-        </tr>
-        <tr>
-          <td>Due:</td>
-          <td class="text-right">{{number_format($order->due, 2) }}</td>
-        </tr>
-      </table>
+
     </div>
     <hr>
     <div class="text-center">

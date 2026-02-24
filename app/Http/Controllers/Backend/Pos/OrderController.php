@@ -290,7 +290,8 @@ public function store(Request $request)
             "ItemCode"=> $product->sku,
             "ItemName" => $product->name,
             "quantity" => $qty,
-            "PCTCode" => "11001010",
+            "PCTCode" => $product->PCTCode,
+            // "PCTCode" => "11001010",
             "TaxRate" => $taxRate,
             "SaleValue" => $valueExTax,
             "TotalAmount" => $lineTotal ,//+ $furtherTax,
@@ -308,7 +309,7 @@ public function store(Request $request)
 
     $fbrPayload = [
         "POSID" => 819045,
-        "USIN" => "USIN0",
+        "USIN" => "USIN-" . $order->id,
         "DateTime" => now()->format('Y-m-d'),
         // "invoiceType" => "Sale Invoice",
         // "invoiceDate" => now()->format('Y-m-d'),
@@ -689,8 +690,7 @@ public function storeDigital(Request $request)
     'payload'  => $fbrPayload
 ]);
 
-    // $token = env('FBR_TOKEN');
-    $token = FbrTokenService::getToken();
+    $token = env('FBR_TOKEN');
     try {
         $response = Http::withOptions([
             'timeout' => 620,
