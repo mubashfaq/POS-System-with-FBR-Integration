@@ -86,7 +86,7 @@ class BrandController extends Controller
         // abort_if(!auth()->user()->can('brand_create'), 403);
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:brands,name',
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'brand_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'status' => 'required|boolean',
@@ -95,6 +95,11 @@ class BrandController extends Controller
         $businessId = session('business_id'); // business_id session me hona chahiye
         if (!$businessId) {
             return redirect()->back()->with('error', 'No business selected.');
+        }
+
+          $allBrands = Brand::where('business_id', $businessId)->where('name', $validated['name'])->first();
+        if ($allBrands) {
+            return redirect()->back()->with('error', 'Brand already exists.');
         }
 
         // brand create with business_id

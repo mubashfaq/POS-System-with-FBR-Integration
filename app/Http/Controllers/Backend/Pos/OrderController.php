@@ -392,7 +392,7 @@ public function store(Request $request)
         // ]);
     // }
 
-
+    $token = FbrTokenService::getToken();
     $post_api_response=null;
      try {
             // $post_api_response = Http::withOptions([
@@ -413,7 +413,7 @@ public function store(Request $request)
                 //   CURLOPT_SSL_VERIFYHOST => false,
                 // CURLOPT_SSL_VERIFYPEER => false,
             ])->withHeaders([
-                'Authorization' => "Bearer 1298b5eb-b252-3d97-8622-a4a69d5bf818",
+                'Authorization' => "Bearer $token",
                 'Content-Type' => 'application/json',
                 'Accept-Encoding' => 'gzip, deflate, br',
                 'Accept' => 'application/json'
