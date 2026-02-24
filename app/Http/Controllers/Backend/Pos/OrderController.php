@@ -690,7 +690,8 @@ public function storeDigital(Request $request)
     'payload'  => $fbrPayload
 ]);
 
-    $token = env('FBR_TOKEN');
+    // $token = env('FBR_TOKEN');
+    $token = FbrTokenService::getToken();
     try {
         $response = Http::withOptions([
             'timeout' => 620,
