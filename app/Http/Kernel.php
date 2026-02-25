@@ -66,5 +66,6 @@ class Kernel extends HttpKernel
         'admin' => \App\Http\Middleware\AdminMiddleware::class,
         'user' => \App\Http\Middleware\UserMiddleware::class,
         'current.business' => \App\Http\Middleware\SetCurrentBusiness::class,
+        'business.type' => \App\Http\Middleware\CheckBusinessType::class,
     ];
 }

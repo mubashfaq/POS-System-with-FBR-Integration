@@ -442,7 +442,7 @@
                 <div class="showcase-card">
                     <img src="{{ asset('assets/images/invoice-01.jpeg') }}" alt="POS Interface" class="showcase-image">
                     <div class="showcase-content">
-                        <h4>Fast & Intuitive POS</h4>
+                        <h4>Fast & Intuitive POS / Digital Invoicing System</h4>
                         <p>Process transactions quickly with our user-friendly interface. Support for barcode scanning, multiple payment methods, and custom receipts.</p>
                     </div>
                 </div>
@@ -473,7 +473,7 @@
                     <div class="feature-card">
                         <div class="feature-icon">💻</div>
                         <h3>Powerful Point of Sale</h3>
-                        <p>A robust POS interface that handles sales, returns, and exchanges seamlessly. Works online and offline to keep your business running.</p>
+                        <p>A robust POS / Digital Invoicing System interface that handles sales, returns, and exchanges seamlessly. Works online and offline to keep your business running.</p>
                     </div>
                 </div>
                 <div class="col-md-6 col-lg-4 mb-4">
@@ -575,7 +575,7 @@
                     <p>{{ readConfig('site_name') }} is a leading Point of Sale and Inventory Management solution tailored for businesses in Pakistan. We empower retailers to streamline their operations, reduce costs, and grow their revenue through technology.</p>
                     <p>Whether you run a small retail shop or a large chain of stores, {{ readConfig('site_name') }} provides the tools you need to succeed in today's competitive market.</p>
                     <ul class="about-list">
-                        <li><strong>✓ FBR Integrated:</strong> Fully compliant with FBR POS integration requirements.</li>
+                        <li><strong>✓ FBR Integrated:</strong> Fully compliant with FBR POS / Digital Invoicing System integration requirements.</li>
                         <li><strong>✓ Multi-Location Support:</strong> Manage multiple branches from a central admin panel.</li>
                         <li><strong>✓ Real-Time Sync:</strong> Seamless synchronization between online and offline data.</li>
                     </ul>
