@@ -64,127 +64,141 @@
                             name="price" value="{{ old('price',$product->price) }}" required>
                     </div>
 
-                    <div class="mb-3 col-md-6">
-                        <label for="hsCode" class="form-label">
-                            Hs Code
-                            <span class="text-danger">*</span>
-                        </label>
-                        <select class="form-control select2" name="hsCode" id="hsCode" required>
-                            <option value="">Select HS Code</option>
-                            @foreach ($hsCodes as $code)
-                            <option value="{{ $code->hs_code}}"
-                                {{ $product->hsCode == $code->hs_code ? 'selected' : '' }}>
-                                {{ $code->hs_code }}
-                            </option>
-                            @endforeach
-                        </select>
-                    </div>
+                    @if ($business_type === 'pos')
+                        <div class="mb-3 col-md-6">
+                            <label for="PCTCode" class="form-label">
+                            PCT Code
+                                <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control " placeholder="Enter PCT Code"
+                                name="PCTCode" value="{{ old('PCTCode', $product->PCTCode) }}" required>
 
-                    <div class="mb-3 col-md-6">
-                        <label for="description" class="form-label">
-                            Description <span class="text-danger">*</span>
-                        </label>
-                        <textarea rows="3" cols="50" name="hs_description" id="description" class="form-control"
-                            readonly>{{$product->hs_description}}</textarea>
-                    </div>
+                        </div>
 
-                    <div class="mb-3 col-md-6">
-                        <label for="uom" class="form-label">
-                            UOM
-                            <span class="text-danger">*</span>
-                        </label>
-                        <select id="uom" class="form-control select2" style="width: 100%;" name="uom" required>
-                            <option value="">Select Unit</option>
-                            @foreach ($units as $u)
-                            <option value="{{ $u->description }}"
-                                {{ $product->uom == $u->description ? 'selected' : '' }}>
-                                {{ $u->description }}
-                            </option>
-                            @endforeach
-                        </select>
+                        <div class="mb-3 col-md-6">
+                            <label for="pos_sale_tax" class="form-label">
+                            POS Sale Tax
+                                <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control " placeholder="Enter POS Sale Tax"
+                                name="pos_sale_tax" value="{{ old('pos_sale_tax', $product->pos_sale_tax) }}" required>
+                        </div>
 
-                    </div>
+                        @else
 
-                    <div class="mb-3 col-md-6">
-                        <label for="salesTaxWithheldAtSource" class="form-label">
-                            sales Tax HeldAtSource
-                            <span class="text-danger">*</span>
-                        </label>
-                        <input type="number" class="form-control " placeholder="Enter sales Tax HeldAtSource"
-                            name="salesTaxWithheldAtSource" value="0" required>
+                        <div class="mb-3 col-md-6">
+                            <label for="hsCode" class="form-label">
+                                Hs Code
+                                <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-control select2" name="hsCode" id="hsCode" required>
+                                <option value="">Select HS Code</option>
+                                @foreach ($hsCodes as $code)
+                                <option value="{{ $code->hs_code}}"
+                                    {{ $product->hsCode == $code->hs_code ? 'selected' : '' }}>
+                                    {{ $code->hs_code }}
+                                </option>
+                                @endforeach
+                            </select>
+                        </div>
+    
+                        <div class="mb-3 col-md-6">
+                            <label for="description" class="form-label">
+                                Description <span class="text-danger">*</span>
+                            </label>
+                            <textarea rows="3" cols="50" name="hs_description" id="description" class="form-control"
+                                readonly>{{$product->hs_description}}</textarea>
+                        </div>
+    
+                        <div class="mb-3 col-md-6">
+                            <label for="uom" class="form-label">
+                                UOM
+                                <span class="text-danger">*</span>
+                            </label>
+                            <select id="uom" class="form-control select2" style="width: 100%;" name="uom" required>
+                                <option value="">Select Unit</option>
+                                @foreach ($units as $u)
+                                <option value="{{ $u->description }}"
+                                    {{ $product->uom == $u->description ? 'selected' : '' }}>
+                                    {{ $u->description }}
+                                </option>
+                                @endforeach
+                            </select>
+    
+                        </div>
+    
+                        <div class="mb-3 col-md-6">
+                            <label for="salesTaxWithheldAtSource" class="form-label">
+                                sales Tax HeldAtSource
+                                <span class="text-danger">*</span>
+                            </label>
+                            <input type="number" class="form-control " placeholder="Enter sales Tax HeldAtSource"
+                                name="salesTaxWithheldAtSource" value="0" required>
+    
+                        </div>
+    
+    
+                        <div class="mb-3 col-md-6">
+                            <label for="sale_type" class="form-label">
+                                Sale Type
+                                <span class="text-danger">*</span>
+                            </label>
+                            <input type="hidden" name="sale_type_id" id="sale_type_id">
+                            <select class="form-control select2" style="width: 100%;" name="sale_type" id="sale_type"
+                                required>
+                                <option value="">Select Sale Type</option>
+                                @foreach ($saleTypes as $st)
+                                <option value="{{ $st->transactioN_DESC }}" {{ $product->sale_type == $st->transactioN_DESC ? 'selected' : '' }}>
+                                    {{ $st->transactioN_DESC }}
+                                </option>
+                                @endforeach
+                            </select>
+                        </div>
+    
+                        <div class="mb-3 col-md-6">
+                            <label for="rate_of_tax_id" class="form-label">
+                                Rate of Tax
+                                <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-control select2" style="width: 100%;" name="rate_of_tax" id="rate_of_tax"
+                                required>
+                                <option value="{{ $product->rate_of_tax }}">{{ $product->rate_of_tax}}</option>
+    
+                            </select>
+    
+                            <input type="hidden" name="rate_of_tax_id" id="rate_of_tax_id">
+                        </div>
+    
+    
+    
+                        <!-- sro schedule -->
+                        <div class="mb-3 col-md-6">
+                            <label for="sro_item" class="form-label">
+                                Sro Schedule
+                                <span class="text-danger"></span>
+                            </label>
+                            <select class="form-control select2" style="width: 100%;" name="sro_schedule" id="sro_schedule">
+                                <option value="{{ $product->sro_schedule}}">{{ $product->sro_schedule}}</option>
+    
+                            </select>
+    
+                            <input type="hidden" id="sro_schedule_id" name="sro_schedule_id">
+    
+                        </div>
+    
+    
+                        <div class="mb-3 col-md-6">
+                            <label for="sro_item" class="form-label">
+                                Sro Item Code
+                                <span class="text-danger"></span>
+                            </label>
+                            <select class="form-control select2" style="width: 100%;" name="sro_item" id="sro_item">
+                                <option value="">Select SRO Item</option>
+    
+                            </select>
+                        </div>
 
-                    </div>
-
-
-                    <div class="mb-3 col-md-6">
-                        <label for="sale_type" class="form-label">
-                            Sale Type
-                            <span class="text-danger">*</span>
-                        </label>
-                        <input type="hidden" name="sale_type_id" id="sale_type_id">
-                        <select class="form-control select2" style="width: 100%;" name="sale_type" id="sale_type"
-                            required>
-                            <option value="">Select Sale Type</option>
-                            @foreach ($saleTypes as $st)
-                            <option value="{{ $st->transactioN_DESC }}" {{ $product->sale_type == $st->transactioN_DESC ? 'selected' : '' }}>
-                                {{ $st->transactioN_DESC }}
-                            </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="mb-3 col-md-6">
-                        <label for="rate_of_tax_id" class="form-label">
-                            Rate of Tax
-                            <span class="text-danger">*</span>
-                        </label>
-                        <select class="form-control select2" style="width: 100%;" name="rate_of_tax" id="rate_of_tax"
-                            required>
-                            <option value="{{ $product->rate_of_tax }}">{{ $product->rate_of_tax}}</option>
-
-                        </select>
-
-                        <input type="hidden" name="rate_of_tax_id" id="rate_of_tax_id">
-                    </div>
-
-
-
-                    <!-- sro schedule -->
-                    <div class="mb-3 col-md-6">
-                        <label for="sro_item" class="form-label">
-                            Sro Schedule
-                            <span class="text-danger"></span>
-                        </label>
-                        <select class="form-control select2" style="width: 100%;" name="sro_schedule" id="sro_schedule">
-                            <option value="{{ $product->sro_schedule}}">{{ $product->sro_schedule}}</option>
-
-                        </select>
-
-                        <input type="hidden" id="sro_schedule_id" name="sro_schedule_id">
-
-                    </div>
-
-
-                    <div class="mb-3 col-md-6">
-                        <label for="sro_item" class="form-label">
-                            Sro Item Code
-                            <span class="text-danger"></span>
-                        </label>
-                        <select class="form-control select2" style="width: 100%;" name="sro_item" id="sro_item">
-                            <option value="">Select SRO Item</option>
-
-                        </select>
-                    </div>
-
-                    <div class="mb-3 col-md-6">
-                        <label for="salesTaxWithheldAtSource" class="form-label">
-                           PCT Code
-                            <span class="text-danger">*</span>
-                        </label>
-                        <input type="text" class="form-control " placeholder="Enter PCT Code"
-                            name="PCTCode" value="{{ old('PCTCode', $product->PCTCode) }}" required>
-
-                    </div>
+                    @endif
 
                     <div class="mb-3 col-md-6">
                         <label for="discount_type" class="form-label">

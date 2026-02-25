@@ -42,6 +42,7 @@
       <!-- <div>Mode of Payment: {{ $order->payment_mode }}</div> -->
 
     <div class="row justify-content-between mx-auto">
+     
       <div class="text-left">
         @if(readConfig('is_show_customer_invoice'))
         <address>
