@@ -360,7 +360,7 @@ function createOrder(redirect = false) {
 
             if (orderId) {
                 // Add leading slash for correct path
-                window.location.href = `orders/pos-invoice/${orderId}`;
+                window.location.href = `orders/pos-invoice-digital/${orderId}`;
             } else {
                 toast.error("Order ID not found, cannot redirect.");
     }

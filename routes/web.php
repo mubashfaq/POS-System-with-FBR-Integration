@@ -108,6 +108,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::get('purchase/products/{id}', [PurchaseController::class, 'purchaseProducts'])->name('purchase.products');
     Route::get('orders/invoice/{id}', [OrderController::class,'invoice'])->name('orders.invoice');
     Route::get('orders/pos-invoice/{id}', [OrderController::class, 'posInvoice'])->name('orders.pos-invoice');
+    Route::get('orders/pos-invoice-digital/{id}', [OrderController::class, 'posInvoiceDigital'])->name('orders.pos-invoice-digital');
     Route::get('orders/transactions/{id}', [OrderController::class, 'transactions'])->name('orders.transactions');
     Route::match(['get', 'post'], 'orders/due/collection/{id}', [OrderController::class, 'collection'])->name('due.collection');
     Route::get('collection/invoice/{id}', [OrderController::class, 'collectionInvoice'])->name('collectionInvoice');
@@ -121,8 +122,17 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     
     // start pos
         Route::get('/get/products', [CartController::class, 'getProducts'])->name('getProducts');
-        Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
-        Route::get('/digitalCart', [CartController::class, 'digitalInvoice'])->name('cart.digitalInvoice');
+        
+        // Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+        Route::get('/cart', [CartController::class, 'index'])
+        ->middleware(['auth', 'business.type:pos'])
+        ->name('cart.index');
+       
+        // Route::get('/digitalCart', [CartController::class, 'digitalInvoice'])->name('cart.digitalInvoice');
+        Route::get('/digitalCart', [CartController::class, 'digitalInvoice'])
+        ->middleware(['auth', 'business.type:digital'])
+        ->name('cart.digitalInvoice');
+        
         Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
 
         Route::put('/cart/update-quantity', [CartController::class, 'updateQuantity']);

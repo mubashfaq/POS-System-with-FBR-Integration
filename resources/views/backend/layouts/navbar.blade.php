@@ -1,3 +1,15 @@
+@php
+$route = request()->route()->getName();
+$currentBusiness = currentUserBusiness();
+$hasCurrentBusiness = !is_null($currentBusiness);
+$business_type = $currentBusiness?->business?->business_type;
+$canSaleCreate = $hasCurrentBusiness && $currentBusiness->hasPermissionTo('sale_create');
+$hasCustomerPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(['customer_view', 'customer_create']);
+$hasSupplierPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(['supplier_view', 'supplier_create']);
+$hasProductPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(['product_view', 'product_create']);
+$hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(['user_view', 'user_create']);
+@endphp
+
 <nav class="main-header navbar navbar-expand navbar-white navbar-light">
     <!-- Left navbar links -->
     <ul class="navbar-nav">
@@ -31,13 +43,26 @@
 
 
 
-        @can('sale_create')
-       <li class="nav-item dropdown">
-            <a class="nav-link btn pos-btn text-white" href="{{ route('backend.admin.cart.index') }}">
-                <i class="fas fa-cart-plus"></i> POS
-            </a>
-        </li>
-        @endcan
+        <!-- @can('sale_create') -->
+         @if ($canSaleCreate && $business_type === 'pos')
+            <li class="nav-item dropdown">
+                <a class="nav-link btn pos-btn text-white" href="{{ route('backend.admin.cart.index') }}">
+                    <i class="fas fa-cart-plus"></i> POS
+                </a>
+            </li>
+         @endif
+         <!-- cart.digitalInvoice
+        @endcan -->
+
+          @if ($canSaleCreate && $business_type === 'digital')
+            <li class="nav-item dropdown">
+                <a class="nav-link btn pos-btn text-white" href="{{ route('backend.admin.cart.digitalInvoice') }}">
+                    <i class="fas fa-cart-plus"></i> Digital Invoice
+                </a>
+            </li>
+         @endif
+
+
         <!-- Notifications Dropdown Menu -->
         <!-- <li class="nav-item dropdown">
             <a class="nav-link" data-toggle="dropdown" href="#">

@@ -80,7 +80,7 @@
     @foreach ($order->products as $item)
     @php
         // Har product ka apna tax rate
-        $taxRateRaw = str_replace('%', '', $item->product->rate_of_tax);
+        $taxRateRaw = str_replace('%', '', $item->product->pos_sale_tax); // "18%"
         $taxRateNumeric = (float) $taxRateRaw;
         
         // Is product ka tax amount (Quantity ke sath)
