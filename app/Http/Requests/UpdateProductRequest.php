@@ -24,7 +24,12 @@ class UpdateProductRequest extends FormRequest
     {
         $productId = $this->route('product'); // Get the product ID from the route
 
-        return [
+        $businessId = session('business_id');
+
+        $businessType = \App\Models\Business::where('id', $businessId)
+                        ->value('business_type');
+
+        $rules =  [
           'product_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'name' => 'required|string|max:255',
             'slug' => [
@@ -50,19 +55,23 @@ class UpdateProductRequest extends FormRequest
             'quantity' => 'nullable|integer|min:0',
             'expire_date' => 'nullable|date',
             'status' => 'nullable|boolean',
-             // ✅ New fields
-            'hsCode' => 'required|string|max:255',
-            'hs_description' => 'required|string',
-            'rate_of_tax' => 'required|string|max:255',
-            // 'salesTaxWithheldAtSource' => 'required|float|min:0',
-            'salesTaxWithheldAtSource' => ['required', 'numeric', 'min:0', 'regex:/^\d+(\.\d{1,2})?$/'],
-
-            'sale_type' => 'required|string|max:255',
-            'sro_item' => 'nullable|string|max:10',
-            'PCTCode' => 'required|string|max:255',
-            'uom' => 'required|string|max:255',
-            'sro_schedule' => 'nullable|string|max:255',
-
         ];
+
+        if ($businessType === 'pos'){
+            $rules['PCTCode'] = 'required|string|max:255';
+            $rules['pos_sale_tax'] = 'required|string|max:255';
+        }else{
+            // ✅ New fields
+            $rules['hsCode'] = 'required|string|max:255';
+            $rules['hs_description'] = 'required|string';
+            $rules['rate_of_tax'] = 'required|string|max:255';
+            $rules['salesTaxWithheldAtSource'] = ['required', 'numeric', 'min:0', 'regex:/^\d+(\.\d{1,2})?$/'];
+            $rules['sale_type'] = 'required|string|max:255';
+            $rules['sro_item'] = 'nullable|string|max:10';
+            $rules['uom'] = 'required|string|max:255';
+            $rules['sro_schedule'] = 'nullable|string|max:255';
+        }
+            
+        return $rules;
     }
 }
