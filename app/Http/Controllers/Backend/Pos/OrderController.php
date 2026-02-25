@@ -243,7 +243,7 @@ public function store(Request $request)
         $unitPrice = $cart->price_override ?? $product->discounted_price;
         $lineTotal = round($unitPrice * $qty, 2);
 
-        $rateText = trim($product->rate_of_tax); // 18%
+        $rateText = trim($product->pos_sale_tax); // 18%
         $taxRate  = (float) str_replace('%', '', $rateText); // 18
         if (str_ends_with($rateText, '%')) {
             $rate = floatval(str_replace('%', '', $rateText));
@@ -309,7 +309,7 @@ public function store(Request $request)
 
     $fbrPayload = [
         "POSID" => 819045,
-        "USIN" => "USIN-" . $order->id,
+        "USIN" => "USIN-" .$order->id,
         "DateTime" => now()->format('Y-m-d'),
         // "invoiceType" => "Sale Invoice",
         // "invoiceDate" => now()->format('Y-m-d'),

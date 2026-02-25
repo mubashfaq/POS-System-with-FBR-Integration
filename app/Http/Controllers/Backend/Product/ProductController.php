@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Backend\Product;
 use App\Exports\DemoProductsExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\ImportStockRequest;
 use App\Http\Requests\UpdateProductRequest;
 use App\Http\Resources\ProductResource;
 use App\Imports\ProductsImport;
 use App\Models\Brand;
+use App\Models\Business;
 use App\Models\Category;
 use App\Models\HsCode;
 use App\Models\Product;
@@ -19,9 +21,9 @@ use App\Models\Uom;
 use App\Trait\FileHandler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\DataTables;
-use Illuminate\Support\Facades\Log;
 use App\Services\FbrTokenService;
 use Illuminate\Support\Facades\DB;
 
@@ -125,6 +127,8 @@ class ProductController extends Controller
         // abort_if(!auth()->user()->can('product_create'), 403);
         $businessId = session('business_id');
 
+        $business_type = Business::where('id', $businessId)->value('business_type');
+
         // $brands = Brand::whereStatus(true)->get();
         $brands = Brand::where('status', true)
             ->where(function ($query) use ($businessId) {
@@ -156,7 +160,7 @@ class ProductController extends Controller
         // $this->saveSaleTypes();
         
 
-        return view('backend.products.create', compact('brands', 'categories', 'units' , 'hsCodes' , 'saleTypes', 'sroItems'));
+        return view('backend.products.create', compact('brands', 'categories', 'units' , 'hsCodes' , 'saleTypes', 'sroItems', 'business_type'));
     }
 
     /**
@@ -166,7 +170,6 @@ class ProductController extends Controller
     {
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_create'), 403);
-
         // abort_if(!auth()->user()->can('product_create'), 403);
         $validated = $request->validated();
 
@@ -200,6 +203,10 @@ class ProductController extends Controller
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_update'), 403);
 
+        $businessId = session('business_id');
+
+        $business_type = Business::where('id', $businessId)->value('business_type');
+
         // abort_if(!auth()->user()->can('product_update'), 403);
 
         $product = Product::findOrFail($id);
@@ -210,7 +217,7 @@ class ProductController extends Controller
         $units = Uom::all();
         $saleTypes = SaleType::all();
         $sroItems = SroItemCode::all();
-        return view('backend.products.edit', compact('brands', 'categories', 'units', 'product', 'hsCodes', 'saleTypes', 'sroItems'));
+        return view('backend.products.edit', compact('brands', 'categories', 'units', 'product', 'hsCodes', 'saleTypes', 'sroItems', 'business_type'));
     }
 
     /**

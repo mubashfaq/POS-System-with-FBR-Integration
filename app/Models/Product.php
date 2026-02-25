@@ -35,6 +35,7 @@ class Product extends Model
         'sro_item',
         'uom',
         'PCTCode',
+        'pos_sale_tax',
         'sro_schedule'
 
 
