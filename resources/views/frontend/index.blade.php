@@ -588,10 +588,18 @@
     </section>
 
     <!-- FOOTER -->
+     <!-- FOOTER -->
     <footer class="footer">
         <div class="container">
+            
             <div class="footer-bottom">
-                <p>&copy; {{ date('Y') }} {{ readConfig('site_name') }}. All rights reserved.</p>
+                <p style="float:left" >Copyright &copy; {{ date('Y') }} {{ readConfig('site_name') }}. All rights reserved.</p>
+                <span><a class="footer-bottom" href="{{ route('frontend.terms-conditions') }}" class="btn btn-termsconditions">
+                        Terms & Conditions
+                    </a></span>
+                    
+                <span style="float:right"> Designed & Developed By Techuick 
+                </span>
             </div>
         </div>
     </footer>

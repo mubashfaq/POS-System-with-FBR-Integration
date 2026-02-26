@@ -44,6 +44,12 @@ Route::get('/', function () {
     return view('frontend.index');
 })->name('frontend.home');
 
+Route::get('terms-conditions', function () {
+    // return to_route('login');
+    return view('frontend.terms_conditions');
+})->name('frontend.terms-conditions');
+
+
 //authentication
 Route::match(['get', 'post'], 'login', [AuthController::class, 'login'])->name('login');
 
