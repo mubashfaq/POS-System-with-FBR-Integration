@@ -47,6 +47,9 @@ class OrderController extends Controller
             $purchase_id = PurchaseItem::select('purchase_id')->whereIn('product_id', $orderProductsIds)->get();
            
             $purchaseIds = $purchase_id->pluck('purchase_id');
+            $business_type = Business::where('id', $businessId)->value('business_type');
+
+
 
            
             return DataTables::of($orders)
@@ -75,12 +78,15 @@ class OrderController extends Controller
                         return "<button data-id=$d->id class='fbr-status btn btn-md bg-white' title='Api Faild' ><i class='fas fa-exclamation-triangle text-warning'></i></button>";
                     }
                 })
-                ->addColumn('action', function ($data) {
+                ->addColumn('action', function ($data) use ($business_type) {
                     $buttons = '';
 
                     $buttons .= '<a class="btn btn-success btn-sm" href="' . route('backend.admin.orders.invoice', $data->id) . '"><i class="fas fa-file-invoice"></i> Invoice</a>';
-
+                    if($business_type == "pos"){
                     $buttons .= '<a class="btn btn-secondary btn-sm" href="' . route('backend.admin.orders.pos-invoice', $data->id) . '"><i class="fas fa-file-invoice"></i> Pos Invoice</a>';
+                    }else{
+                    $buttons .= '<a class="btn btn-secondary btn-sm" href="' . route('backend.admin.orders.pos-invoice-digital', $data->id) . '"><i class="fas fa-file-invoice"></i> Digital Invoice</a>';
+                    }
                     if (!$data->status) {
                         $buttons .= '<a class="btn btn-warning btn-sm" href="' . route('backend.admin.due.collection', $data->id) . '"><i class="fas fa-receipt"></i> Due Collection</a>';
                     }
@@ -243,7 +249,7 @@ public function store(Request $request)
         $unitPrice = $cart->price_override ?? $product->discounted_price;
         $lineTotal = round($unitPrice * $qty, 2);
 
-        $rateText = trim($product->rate_of_tax); // 18%
+        $rateText = trim($product->pos_sale_tax); // 18%
         $taxRate  = (float) str_replace('%', '', $rateText); // 18
         if (str_ends_with($rateText, '%')) {
             $rate = floatval(str_replace('%', '', $rateText));
@@ -309,7 +315,7 @@ public function store(Request $request)
 
     $fbrPayload = [
         "POSID" => 819045,
-        "USIN" => "USIN-" . $order->id,
+        "USIN" => "USIN-" .$order->id,
         "DateTime" => now()->format('Y-m-d'),
         // "invoiceType" => "Sale Invoice",
         // "invoiceDate" => now()->format('Y-m-d'),
@@ -392,7 +398,7 @@ public function store(Request $request)
         // ]);
     // }
 
-
+    $token = FbrTokenService::getToken();
     $post_api_response=null;
      try {
             // $post_api_response = Http::withOptions([
@@ -413,7 +419,7 @@ public function store(Request $request)
                 //   CURLOPT_SSL_VERIFYHOST => false,
                 // CURLOPT_SSL_VERIFYPEER => false,
             ])->withHeaders([
-                'Authorization' => "Bearer 1298b5eb-b252-3d97-8622-a4a69d5bf818",
+                'Authorization' => "Bearer $token",
                 'Content-Type' => 'application/json',
                 'Accept-Encoding' => 'gzip, deflate, br',
                 'Accept' => 'application/json'
@@ -680,7 +686,7 @@ public function storeDigital(Request $request)
         "buyerRegistrationType" => $customer->is_registered,
         "invoiceRefNo" => "INV-" . $order->id,
         // "invoiceRefNo" => "INV-" . "INV00112200",
-        "scenarioId" => "SN015",
+        "scenarioId" => "SN001",
         "items" => $fbrItems
     ];
 
@@ -776,7 +782,7 @@ public function storeDigital(Request $request)
         'message' => 'Order completed successfully!',
         'fbr_payload_sent' => $fbrPayload,
         'fbr_api_response' => $responseJson,
-        // 'order' => $order
+        'order' => $order
     ], 200);
 }
 
@@ -1411,6 +1417,25 @@ public function storeDigital(Request $request)
         return view('backend.orders.pos-invoice', compact('order', 'maxWidth', 'invoiceSettings', 'business'));
     }
 
+
+     public function posInvoiceDigital($id)
+    {
+         $businessId = session('business_id');
+
+        $order = Order::with(['customer', 'products.product'])
+            ->where('business_id', $businessId)
+            ->findOrFail($id);
+
+        $invoiceSettings = DB::table('invoice_settings')
+            ->where('business_id', $businessId)
+            ->first();
+
+        $business = DB::table('businesses')->where('id', $businessId)->first();
+
+        $maxWidth = $invoiceSettings->post_invoice_width ?? '300px';
+
+        return view('backend.orders.pos-invoice-digital', compact('order', 'maxWidth', 'invoiceSettings', 'business'));
+    }
 
     public function fbrStatus($id) {
     $data = Order::find($id);
