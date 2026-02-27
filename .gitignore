@@ -18,3 +18,18 @@ yarn-error.log
 /.idea
 /.vscode
 /~
+app/Http/Controllers/CustomerController - Copy.php
+app/Http/Controllers/Backend/BusinessController - Copy.php
+app/Http/Controllers/Backend/WebsiteSettingController - Copy.php
+app/Http/Controllers/Backend/Pos/OrderController - Copy.php
+app/Http/Controllers/Backend/Product/ProductController - Copy.php
+app/Http/Controllers/Backend/Product/PurchaseController - Copy.php
+app/Http/Controllers/Backend/Report/ReportController - Copy.php
+app/Imports/ProductsImport - Copy.php
+app/Models/Business - Copy.php
+resources/views/backend/business/edit.blade - Copy.php
+resources/views/backend/layouts/sidebar.blade - Copy.php
+resources/views/backend/reports/sale-report.blade - Copy.php
+resources/views/backend/settings/website-settings/general.blade - Copy.php
+resources/views/frontend/authentication/business-selection.blade - Copy.php
+.gitignore
