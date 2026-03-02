@@ -164,10 +164,15 @@ if (!function_exists('currentUserBusinessApi')) {
     function currentUserBusinessApi()
     {
         $user = auth()->user();
-        if (!$user) return null;
+        if (!$user) {
+            return null;
+        }
 
         $businessId = request()->header('Business-Id');
-        if (!$businessId) return null;
+
+        if (!$businessId || !is_numeric($businessId)) {
+            return null;
+        }
 
         return $user->businesses()
             ->where('businesses.id', $businessId)
