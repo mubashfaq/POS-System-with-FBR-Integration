@@ -33,6 +33,13 @@ class AuthController extends Controller
             ], 403);
         }
 
+        if ($user->is_mobile == 0) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Your account are not allowed to login from mobile'
+            ], 403);
+        }
+
         // Delete old tokens (optional)
         $user->tokens()->delete();
 

@@ -157,6 +157,24 @@
                                 </div>
                             </div>
                         </div>
+                        <!-- is mobile user -->
+                        <div class="col-sm-6 col-lg-12 col-xl-6">
+                            <div class="form-group">
+                                <div class="form-check">
+                                    <input type="hidden" name="is_mobile" value="0">
+                                    
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           id="is_mobile"
+                                           name="is_mobile"
+                                           value="1">
+                                           
+                                    <label class="form-check-label" for="is_mobile">
+                                        Is Mobile User
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                         <!-- remember me -->
                         <div class="col-12">
                             {{-- <div class="single-row mb-2">

@@ -41,6 +41,12 @@
                         </div>
                     </div>
                 </div>
+                <div class="col-lg-6">
+                        <div class="form-group">
+                            <label for="is_mobile">Is Mobile User</label>
+                            <input type="checkbox" style="width: 20px;" class="form-control" value="1" id="is_mobile" name="is_mobile" {{ $user->is_mobile ? 'checked' : '' }}>
+                        </div>
+                </div>
             </div>
             <h4 class="font-weight-bold">Password change</h4>
             <div class="row g-4">

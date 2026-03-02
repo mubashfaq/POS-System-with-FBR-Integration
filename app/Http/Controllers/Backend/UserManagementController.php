@@ -132,7 +132,8 @@ class UserManagementController extends Controller
                 'email' => 'required|email|unique:users,email',
                 'role' => 'required',
                 'password' => 'required',
-                'profile_image' => ['file', new ValidImageType]
+                'profile_image' => ['file', new ValidImageType],
+                'is_mobile' => 'nullable|boolean'
             ]);
 
             $newUser = new User();
@@ -140,6 +141,7 @@ class UserManagementController extends Controller
             $newUser->email = $request->email;
             $newUser->password = bcrypt($request->password);
             $newUser->username = uniqid();
+            $newUser->is_mobile = $request->is_mobile ?? 0;
 
             if ($request->hasFile("profile_image")) {
                 $newUser->profile_image = $this->fileHandler->fileUploadAndGetPath($request->file("profile_image"), "/public/media/users");
@@ -170,7 +172,8 @@ class UserManagementController extends Controller
                 'email' => 'required|email|unique:users,email,' . $id,
                 'role' => 'required',
                 'password' => 'required',
-                'profile_image' => ['file', new ValidImageType]
+                'profile_image' => ['file', new ValidImageType],
+                'is_mobile' => 'nullable|boolean'
             ]);
 
             if ($request->name !== $user->name) {
@@ -192,6 +195,11 @@ class UserManagementController extends Controller
 
                 $user->profile_image = $this->fileHandler->fileUploadAndGetPath($request->file("profile_image"), "/public/media/users");
             }
+
+            if ($request->is_mobile) {
+                $user->is_mobile = $request->is_mobile;
+            }
+            
             $user->save();
 
             $role = Role::find($request->role);
