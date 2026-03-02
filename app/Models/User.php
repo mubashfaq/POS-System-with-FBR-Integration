@@ -27,6 +27,7 @@ class User extends Authenticatable
         'profile_image',
         'is_google_registered',
         'is_suspended',
+        'is_mobile'
     ];
 
     /**
