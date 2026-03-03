@@ -1,3 +1,6 @@
+body, html {
+    font-family: 'Poppins', sans-serif;
+}
 /* ========= theme ========== */
 .sidebar-dark-lightblue .nav-sidebar>.nav-item>.nav-link.active,
 .sidebar-light-lightblue .nav-sidebar>.nav-item>.nav-link.active {

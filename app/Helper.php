@@ -159,3 +159,23 @@ if (!function_exists('hasAnyBusinessPermission')) {
         return $userBusiness ? $userBusiness->hasAnyPermission($permissions) : false;
     }
 }
+
+if (!function_exists('currentUserBusinessApi')) {
+    function currentUserBusinessApi()
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return null;
+        }
+
+        $businessId = request()->header('Business-Id');
+
+        if (!$businessId || !is_numeric($businessId)) {
+            return null;
+        }
+
+        return $user->businesses()
+            ->where('businesses.id', $businessId)
+            ->first();
+    }
+}
