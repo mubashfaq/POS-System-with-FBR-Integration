@@ -49,6 +49,10 @@ Route::get('terms-conditions', function () {
     return view('frontend.terms_conditions');
 })->name('frontend.terms-conditions');
 
+Route::get('pricing', function () {
+    return view('frontend.price');
+})->name('frontend.pricing');
+
 
 //authentication
 Route::match(['get', 'post'], 'login', [AuthController::class, 'login'])->name('login');
