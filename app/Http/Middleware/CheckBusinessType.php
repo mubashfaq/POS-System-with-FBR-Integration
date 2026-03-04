@@ -25,7 +25,7 @@ class CheckBusinessType
             abort(403, 'Unauthorized Access');
         }
 
-    return $next($request);
         return $next($request);
+        // return $next($request);
     }
 }

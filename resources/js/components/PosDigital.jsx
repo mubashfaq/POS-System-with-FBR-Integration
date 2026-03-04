@@ -123,12 +123,12 @@ const emptyCartOnCustomerChange = async () => {
 
     const getCarts = async () => {
         try {
-            const res = await axios.get("/admin/cart");
+            const res = await axios.get("/admin/digitalCart");
             const data = res.data;
             setTotal(data?.total);
             setUpdateTotal(data?.total - orderDiscount);
             setCarts(data?.carts);
-console.log("CART FROM API", data?.carts);
+            console.log("CART FROM API", data?.carts);
 
         } catch (error) {
             console.error("Error fetching carts:", error);
