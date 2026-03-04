@@ -3,7 +3,7 @@
     <div class="container">
         <div class="footer-content">
 
-            <p>
+            <p class="mt-2">
                 Copyright &copy; {{ date('Y') }} {{ readConfig('site_name') }}.
                 All rights reserved.
             </p>
