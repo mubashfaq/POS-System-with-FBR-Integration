@@ -125,7 +125,7 @@
         <div class="row align-items-center">
 
             <div class="col-lg-6">
-                <h1>Smart POS System <span>with FBR Integration</span></h1>
+                <h1>Smart POS & Digital Invoicing System <span>with FBR Integration</span></h1>
                 <p>Powerful, secure and fully compliant Point of Sale software connected with FBR real-time invoicing.
                     Perfect for retail stores, supermarkets and multi-branch businesses.</p>
                 {{-- <button class="btn btn-primary-custom">Start Free Trial</button> --}}
@@ -152,10 +152,10 @@
                     <p class="text-muted">Per Month</p>
                     <ul class="list-unstyled price-features mt-4">
                         <li>✔ 5 Invoices</li>
-                        {{-- <li>✔ FBR Integration</li> --}}
-                        {{-- <li>✔ Basic Reports</li> --}}
-                        {{-- <li>✔ 1 User</li> --}}
-                        {{-- <li>✔ Email Support</li> --}}
+                        <li>✔ POS Billing</li>
+                        <li>✔ Basic Reports</li> 
+                         <li>✔ 1 User</li>
+                         <li>✔ Email Support</li> 
                     </ul>
                     <a href="https://wa.me/+923235741450?text=Hello,%20I%20need%20Basic%20Package?" target="_blank" class="btn btn-primary-custom mt-3">Get Started</a>
                 </div>
@@ -169,10 +169,10 @@
                     <p>Per Month</p>
                     <ul class="list-unstyled price-features mt-4">
                         <li>✔ 20 Invoices</li>
-                        {{-- <li>✔ Inventory System</li> --}}
-                        {{-- <li>✔ Advanced Reports</li> --}}
-                        {{-- <li>✔ 5 Users</li> --}}
-                        {{-- <li>✔ WhatsApp Support</li> --}}
+                        <li>✔ Everything in Basic</li>
+                         <li>✔ 5 Users</li> 
+                         <li>✔ Advanced Reports</li>
+                         <li>✔ WhatsApp Support</li> 
                     </ul>
                     <a href="https://wa.me/+923235741450?text=Hello,%20I%20need%20Standard%20Package?" target="_blank" class="btn btn-primary-custom mt-3">Get Started</a>
                 </div>
@@ -185,10 +185,10 @@
                     <p class="text-muted">Per Month</p>
                     <ul class="list-unstyled price-features mt-4">
                         <li>✔ Unlimited Invoices</li>
-                        {{-- <li>✔ Multi Branch</li> --}}
-                        {{-- <li>✔ Unlimited Users</li> --}}
-                        {{-- <li>✔ Custom Branding</li> --}}
-                        {{-- <li>✔ 24/7 Priority Support</li> --}}
+                         <li>✔ Multi Branch</li> 
+                         <li>✔ Unlimited Users</li> 
+                         <li>✔ Custom Branding</li> 
+                         <li>✔ 24/7 Priority Support</li> 
                     </ul>
                     <a href="https://wa.me/+923235741450?text=Hello,%20I%20need%20Premium%20Package?" target="_blank" class="btn btn-primary-custom mt-3">Get Started</a>
                 </div>
