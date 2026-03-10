@@ -13,15 +13,18 @@ class CheckBusinessType
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
-    public function handle(Request $request, Closure $next , $type): Response
+    public function handle(Request $request, Closure $next , ...$types): Response
     {
-        
-        $businessId = session('business_id');
 
-         $businessType =  Business::where('id', $businessId)->where('business_type', $type)->value('business_type');
+        // First try API business (from middleware attribute)
+        $business = $request->attributes->get('business');
+
+        $businessId = $business ? $business->id : session('business_id');
+
+         $businessType =  Business::where('id', $businessId)->value('business_type');
         // ya auth()->user()->business_type agar DB se aa raha hai
 
-        if ($businessType !== $type) {
+        if (!$businessType || !in_array($businessType, $types)) {
             abort(403, 'Unauthorized Access');
         }
 

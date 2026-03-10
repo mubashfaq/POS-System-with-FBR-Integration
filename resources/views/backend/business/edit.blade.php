@@ -49,6 +49,11 @@
                   {{ old('business_type', $business->business_type) == 'digital' ? 'selected' : '' }}>
                   Digital
               </option>
+          
+              <option value="both" 
+                  {{ old('business_type', $business->business_type) == 'both' ? 'selected' : '' }}>
+                  Both
+              </option>
           </select>
           </div>
 
