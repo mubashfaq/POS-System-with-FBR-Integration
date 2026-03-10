@@ -135,12 +135,12 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
         
         // Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
         Route::get('/cart', [CartController::class, 'index'])
-        ->middleware(['auth', 'business.type:pos'])
+        ->middleware(['auth', 'business.type:pos,both'])
         ->name('cart.index');
        
         // Route::get('/digitalCart', [CartController::class, 'digitalInvoice'])->name('cart.digitalInvoice');
         Route::get('/digitalCart', [CartController::class, 'digitalInvoice'])
-        ->middleware(['auth', 'business.type:digital'])
+        ->middleware(['auth', 'business.type:digital,both'])
         ->name('cart.digitalInvoice');
         
         Route::post('/cart', [CartController::class, 'store'])->name('cart.store');

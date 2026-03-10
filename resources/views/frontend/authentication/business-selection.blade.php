@@ -119,6 +119,7 @@
                                             <option value="">-- Select Business Type --</option>
                                                 <option value="pos">POS</option>
                                                 <option value="digital">Digital</option>
+                                                <option value="both">Both</option>
                                         </select>
                                     </div>                                 
                                     <div class="col-md-6 mb-3">
@@ -154,13 +155,9 @@
                                       <div class="mb-3 col-md-6">
                                         <label for="email" class="form-label">Email *</label>
                                         <input type="email" class="form-control" placeholder="Enter Email" name="email" required>
-                                        <label for="email" class="form-label">Email *</label>
-                                        <input type="email" class="form-control" placeholder="Enter Email" name="email" required>
                                     </div>
 
                                     <div class="mb-3 col-md-6">
-                                        <label for="phone" class="form-label">Phone *</label>
-                                        <input type="text" class="form-control" placeholder="Enter Phone" name="phone" required>
                                         <label for="phone" class="form-label">Phone *</label>
                                         <input type="text" class="form-control" placeholder="Enter Phone" name="phone" required>
                                     </div>
@@ -209,8 +206,6 @@
                                 </div>
                                 <div class="row">
                                     <div class="mb-3 col-md-6">
-                                        <label for="address" class="form-label">Address *</label>
-                                        <input type="text" class="form-control" placeholder="Enter address" name="address" required>
                                         <label for="address" class="form-label">Address *</label>
                                         <input type="text" class="form-control" placeholder="Enter address" name="address" required>
                                     </div>
