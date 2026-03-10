@@ -344,11 +344,22 @@ public function store(Request $request)
         "InvoiceType" => 1
     ];
 
+    if (config('app.fbr_integration') == 'disable'){
+        DB::commit();
+
+        PosCart::where('user_id', auth()->id())->delete();
+
+        return response()->json([
+            'message' => 'Order completed successfully (FBR Not Integrated)',
+            'order'   => $order
+        ], 200);
+    } else {
+
     /* ================= FBR API CALL ================= */
     Log::info('FBR Payload', [
     'order_id' => $order->id ?? null,
     'payload'  => $fbrPayload
-]);
+    ]);
 
     // $token = env('FBR_TOKEN');
     // try {
@@ -485,6 +496,7 @@ public function store(Request $request)
         'fbr_api_response' => $postResponseJson,
         'order' => $order
     ], 200);
+    }
 }
 
 
@@ -690,6 +702,24 @@ public function storeDigital(Request $request)
         "items" => $fbrItems
     ];
 
+    Log::info('FBR Payload', [
+        'order_id' => $order->id ?? null,
+        'payload'  => $fbrPayload
+    ]);
+
+     // for non-integrated fbr 
+     if (config('app.fbr_integration') === 'disable') {
+
+        DB::commit();
+
+        PosCart::where('user_id', auth()->id())->delete();
+
+        return response()->json([
+            'message' => 'Order completed successfully (FBR Not Integrated)',
+            'order'   => $order,
+        ], 200);
+    } else {
+
     /* ================= FBR API CALL ================= */
     Log::info('FBR Payload', [
     'order_id' => $order->id ?? null,
@@ -783,7 +813,8 @@ public function storeDigital(Request $request)
         'fbr_payload_sent' => $fbrPayload,
         'fbr_api_response' => $responseJson,
         'order' => $order
-    ], 200);
+    ], 200); 
+    }
 }
 
 // <<<<<<<<<<<<<<< some changes add dublicate check init >>>>>>>>>>>>>>>>>>>

@@ -179,3 +179,18 @@ if (!function_exists('currentUserBusinessApi')) {
             ->first();
     }
 }
+
+if (!function_exists('currentRegistrationStatus')) {
+    function currentRegistrationStatus()
+    {
+        $status = request()->header('Registration-Status');
+
+        if (!$status) {
+            return 'unregistered'; // default
+        }
+
+        return strtolower($status) === 'registered'
+            ? 'registered'
+            : 'unregistered';
+    }
+}

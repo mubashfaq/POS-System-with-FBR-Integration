@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductResource;
 use App\Models\PosCart;
 use App\Models\Product;
+use App\Services\CartService;
 use Illuminate\Http\Request;
 
 class CartController extends Controller
@@ -211,115 +212,84 @@ if (
     // }
 
   
-  public function store(Request $request)
-{
+    public function store(Request $request, CartService $cartService)
+    {
+        $request->validate([
+            'id' => 'required|exists:products,id',
+        ]);
     
-    $request->validate([
-        'id' => 'required|exists:products,id',
-    ]);
-
-    $product = Product::where('id', $request->id)
-        ->where('business_id', session('business_id'))
-        ->firstOrFail();
-
-       
-
-    // Check stock
-    if ($product->quantity <= 0) {
-        return response()->json(['message' => 'Insufficient stock'], 400);
+        try {
+    
+            $cartItem = $cartService->addToCart(
+                $request->id,
+                session('business_id'),
+                session('registration_status') ?? 'registered'
+            );
+    
+            return response()->json([
+                'message' => 'Product added to cart',
+                'quantity' => $cartItem->quantity,
+                'further_tax' => $cartItem->further_tax,
+            ], 201);
+    
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 
-    $cartItem = PosCart::where('user_id', auth()->id())
-        ->where('product_id', $product->id)
-        ->first();
+    public function increment(Request $request, CartService $cartService)
+    {
+        $request->validate([
+            'id' => 'required|integer|exists:pos_carts,id'
+        ]);
 
+        try {
+            $cart = $cartService->increment($request->id);
+
+            return response()->json(['message' => 'Cart Updated successfully'], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+    public function decrement(Request $request, CartService $cartService)
+    {
+        $request->validate([
+            'id' => 'required|integer|exists:pos_carts,id'
+        ]);
+       try {
+            $cart = $cartService->decrement($request->id);
+            return response()->json(['message' => 'Cart Updated successfully'], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 400);
+        }   
+    }
+    public function delete(Request $request, CartService $cartService)
+    {
+        $request->validate([
+            'id' => 'required|integer|exists:pos_carts,id'
+        ]);
+
+        try {
+            $cart = $cartService->delete($request->id);
+            return response()->json(['message' => 'Item successfully deleted'], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 400);
+        }
         
 
-    $quantity = $cartItem ? $cartItem->quantity + 1 : 1;
-
-    // ===================== FURTHER TAX CALCULATION =====================
-    $unitPrice = $product->discounted_price;
-    $baseTotal = $unitPrice * $quantity;
-
-    $registrationStatus = strtolower(session('registration_status') ?? 'registered');
-
-    $furtherTax = 0;
-    if (strtolower(trim($product->sale_type)) != '3rd schedule goods' &&
-        $registrationStatus === 'unregistered') {
-        $rateText = trim($product->rate_of_tax);
-        if (str_ends_with($rateText, '%')) {
-            $rate = floatval(str_replace('%', '', $rateText));
-            $valueExTax = $baseTotal / (1 + ($rate / 100));
-            $furtherTax = round($valueExTax * 0.04, 2);
-        } else {
-            $furtherTax = floatval($rateText) ?? 0;
-        }
     }
-    // ===================================================================
-
-    if ($cartItem) {
-        $cartItem->quantity = $quantity;
-        $cartItem->further_tax = $furtherTax;
-        $cartItem->save();
-    } else {
-        PosCart::create([
-            'user_id' => auth()->id(),
-            'product_id' => $product->id,
-            'quantity' => $quantity,
-            'further_tax' => $furtherTax,
-        ]);
-    }
-
-    return response()->json([
-        'message' => 'Product added to cart',
-        'further_tax' => $furtherTax,
-    ], 201);
-}
-
-    public function increment(Request $request)
+    public function empty(CartService $cartService)
     {
-        $request->validate([
-            'id' => 'required|integer|exists:pos_carts,id'
-        ]);
-
-        $cart = PosCart::with('product')->findOrFail($request->id);
-        if ($cart->product->quantity <= 0) {
-            return response()->json(['message' => 'Insufficient stock available'], 400);
-        }
-        if ($cart->quantity == $cart->product->quantity) {
-            return response()->json(['message' => 'Cannot add more, stock limit reached'], 400);
-        }
-        $cart->quantity = $cart->quantity + 1;
-        $cart->save();
-        return response()->json(['message' => 'Cart Updated successfully'], 200);
-    }
-    public function decrement(Request $request)
-    {
-        $request->validate([
-            'id' => 'required|integer|exists:pos_carts,id'
-        ]);
-        $cart = PosCart::findOrFail($request->id);
-        if ($cart->quantity <= 1) {
-            return response()->json(['message' => 'Quantity cannot be less than 1.'], 400);
-        }
-        $cart->quantity = $cart->quantity - 1;
-        $cart->save();
-        return response()->json(['message' => 'Cart Updated successfully'], 200);
-    }
-    public function delete(Request $request)
-    {
-        $request->validate([
-            'id' => 'required|integer|exists:pos_carts,id'
-        ]);
-
-        $cart = PosCart::findOrFail($request->id);
-        $cart->delete();
-
-        return response()->json(['message' => 'Item successfully deleted'], 200);
-    }
-    public function empty()
-    {
-        $deletedCount = PosCart::where('user_id', auth()->id())->delete();
+        $deletedCount = $cartService->clearCart();
 
         if ($deletedCount > 0) {
             return response()->json(['message' => 'Cart successfully cleared'], 200);
@@ -364,77 +334,62 @@ if (
 
 
 
-public function updateQuantity(Request $request)
+public function updateQuantity(Request $request, CartService $cartService)
 {
     $request->validate([
         'id' => 'required|exists:pos_carts,id',
         'quantity' => 'required|integer|min:1',
     ]);
 
-    $cart = PosCart::with('product')->findOrFail($request->id);
+    try {
 
-    // Product ka stock
-    $availableStock = $cart->product->quantity ?? 0;
-    if ($request->quantity > $availableStock) {
-        return response()->json(['message' => 'Cannot add more, stock limit reached'], 400);
+        $registrationStatus = session('registration_status') ?? 'registered';
+
+        $cart = $cartService->updateQuantity(
+            $request->id,
+            $request->quantity,
+            $registrationStatus
+        );
+
+        return response()->json([
+            'message' => 'Quantity updated successfully',
+            'quantity' => $cart->quantity,
+            'row_total' => $cart->row_total,
+            'further_tax' => $cart->further_tax,
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => $e->getMessage()
+        ], 400);
     }
-
-    $cart->quantity = $request->quantity;
-
-    // Further Tax calculation backend me
-    $product = $cart->product;
-    $baseTotal = $cart->quantity * $product->discounted_price;
-    $furtherTax = 0;
-
-    // session me registration_status save karlo frontend se ya default
-    $registrationStatus = strtolower(session('registration_status') ?? 'registered');
-
-    if (strtolower(trim($product->sale_type)) != '3rd schedule goods' &&
-        $registrationStatus === 'unregistered'
-    ) {
-        $rateText = trim($product->rate_of_tax);
-        if (str_ends_with($rateText, '%')) {
-            $rate = floatval(str_replace('%', '', $rateText));
-            $valueExTax = $baseTotal / (1 + ($rate / 100));
-            $furtherTax = $valueExTax * 0.04; // 4% further tax
-        } else {
-            $furtherTax = floatval($rateText) ?? 0;
-        }
-    }
-
-    $cart->further_tax = round($furtherTax, 2);
-    $cart->row_total = round($baseTotal + $cart->further_tax, 2);
-    $cart->save();
-
-    return response()->json([
-        'message' => 'Quantity updated successfully',
-        'quantity' => $cart->quantity,
-        'row_total' => $cart->row_total,
-        'further_tax' => $cart->further_tax,
-    ], 200);
 }
 
-    public function updatePrice(Request $request)
+public function updatePrice(Request $request, CartService $cartService)
 {
     $request->validate([
         'id' => 'required|exists:pos_carts,id',
         'price' => 'required|numeric|min:0'
     ]);
 
-    $cart = PosCart::with('product')->findOrFail($request->id);
+    try {
 
-    $cart->price_override = $request->price;
-    $cart->save();
+        $cart = $cartService->updatePrice(
+            $request->id,
+            $request->price
+        );
 
-    // Base total
-    $price = $cart->price_override ?? $cart->product->discounted_price;
-    $cart->row_total = round($price * $cart->quantity, 2);
+        return response()->json([
+            'message' => 'Price updated successfully',
+            'price' => $cart->price_override,
+            'row_total' => $cart->row_total
+        ]);
 
-    return response()->json([
-        'message' => 'Price updated successfully',
-        'price' => $price,
-        'row_total' => $cart->row_total
-    ], 200);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => $e->getMessage()
+        ], 400);
+    }
 }
 
 public function digitalInvoice(Request $request)
