@@ -144,8 +144,6 @@ return [
         // 'store'  => 'redis',
     ],
 
-    'fbr_integration' => env('FBR_INTEGRATION', 'disable'),
-
 
     /*
     |--------------------------------------------------------------------------

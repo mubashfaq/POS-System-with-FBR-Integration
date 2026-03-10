@@ -36,28 +36,6 @@
           </div>
 
           <div class="mb-3 col-md-6">
-            <label for="business_type" class="form-label">
-              Business Type
-            </label>
-            <select name="business_type" id="business_type" class="form-control" required>
-              <option value="pos" 
-                  {{ old('business_type', $business->business_type) == 'pos' ? 'selected' : '' }}>
-                  POS
-              </option>
-          
-              <option value="digital" 
-                  {{ old('business_type', $business->business_type) == 'digital' ? 'selected' : '' }}>
-                  Digital
-              </option>
-          
-              <option value="both" 
-                  {{ old('business_type', $business->business_type) == 'both' ? 'selected' : '' }}>
-                  Both
-              </option>
-          </select>
-          </div>
-
-          <div class="mb-3 col-md-6">
             <label for="country" class="form-label">
               Country
             </label>

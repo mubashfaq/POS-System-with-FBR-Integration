@@ -344,14 +344,15 @@ public function store(Request $request)
         "InvoiceType" => 1
     ];
 
-    if (config('app.fbr_integration') == 'disable'){
+    if (!FbrTokenService::isIntegrationEnabled()) {
+
         DB::commit();
 
         PosCart::where('user_id', auth()->id())->delete();
 
         return response()->json([
             'message' => 'Order completed successfully (FBR Not Integrated)',
-            'order'   => $order
+            'order'   => $order,
         ], 200);
     } else {
 
@@ -706,9 +707,9 @@ public function storeDigital(Request $request)
         'order_id' => $order->id ?? null,
         'payload'  => $fbrPayload
     ]);
-
-     // for non-integrated fbr 
-     if (config('app.fbr_integration') === 'disable') {
+    
+    // Check if FBR integration is disabled
+    if (!FbrTokenService::isIntegrationEnabled()) {
 
         DB::commit();
 
