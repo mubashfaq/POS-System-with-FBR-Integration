@@ -5,15 +5,39 @@ namespace App\Services;
 use Illuminate\Support\Facades\DB;
 use App\Models\Business;
 
-
 class FbrTokenService
 {
-    public static function getToken()
+    public static function getSettings()
     {
         $businessId = session('business_id');
 
-        // Get business type from businesses table
-        $business = Business::findOrFail($businessId);
+        return DB::table('fbr_tokens')
+            ->where('business_id', $businessId)
+            ->latest('id')
+            ->first();
+    }
+
+    public static function isIntegrationEnabled()
+    {
+        $settings = self::getSettings();
+
+        if (!$settings) {
+            return false;
+        }
+
+        return $settings->fbr_integration === 'enabled';
+    }
+
+    public static function getToken()
+    {
+        $settings = self::getSettings();
+
+        if (!$settings) {
+            return null;
+        }
+
+        $businessId = session('business_id');
+        $business = Business::find($businessId);
 
         if (!$business) {
             return null;
@@ -21,24 +45,15 @@ class FbrTokenService
 
         $type = $business->business_type;
 
-        $record = DB::table('fbr_tokens')
-            ->where('business_id', $businessId)
-            ->latest('id')
-            ->first();
-
-        if (!$record) {
-            return null;
-        }
-
         // 1 = production, 0 = sandbox
-        if ($record->environment == 1) {
+        if ($settings->environment == 1) {
             return $type === 'digital'
-                ? $record->digital_production_token
-                : $record->pos_production_token;
+                ? $settings->digital_production_token
+                : $settings->pos_production_token;
         }
 
         return $type === 'digital'
-            ? $record->digital_sandbox_token
-            : $record->pos_sandbox_token;
+            ? $settings->digital_sandbox_token
+            : $settings->pos_sandbox_token;
     }
 }

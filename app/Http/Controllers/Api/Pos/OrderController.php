@@ -166,13 +166,14 @@ class OrderController extends Controller
                 "InvoiceType" => 1
             ];
 
-            if (config('app.fbr_integration') === 'disable') {
+            if (!FbrTokenService::isIntegrationEnabled()) {
+
                 DB::commit();
-
-                PosCart::where('user_id', $userId)->delete();
-
+        
+                PosCart::where('user_id', auth()->id())->delete();
+        
                 return response()->json([
-                    'message' => 'Order completed successfully (FBR Not Tntegrated)',
+                    'message' => 'Order completed successfully (FBR Not Integrated)',
                     'order'   => $order,
                 ], 200);
             } else {
@@ -387,14 +388,14 @@ class OrderController extends Controller
                 "items" => $fbrItems
             ];
             // for non-integrated fbr 
-            if (config('app.fbr_integration') === 'disable') {
+            if (!FbrTokenService::isIntegrationEnabled()) {
 
                 DB::commit();
-
+        
                 PosCart::where('user_id', auth()->id())->delete();
-
+        
                 return response()->json([
-                    'message' => 'Order completed successfully (FBR Not Tntegrated)',
+                    'message' => 'Order completed successfully (FBR Not Integrated)',
                     'order'   => $order,
                 ], 200);
             } else {

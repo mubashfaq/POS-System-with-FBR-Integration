@@ -189,7 +189,6 @@ class BusinessController extends Controller
         'business_name' => 'required|string|max:255',
         'industry'      => 'nullable|string|max:255',
         'ntn'           => 'nullable|string|max:50',
-        'business_type' => 'required|in:pos,digital,both',
         'country'       => 'nullable|string|max:100',
         'city'          => 'nullable|string|max:100',
         'email'           => 'nullable|email|max:255',
