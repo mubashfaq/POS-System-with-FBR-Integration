@@ -67,5 +67,6 @@ class Kernel extends HttpKernel
         'user' => \App\Http\Middleware\UserMiddleware::class,
         'current.business' => \App\Http\Middleware\SetCurrentBusiness::class,
         'business.type' => \App\Http\Middleware\CheckBusinessType::class,
+        'ensure.business' => \App\Http\Middleware\EnsureBusinessSelected::class,
     ];
 }

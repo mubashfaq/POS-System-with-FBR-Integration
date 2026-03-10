@@ -324,46 +324,57 @@ function createOrder(redirect = false) {
     .then((res) => {
         setCartUpdated(!cartUpdated);
         setProductUpdated(!productUpdated);
-        const fbr = res?.data?.fbr_api_response?.validationResponse;
-        if (fbr.statusCode === "00") {
-            toast.success("Order completed successfully!", { duration: 4000 });
-        }else{
-            toast.error(
-                    "Order Not Created",
-                    { duration: 4000 }
-                );
+        const fbr = res?.data?.fbr_api_response;
+
+        // If FBR is disabled, there is no fbr_api_response — order is still successful
+        if (!fbr) {
+            toast.success(res?.data?.message || "Order completed successfully!", { duration: 4000 });
+        } else {
+            const fbrValidation = fbr?.validationResponse;
+            if (fbrValidation?.statusCode === "00") {
+                toast.success("Order completed successfully!", { duration: 4000 });
+            } else {
+                toast.error("Order Not Created", { duration: 4000 });
+            }
         }
-        // FBR response check
-        setTimeout(() => {
-            const fbr = res?.data?.fbr_api_response?.validationResponse;
 
-            if (!fbr) {
-                toast.warning("FBR response not received", { duration: 5000 });
-                return;
-            }
+        // FBR response check (only when FBR is enabled)
+        if (fbr) {
+            setTimeout(() => {
+                const fbrValidation = fbr?.validationResponse;
 
-            if (fbr.statusCode === "00") {
-                toast.success(
-                    `FBR Invoice Validated\nStatus: ${fbr.status}\nStatus Code: ${fbr.statusCode}`,
-                    { duration: 7000 }
-                );
-            } else {
-                toast.error(
-                    `FBR Validation Failed\nStatus: ${fbr.status}\nMessage: ${fbr.error}`,
-                    { duration: 9000 }
-                );
-            }
-           
-        }, 800);
-        // After order API response, inside createOrder()
-            const orderId = res?.data?.order?.id;
+                if (!fbrValidation) {
+                    return; // No validation response to show
+                }
 
-            if (orderId) {
-                // Add leading slash for correct path
-                window.location.href = `orders/pos-invoice-digital/${orderId}`;
-            } else {
-                toast.error("Order ID not found, cannot redirect.");
-    }
+                if (fbrValidation.statusCode === "00") {
+                    toast.success(
+                        `FBR Invoice Validated\nStatus: ${fbrValidation.status}\nStatus Code: ${fbrValidation.statusCode}`,
+                        { duration: 7000 }
+                    );
+                } else {
+                    toast.error(
+                        `FBR Validation Failed\nStatus: ${fbrValidation.status}\nMessage: ${fbrValidation.error}`,
+                        { duration: 9000 }
+                    );
+                }
+            }, 800);
+        }
+
+        const orderId = res?.data?.order?.id;
+
+        if (!orderId) {
+            toast.error("Order ID not found, cannot redirect.");
+            return;
+        }
+
+        if (!fbr) {
+            // FBR disabled → go back to digital cart
+            window.location.href = "/admin/digitalCart";
+        } else {
+            // FBR enabled → show invoice
+            window.location.href = `/admin/orders/pos-invoice-digital/${orderId}`;
+        }
 
         console.log("API Full Response:", res.data);
     })

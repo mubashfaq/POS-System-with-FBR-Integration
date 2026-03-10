@@ -37,28 +37,28 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                 </a>
             </li>
 
-            @if ($canSaleCreate && $business_type === 'pos')
-                <li class="nav-item">
-                    <a href="{{ route('backend.admin.cart.index') }}"
-                        class="nav-link {{ $route === 'backend.admin.cart.index' ? 'active' : '' }}">
-                    <i class="nav-icon fas fa-cart-plus"></i>
-                    <p>
-                        POS
-                    </p>
-                    </a>
-                </li>
-            @endif
+            @if ($canSaleCreate)
 
-            @if ($canSaleCreate && $business_type === 'digital')
-                <li class="nav-item">
-                    <a href="{{ route('backend.admin.cart.digitalInvoice') }}"
-                        class="nav-link {{ $route === 'backend.admin.cart.digitalInvoice' ? 'active' : '' }}">
-                    <i class="nav-icon fas fa-cart-plus"></i>
-                    <p>
-                        Digital Invoice
-                    </p>
-                    </a>
-                </li>
+                @if ($business_type === 'pos' || $business_type === 'both')
+                    <li class="nav-item">
+                        <a href="{{ route('backend.admin.cart.index') }}"
+                            class="nav-link {{ $route === 'backend.admin.cart.index' ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-cart-plus"></i>
+                            <p>POS</p>
+                        </a>
+                    </li>
+                @endif
+
+                @if ($business_type === 'digital' || $business_type === 'both')
+                    <li class="nav-item">
+                        <a href="{{ route('backend.admin.cart.digitalInvoice') }}"
+                            class="nav-link {{ $route === 'backend.admin.cart.digitalInvoice' ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-cart-plus"></i>
+                            <p>Digital Invoice</p>
+                        </a>
+                    </li>
+                @endif
+
             @endif
             {{-- Business Details --}}
             <li class="nav-item {{ request()->routeIs(['backend.admin.business.index','backend.admin.business.create','backend.admin.business.edit']) ? 'menu-open' : '' }}">
