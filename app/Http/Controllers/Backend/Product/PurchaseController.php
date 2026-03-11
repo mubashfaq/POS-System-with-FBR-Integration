@@ -141,6 +141,7 @@ class PurchaseController extends Controller
                             'purchase_price' => $product['purchase_price'],
                             'price' => $product['price'],
                             'quantity' => $product['qty'],
+                            'remaining_qty' => $product['qty'],
                         ]);
 
                         $existingProduct->increment('quantity', $product['qty']);
@@ -172,6 +173,10 @@ class PurchaseController extends Controller
                         // Find the existing purchase item, if any, and get its quantity or set to 0
                         $oldPurchaseItem = PurchaseItem::find($product['item_id']??0);
                         $oldQuantity = $oldPurchaseItem ? $oldPurchaseItem->quantity : 0;
+                        $remainingQty = $oldPurchaseItem 
+                            ? ($oldPurchaseItem->remaining_qty + ($product['qty'] - $oldQuantity))
+                            : $product['qty'];
+
                         PurchaseItem::updateOrCreate(
                             [
                                 'id' => $product['item_id'] ?? null
@@ -182,6 +187,7 @@ class PurchaseController extends Controller
                                 'purchase_price' => $product['purchase_price'],
                                 'price' => $product['price'],
                                 'quantity' => $product['qty'],
+                                'remaining_qty' => $remainingQty,
                             ]
                         );
 
@@ -475,6 +481,7 @@ class PurchaseController extends Controller
                         'purchase_price' => $item['purchase_price'],
                         'price' => $item['price'],
                         'quantity' => $item['quantity'],
+                        'remaining_qty' => $item['quantity'],
                     ]);
                     
                     // Update product stock

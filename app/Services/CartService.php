@@ -4,13 +4,14 @@ namespace App\Services;
 
 use App\Models\PosCart;
 use App\Models\Product;
+use App\Models\PurchaseItem;
 use Illuminate\Support\Facades\Auth;
 
 
 class CartService
 {
 
-    public function addToCart($productId, $businessId, $registrationStatus )
+    public function addToCart($productId, $businessId, $registrationStatus, $purchaseItemId = null)
     {
         $product = Product::where('id', $productId)
             ->where('business_id', $businessId)
@@ -20,14 +21,37 @@ class CartService
             throw new \Exception('Insufficient stock');
         }
 
-        $cartItem = PosCart::where('user_id', Auth::id())
-            ->where('product_id', $product->id)
-            ->first();
+        // If a specific purchase batch is selected, validate it
+        $purchaseItem = null;
+        if ($purchaseItemId) {
+            $purchaseItem = PurchaseItem::where('id', $purchaseItemId)
+                ->where('product_id', $productId)
+                ->where('remaining_qty', '>', 0)
+                ->firstOrFail();
+        }
 
+        // Check if the same product+batch combo is already in cart
+        $cartQuery = PosCart::where('user_id', Auth::id())
+            ->where('product_id', $product->id);
+
+        if ($purchaseItemId) {
+            $cartQuery->where('purchase_item_id', $purchaseItemId);
+        } else {
+            $cartQuery->whereNull('purchase_item_id');
+        }
+
+        $cartItem = $cartQuery->first();
         $newQuantity = $cartItem ? $cartItem->quantity + 1 : 1;
 
-        if ($newQuantity > $product->quantity) {
-            throw new \Exception('Cannot add more, stock limit reached');
+        // Stock check: if batch selected, check batch stock; otherwise check product stock
+        if ($purchaseItem) {
+            if ($newQuantity > $purchaseItem->remaining_qty) {
+                throw new \Exception('Cannot add more, batch stock limit reached (Available: ' . $purchaseItem->remaining_qty . ')');
+            }
+        } else {
+            if ($newQuantity > $product->quantity) {
+                throw new \Exception('Cannot add more, stock limit reached');
+            }
         }
 
         // Base calculation
@@ -48,6 +72,7 @@ class CartService
             $cartItem = PosCart::create([
                 'user_id' => Auth::id(),
                 'product_id' => $product->id,
+                'purchase_item_id' => $purchaseItemId,
                 'quantity' => $newQuantity,
                 'further_tax' => $furtherTax,
             ]);
@@ -85,9 +110,19 @@ class CartService
         if ($cart->product->quantity <= 0) {
             throw new \Exception('Insufficient stock available');
         }
-        if ($cart->quantity == $cart->product->quantity) {
-            throw new \Exception('Cannot add more, stock limit reached');
+
+        // Check batch stock limit if batch is selected
+        if ($cart->purchase_item_id) {
+            $purchaseItem = PurchaseItem::findOrFail($cart->purchase_item_id);
+            if ($cart->quantity >= $purchaseItem->remaining_qty) {
+                throw new \Exception('Cannot add more, batch stock limit reached (Available: ' . $purchaseItem->remaining_qty . ')');
+            }
+        } else {
+            if ($cart->quantity == $cart->product->quantity) {
+                throw new \Exception('Cannot add more, stock limit reached');
+            }
         }
+
         $cart->quantity = $cart->quantity + 1;
         $cart->save();
 
@@ -125,15 +160,17 @@ class CartService
     {
         $cart = PosCart::with('product')->findOrFail($id);
 
-        // Ownership protection
-        // if ($cart->user_id !== Auth::id()) {
-        //     throw new \Exception('Unauthorized action');
-        // }
-
-        $availableStock = $cart->product->quantity ?? 0;
-
-        if ($quantity > $availableStock) {
-            throw new \Exception('Cannot add more, stock limit reached');
+        // Stock check: batch-aware
+        if ($cart->purchase_item_id) {
+            $purchaseItem = PurchaseItem::findOrFail($cart->purchase_item_id);
+            if ($quantity > $purchaseItem->remaining_qty) {
+                throw new \Exception('Cannot add more, batch stock limit reached (Available: ' . $purchaseItem->remaining_qty . ')');
+            }
+        } else {
+            $availableStock = $cart->product->quantity ?? 0;
+            if ($quantity > $availableStock) {
+                throw new \Exception('Cannot add more, stock limit reached');
+            }
         }
 
         $cart->quantity = $quantity;
@@ -169,10 +206,6 @@ class CartService
     public function updatePrice($id, $price)
     {
         $cart = PosCart::with('product')->findOrFail($id);
-
-        // if ($cart->user_id !== Auth::id()) {
-        //     throw new \Exception('Unauthorized action');
-        // }
 
         $cart->price_override = $price;
 

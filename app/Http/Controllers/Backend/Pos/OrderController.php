@@ -134,7 +134,7 @@ public function store(Request $request)
     $customer = Customer::find($request->customer_id);
 
 
-    $carts = PosCart::with('product')
+    $carts = PosCart::with(['product', 'purchaseItem'])
         ->where('user_id', auth()->id())
         ->lockForUpdate()
         ->get();
@@ -212,16 +212,23 @@ public function store(Request $request)
 
     $order->products()->create([
         'quantity'       => $cart->quantity,
-        'price'          => $unitPrice,  // ✅ override price here
-        'purchase_price' => $product->purchase_price,
+        'price'          => $unitPrice,
+        'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
         'sub_total'      => $subTotal,
         'discount'       => $discount,
         'total'          => $finalTotal,
         'product_id'     => $product->id,
+        'purchase_item_id' => $cart->purchase_item_id,
     ]);
 
+    // Decrement product stock
     $product->quantity -= $cart->quantity;
     $product->save();
+
+    // Decrement batch remaining_qty if batch is linked
+    if ($cart->purchase_item_id && $cart->purchaseItem) {
+        $cart->purchaseItem->decrement('remaining_qty', $cart->quantity);
+    }
 }
 
     $total = $totalAmountOrder - $orderDiscount;
@@ -518,7 +525,7 @@ public function storeDigital(Request $request)
     $customer = Customer::find($request->customer_id);
 
 
-    $carts = PosCart::with('product')
+    $carts = PosCart::with(['product', 'purchaseItem'])
         ->where('user_id', auth()->id())
         ->lockForUpdate()
         ->get();
@@ -596,16 +603,23 @@ public function storeDigital(Request $request)
 
     $order->products()->create([
         'quantity'       => $cart->quantity,
-        'price'          => $unitPrice,  // ✅ override price here
-        'purchase_price' => $product->purchase_price,
+        'price'          => $unitPrice,
+        'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
         'sub_total'      => $subTotal,
         'discount'       => $discount,
         'total'          => $finalTotal,
         'product_id'     => $product->id,
+        'purchase_item_id' => $cart->purchase_item_id,
     ]);
 
+    // Decrement product stock
     $product->quantity -= $cart->quantity;
     $product->save();
+
+    // Decrement batch remaining_qty if batch is linked
+    if ($cart->purchase_item_id && $cart->purchaseItem) {
+        $cart->purchaseItem->decrement('remaining_qty', $cart->quantity);
+    }
 }
 
     $total = $totalAmountOrder - $orderDiscount;
