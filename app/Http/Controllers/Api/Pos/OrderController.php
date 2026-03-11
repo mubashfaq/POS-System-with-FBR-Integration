@@ -37,7 +37,7 @@ class OrderController extends Controller
 
             $customer = Customer::findOrFail($customerId);
 
-            $carts = PosCart::with('product')
+            $carts = PosCart::with(['product', 'purchaseItem'])
                 ->where('user_id', $userId)
                 ->lockForUpdate()
                 ->get();
@@ -114,14 +114,20 @@ class OrderController extends Controller
                 $order->products()->create([
                     'quantity' => $qty,
                     'price' => $unitPrice,
-                    'purchase_price' => $product->purchase_price,
+                    'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
                     'sub_total' => $valueExTax,
                     'total' => $finalTotal,
                     'product_id' => $product->id,
+                    'purchase_item_id' => $cart->purchase_item_id,
                 ]);
 
                 $product->quantity -= $qty;
                 $product->save();
+
+                // Decrement batch remaining_qty if batch is linked
+                if ($cart->purchase_item_id && $cart->purchaseItem) {
+                    $cart->purchaseItem->decrement('remaining_qty', $qty);
+                }
 
                 $totalAmountOrder += $finalTotal;
 
@@ -233,7 +239,7 @@ class OrderController extends Controller
 
         try {
 
-            $carts = PosCart::with('product')
+            $carts = PosCart::with(['product', 'purchaseItem'])
                 ->where('user_id', auth()->id())
                 ->lockForUpdate()
                 ->get();
@@ -322,14 +328,20 @@ class OrderController extends Controller
                 $order->products()->create([
                     'quantity'       => $qty,
                     'price'          => $unitPrice,
-                    'purchase_price' => $product->purchase_price,
+                    'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
                     'sub_total'      => $subTotal,
                     'discount'       => $discount,
                     'total'          => $finalTotal,
                     'product_id'     => $product->id,
+                    'purchase_item_id' => $cart->purchase_item_id,
                 ]);
 
                 $product->decrement('quantity', $qty);
+
+                // Decrement batch remaining_qty if batch is linked
+                if ($cart->purchase_item_id && $cart->purchaseItem) {
+                    $cart->purchaseItem->decrement('remaining_qty', $qty);
+                }
 
                 /* ================= FBR ITEM ================= */
 

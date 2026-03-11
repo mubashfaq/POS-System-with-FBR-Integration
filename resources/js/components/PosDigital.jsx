@@ -31,6 +31,10 @@ export default function Pos() {
     const [loading, setLoading] = useState(false);
     const [furtherTaxTotal, setFurtherTaxTotal] = useState(0);
 
+    const [showBatchModal, setShowBatchModal] = useState(false);
+    const [availableBatches, setAvailableBatches] = useState([]);
+    const [targetProduct, setTargetProduct] = useState(null);
+
 
     const handlePriceChange = (cartId, newPrice) => {
     const price = parseFloat(newPrice);
@@ -192,18 +196,56 @@ const emptyCartOnCustomerChange = async () => {
         };
     }, [currentPage, totalPages]);
 
-    function addProductToCart(id , customerId) {
-         if(!customerId){
+    function addProductToCart(id, customerId, purchaseItemId = null) {
+        if (!customerId) {
             toast.error("Please Select Customer");
             return;
-         }
+        }
 
+        if (!purchaseItemId) {
+            axios
+                .get(`/admin/product/${id}/batches`)
+                .then((res) => {
+                    const batches = res.data.batches;
+                    const product = {
+                        id: res.data.product_id,
+                        name: res.data.product_name,
+                    };
+
+                    if (batches.length === 0) {
+                        toast.error("Insufficient stock or no batches found.");
+                        return;
+                    }
+
+                    if (batches.length === 1) {
+                        // Only one batch? Add directly
+                        submitToCart(id, batches[0].id);
+                    } else {
+                        // Multi-batch? Show selection modal
+                        setTargetProduct(product);
+                        setAvailableBatches(batches);
+                        setShowBatchModal(true);
+                    }
+                })
+                .catch((err) => {
+                    toast.error("Failed to fetch product batches.");
+                });
+        } else {
+            submitToCart(id, purchaseItemId);
+        }
+    }
+
+    function submitToCart(productId, purchaseItemId) {
         axios
-            .post("/admin/cart", { id })
+            .post("/admin/cart", {
+                id: productId,
+                purchase_item_id: purchaseItemId,
+            })
             .then((res) => {
                 setCartUpdated(!cartUpdated);
                 playSound(SuccessSound);
                 toast.success(res?.data?.message);
+                setShowBatchModal(false);
             })
             .catch((err) => {
                 playSound(WarningSound);
@@ -637,6 +679,56 @@ function createOrder(redirect = false) {
                     </div>
                 </div>
             </div>
+            {showBatchModal && (
+                <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', overflowY: 'auto' }}>
+                    <div className="modal-dialog modal-lg">
+                        <div className="modal-content">
+                            <div className="modal-header bg-primary text-white">
+                                <h5 className="modal-title">Select Batch for {targetProduct?.name}</h5>
+                                <button type="button" className="close text-white" onClick={() => setShowBatchModal(false)}>
+                                    <span>&times;</span>
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                <div className="table-responsive">
+                                    <table className="table table-bordered table-hover">
+                                        <thead className="bg-light">
+                                            <tr>
+                                                <th>Purchase Date</th>
+                                                <th>Available Qty</th>
+                                                <th>Original Qty</th>
+                                                <th>Purchase Price</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {availableBatches.map((batch) => (
+                                                <tr key={batch.id}>
+                                                    <td>{batch.purchase_date}</td>
+                                                    <td className="text-bold text-success">{batch.remaining_qty}</td>
+                                                    <td>{batch.quantity}</td>
+                                                    <td>{batch.purchase_price}</td>
+                                                    <td>
+                                                        <button 
+                                                            className="btn btn-sm btn-primary"
+                                                            onClick={() => addProductToCart(targetProduct.id, customerId, batch.id)}
+                                                        >
+                                                            Select
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowBatchModal(false)}>Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
             <Toaster position="top-right" reverseOrder={false} />
         </>
     );

@@ -144,6 +144,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
         ->name('cart.digitalInvoice');
         
         Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
+        Route::get('/product/{id}/batches', [CartController::class, 'getBatches'])->name('product.batches');
 
         Route::put('/cart/update-quantity', [CartController::class, 'updateQuantity']);
         Route::put('/cart/update-price', [CartController::class, 'updatePrice']);
