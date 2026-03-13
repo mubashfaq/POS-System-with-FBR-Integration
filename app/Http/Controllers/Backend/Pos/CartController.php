@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductResource;
 use App\Models\PosCart;
 use App\Models\Product;
+use App\Models\PurchaseItem;
 use App\Services\CartService;
 use Illuminate\Http\Request;
 
@@ -45,7 +46,7 @@ public function index(Request $request)
         //     });
 
         $cartItems = PosCart::where('user_id', auth()->id())
-            ->with('product')
+            ->with(['product', 'purchaseItem.purchase'])
             ->latest('created_at')
             ->get()
             ->map(function ($item) use ($customerIsRegistered) {
@@ -216,6 +217,7 @@ if (
     {
         $request->validate([
             'id' => 'required|exists:products,id',
+            'purchase_item_id' => 'nullable|integer|exists:purchase_items,id',
         ]);
     
         try {
@@ -223,7 +225,8 @@ if (
             $cartItem = $cartService->addToCart(
                 $request->id,
                 session('business_id'),
-                session('registration_status') ?? 'registered'
+                session('registration_status') ?? 'registered',
+                $request->purchase_item_id
             );
     
             return response()->json([
@@ -425,7 +428,7 @@ public function digitalInvoice(Request $request)
         //     });
 
         $cartItems = PosCart::where('user_id', auth()->id())
-            ->with('product')
+            ->with(['product', 'purchaseItem.purchase'])
             ->latest('created_at')
             ->get()
             ->map(function ($item) use ($customerIsRegistered) {
@@ -497,5 +500,43 @@ if (
     return view('backend.cart.digital-invoice');
 
 }
+
+    /**
+     * Get available purchase batches for a product.
+     */
+    public function getBatches($productId)
+    {
+        $businessId = session('business_id');
+        $product = Product::where('id', $productId)
+            ->where('business_id', $businessId)
+            ->firstOrFail();
+
+        $batches = PurchaseItem::where('product_id', $productId)
+            ->where('remaining_qty', '>', 0)
+            ->with('purchase:id,date,supplier_id')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($batch) {
+                return [
+                    'id' => $batch->id,
+                    'purchase_id' => $batch->purchase_id,
+                    'purchase_price' => $batch->purchase_price,
+                    'price' => $batch->price,
+                    'remaining_qty' => $batch->remaining_qty,
+                    'quantity' => $batch->quantity,
+                    'purchase_date' => $batch->purchase 
+                        ? \Carbon\Carbon::parse($batch->purchase->date)->format('Y-m-d') 
+                        : $batch->created_at->format('Y-m-d'),
+                    'created_at' => $batch->created_at,
+                ];
+            });
+
+        return response()->json([
+            'product_id' => $product->id,
+            'product_name' => $product->name,
+            'total_stock' => $product->quantity,
+            'batches' => $batches,
+        ]);
+    }
 
 }

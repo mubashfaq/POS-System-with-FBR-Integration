@@ -11,7 +11,8 @@ class CartController extends Controller
     public function store(Request $request, CartService $cartService)
     {
         $request->validate([
-            'product_id' => 'required|exists:products,id'
+            'product_id' => 'required|exists:products,id',
+            'purchase_item_id' => 'nullable|integer|exists:purchase_items,id'
         ]);
 
         $business = $request->attributes->get('business');
@@ -21,7 +22,8 @@ class CartController extends Controller
             $cartItem = $cartService->addToCart(
                 $request->product_id,
                 $business->id,
-                currentRegistrationStatus()
+                currentRegistrationStatus(),
+                $request->purchase_item_id
             );
 
             return response()->json([
