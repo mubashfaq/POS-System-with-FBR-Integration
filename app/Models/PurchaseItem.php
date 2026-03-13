@@ -17,7 +17,16 @@ class PurchaseItem extends Model
         'discount_value',
         'discount_type',
         'quantity',
+        'remaining_qty',
     ];
+
+    /**
+     * Scope: only batches that still have unsold stock
+     */
+    public function scopeAvailable($query)
+    {
+        return $query->where('remaining_qty', '>', 0);
+    }
     protected $appends = ['name', 'stock'];
     public function purchase()
     {

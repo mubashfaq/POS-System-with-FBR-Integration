@@ -93,6 +93,16 @@ class Product extends Model
     {
         return $query->where('quantity','>=',1);
     }
+
+    /**
+     * Get available purchase batches (with remaining stock), oldest first.
+     */
+    public function availableBatches()
+    {
+        return $this->purchaseItems()
+            ->where('remaining_qty', '>', 0)
+            ->orderBy('created_at', 'asc');
+    }
     public function getDiscountedPriceAttribute()
     {
         if ($this->discount_type == 'fixed') {
