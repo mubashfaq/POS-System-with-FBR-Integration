@@ -74,9 +74,16 @@
                             <tr>
                                 <th>SN</th>
                                 <th>Product</th>
+                                <th>Description</th>
+                                @if ($business->business_type == 'digital' || $business->business_type == 'both') 
+                                <th>HS Code</th>
+                                <th>UOM</th>
+                                @endif
                                 <th>Quantity</th>
-                                <th>Price {{currency()->symbol??''}}</th>
-                                <th>Subtotal {{currency()->symbol??''}}</th>
+                                <th>Unit Price {{currency()->symbol??''}}</th>
+                                <th>Sales Excl. Tax {{currency()->symbol??''}}</th>
+                                <th>Sales Tax {{currency()->symbol??''}}</th>
+                                <th>Sales Incl. Tax {{currency()->symbol??''}}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -84,14 +91,36 @@
                             <tr>
                                 <td>{{$loop->index + 1}}</td>
                                 <td>{{$item->product->name}}</td>
+                                <td>{{$item->product->description}}</td>
+                                @if ($business->business_type == 'digital' || $business->business_type == 'both') 
+                                <td>{{$item->product->hsCode}}</td>
+                                <td>{{$item->product->uom}}</td>
+                                @endif
                                 <td>{{$item->quantity}} {{optional($item->product->unit)->short_name}}</td>
                                 <td>
                                     {{$item->discounted_price }}
-                                    @if ($item->price>$item->discounted_price)
+                                    {{-- @if ($item->price>$item->discounted_price)
                                     <br><del>{{ $item->price }}</del>
-                                    @endif
+                                    @endif --}}
                                 </td>
-                                <td>{{$item->total}}</td>
+                                @php
+                                    $inclTax = $item->total;
+                                    if($business->business_type == 'digital' || $business->business_type == 'both'){
+                                    $taxRate = $item->product->rate_of_tax;
+                                    } else {
+                                        $taxRate = $item->product->pos_sale_tax;
+                                    } 
+
+                                    // Handle both "10" and "10%"
+                                    $taxRate = str_replace('%', '', $taxRate);
+                                    $taxRate = floatval($taxRate);
+                                    $taxAmount = $inclTax *  ($taxRate / 100) ;
+                                    $exclTax = $inclTax - $taxAmount;
+                                @endphp
+
+                                <td>{{ number_format($exclTax,2) }}</td>
+                                <td>{{ number_format($taxAmount,2) }}</td>
+                                <td>{{ number_format($inclTax,2) }}</td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -114,18 +143,18 @@
                     <div class="table-responsive">
                         <table class="table">
                             <tr>
-                                <th style="width:50%">Subtotal:</th>
+                                <th style="width:50%">Sales Excl. Tax:</th>
                                 <td class="text-right">
-                                    {{currency()->symbol.' '.number_format($order->sub_total,2,'.',',')}}</td>
+                                    {{currency()->symbol.' '.number_format($exclTax,2,'.',',')}}</td>
                             </tr>
                             <tr>
-                                <th>Discount:</th>
+                                <th>Sales Tax:</th>
                                 <td class="text-right">
-                                    {{currency()->symbol.' '.number_format($order->discount,2,'.',',')}}</td>
+                                    {{currency()->symbol.' '.number_format($taxAmount,2,'.',',')}}</td>
                             </tr>
                             <tr>
-                                <th>Total:</th>
-                                <td class="text-right">{{currency()->symbol.' '.number_format($order->total,2,'.',',')}}
+                                <th>Sales Incl. Tax:</th>
+                                <td class="text-right">{{currency()->symbol.' '.number_format($inclTax,2,'.',',')}}
                                 </td>
                             </tr>
                             <tr>
