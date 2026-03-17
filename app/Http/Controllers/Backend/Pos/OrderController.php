@@ -758,8 +758,10 @@ public function storeDigital(Request $request)
     $fbrPayload = [
     "buyerRegistrationType" => $buyerRegType,
     "invoiceType" => "Sale Invoice",
-    "invoiceDate" => now()->format('Y-m-d'),
-    "sellerNTNCNIC" => $business->cnic,
+    // "invoiceDate" => now()->format('Y-m-d'),
+    // "invoiceDate" => now()->subDay()->format('Y-m-d'),
+    "invoiceDate" => now('UTC')->format('Y-m-d'),
+    "sellerNTNCNIC" => $business->ntn,
     "sellerBusinessName" => $business->business_name,
     "sellerProvince" => strtolower($business->state), // punjab
     "sellerAddress" => $business->address ?: null,
