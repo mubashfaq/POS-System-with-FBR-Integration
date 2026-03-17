@@ -408,11 +408,6 @@ function createOrder(redirect = false) {
         if (!orderId) {
             toast.error("Order ID not found, cannot redirect.");
             return;
-        }
-
-        if (!fbr) {
-            // FBR disabled → go back to digital cart
-            window.location.href = "/admin/digitalCart";
         } else {
             // FBR enabled → show invoice
             window.location.href = `/admin/orders/pos-invoice-digital/${orderId}`;
