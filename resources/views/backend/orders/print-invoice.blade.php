@@ -196,6 +196,7 @@
                     @if($order->type == 'pos_invoice')
                       <img src="{{ asset('assets/images/fbr_pos_invoice_system.png') }}" style="width: 100%;" alt="">
                     @else
+                       
                       <img src="{{ asset('assets/images/fbr_logo-icon.png') }}" style="width: 100%;" alt="">
                     @endif
                 </div>
