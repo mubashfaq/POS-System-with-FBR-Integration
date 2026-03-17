@@ -287,12 +287,19 @@ const emptyCartOnCustomerChange = async () => {
     }
  
 function orderCreate() {
-    document.getElementsByClassName("checkout-btn")[0].disabled = true;
-    if (total <= 0) return;
+    // document.getElementsByClassName("checkout-btn")[0].disabled = true;
+    // if (total <= 0) return;
+    if (isSubmitting) return;
+    if (carts.length === 0) {
+        toast.error("Cart is empty");
+        return;
+    }
     if (!customerId) {
         toast.error("Please select customer");
         return;
     }
+
+    setIsSubmitting(true); // disable button
 
     // Step 1: Pehle server se duplicate check
     axios.put(
@@ -321,6 +328,7 @@ function orderCreate() {
                     
                 } else {
                     toast.info("Order not created.");
+                    setIsSubmitting(false);
                 }
             });
         } else {
@@ -331,6 +339,7 @@ function orderCreate() {
     .catch((err) => {
         console.error(err);
         toast.error("Something went wrong while checking order.");
+        setIsSubmitting(false);
     });
 }
 
@@ -418,9 +427,12 @@ function createOrder(redirect = false) {
     .catch((err) => {
         console.error(err);
         toast.error("Order creation failed.");
+    })
+    .finally(() => {
+        setIsSubmitting(false); // enable button again
     });
 
-    document.getElementsByClassName("checkout-btn")[0].disabled = false;
+    // document.getElementsByClassName("checkout-btn")[0].disabled = false;
 }
 
     return (
@@ -583,15 +595,14 @@ function createOrder(redirect = false) {
                                     </button>
                                 </div>
                                 <div className="col">
-                                    <button
-                                        onClick={() => {
-                                            orderCreate();
-                                        }}
-                                        type="button"
-                                        className="btn checkout-btn btn-block text-white text-bold"
-                                    >
-                                        Checkout Digital
-                                    </button>
+                                <button
+                                    onClick={orderCreate}
+                                    type="button"
+                                    className="btn checkout-btn btn-block text-white text-bold"
+                                    disabled={carts.length === 0 || isSubmitting}
+                                >
+                                    {isSubmitting ? "Processing..." : "Checkout Digital"}
+                                </button>
                                 </div>
                             </div>
                         </div>
