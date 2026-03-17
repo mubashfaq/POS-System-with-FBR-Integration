@@ -600,7 +600,7 @@ public function storeDigital(Request $request)
             }
         }
 
-        // ✅ FINAL TOTAL = line total + further tax
+        //  FINAL TOTAL = line total + further tax
         $finalTotal = round($lineTotal + $furtherTax, 2);
 
     $totalAmountOrder += $finalTotal;
@@ -678,25 +678,50 @@ public function storeDigital(Request $request)
             }
         }
 
+        // $fbrItems[] = [
+        //     "hsCode" => $product->hsCode,
+        //     "productDescription" => $product->name,
+        //     // "productDescription" => $product->hs_description,
+        //     "rate" => $rateText,
+        //     "uoM" => $product->uom,
+        //     "quantity" => $qty,
+        //     "totalValues" => $lineTotal + $furtherTax,
+        //     "valueSalesExcludingST" => $valueExTax,
+        //     "fixedNotifiedValueOrRetailPrice" => $product->price,
+        //     "salesTaxApplicable" => $salesTax,
+        //     "salesTaxWithheldAtSource" => 0,
+        //     "extraTax" => 0,
+        //     "furtherTax" => (float) $furtherTax,
+        //     "sroScheduleNo" => $product->sro_schedule ?: null,
+        //     "fedPayable" => 0,
+        //     "discount" => 0,
+        //     "saleType" => $product->sale_type,
+        //     "sroItemSerialNo" => $product->sro_item
+        // ];
+
         $fbrItems[] = [
             "hsCode" => $product->hsCode,
             "productDescription" => $product->name,
-            // "productDescription" => $product->hs_description,
             "rate" => $rateText,
             "uoM" => $product->uom,
-            "quantity" => $qty,
-            "totalValues" => $lineTotal + $furtherTax,
-            "valueSalesExcludingST" => $valueExTax,
-            "fixedNotifiedValueOrRetailPrice" => $product->price,
-            "salesTaxApplicable" => $salesTax,
+
+            // FLOAT banane ke liye (1.0, 50.0)
+            "quantity" => (float) $qty,
+            "totalValues" => (float) ($lineTotal + $furtherTax),
+            "valueSalesExcludingST" => (float) $valueExTax,
+            "fixedNotifiedValueOrRetailPrice" => (float) $product->price,
+            "salesTaxApplicable" => (float) $salesTax,
+
             "salesTaxWithheldAtSource" => 0,
             "extraTax" => 0,
-            "furtherTax" => $furtherTax,
-            "sroScheduleNo" => $product->sro_schedule,
+            "furtherTax" => (float) $furtherTax,
+
+            // NULL handling
+            "sroScheduleNo" => $product->sro_schedule ?: null,
             "fedPayable" => 0,
             "discount" => 0,
             "saleType" => $product->sale_type,
-            "sroItemSerialNo" => $product->sro_item
+            "sroItemSerialNo" => $product->sro_item ?: null
         ];
     }
 
@@ -705,29 +730,47 @@ public function storeDigital(Request $request)
 
     $buyerRegType = null;
 
-        if (strtolower($customer->is_registered) === 'registered' || $customer->is_registered == 1) {
+        if (strtolower($customer->is_registered) === 'registered') {
             $buyerRegType = 'Registered';
         } else {
             $buyerRegType = 'Unregistered';
+           
         }
-    $fbrPayload = [
-        "invoiceType" => "Sale Invoice",
-        "invoiceDate" => now()->format('Y-m-d'),
-        "sellerNTNCNIC" => $business->cnic,
-        "sellerBusinessName" => $business->business_name,
-        "sellerProvince" => $business->state,
-        "sellerAddress" => $business->address,
-        "buyerNTNCNIC" => $customer->ntn_cnic,
-        "buyerBusinessName" => $customer->name,
-        "buyerProvince" => $customer->province,
-        "buyerAddress" => $customer->address,
-        "buyerRegistrationType" => $buyerRegType,
-        "invoiceRefNo" => "INV-" . $order->id,
-        // "invoiceRefNo" => "INV-" . "INV00112200",
-        "scenarioId" => "SN001",
-        "items" => $fbrItems
-    ];
+    // $fbrPayload = [
+    //     "invoiceType" => "Sale Invoice",
+    //     "invoiceDate" => now()->format('Y-m-d'),
+    //     "sellerNTNCNIC" => $business->cnic,
+    //     "sellerBusinessName" => $business->business_name,
+    //     "sellerProvince" => $business->state,
+    //     "sellerAddress" => $business->address,
+    //     "buyerNTNCNIC" => $customer->ntn_cnic,
+    //     "buyerBusinessName" => $customer->name,
+    //     "buyerProvince" => $customer->province,
+    //     "buyerAddress" => $customer->address,
+    //     "buyerRegistrationType" => $buyerRegType,
+    //     "invoiceRefNo" => "INV-" . $order->id,
+    //     // "invoiceRefNo" => "INV-" . "INV00112200",
+    //     "scenarioId" => "SN001",
+    //     "items" => $fbrItems
+    // ];
 
+    
+    $fbrPayload = [
+    "buyerRegistrationType" => $buyerRegType,
+    "invoiceType" => "Sale Invoice",
+    "invoiceDate" => now()->format('Y-m-d'),
+    "sellerNTNCNIC" => $business->cnic,
+    "sellerBusinessName" => $business->business_name,
+    "sellerProvince" => strtolower($business->state), // punjab
+    "sellerAddress" => $business->address ?: null,
+    "buyerNTNCNIC" => $customer->ntn_cnic,
+    "buyerBusinessName" => $customer->name,
+    "buyerProvince" => $customer->province,
+    "buyerAddress" => $customer->address,
+    "invoiceRefNo" => "INV-" . $order->id,
+    "scenarioId" => "SN001",
+    "items" => $fbrItems
+];
     Log::info('FBR Payload', [
         'order_id' => $order->id ?? null,
         'payload'  => $fbrPayload
@@ -753,6 +796,8 @@ public function storeDigital(Request $request)
 ]);
 
 
+// dd(json_encode($fbrPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+// dd($fbrPayload);
 
     // $token = env('FBR_TOKEN');
     $token = FbrTokenService::getToken();
@@ -762,15 +807,16 @@ public function storeDigital(Request $request)
             'connect_timeout' => 620,
         ])->withHeaders([
             'Authorization' => "Bearer $token",
-            'Content-Type' => 'application/json',
+            'Content-Type' => 'application/json',        
             'Accept-Encoding' => 'gzip, deflate, br',
-            'Accept' => 'application/json'
+            'Accept' => '*/*'
         ])->post("https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb", $fbrPayload);
 
     } catch (\Illuminate\Http\Client\ConnectionException $e) {
         info('Connection Exception: ' . $e->getMessage());
     }
     $body = $response->body();
+    
 
     // fix FBR invalid JSON (trailing comma)
     $cleanBody = preg_replace('/,\s*([}\]])/', '$1', $body);
@@ -820,7 +866,7 @@ public function storeDigital(Request $request)
                 'Authorization' => "Bearer $token",
                 'Content-Type' => 'application/json',
                 'Accept-Encoding' => 'gzip, deflate, br',
-                'Accept' => 'application/json'
+                'Accept' => '*/*'
          ])->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb", $fbrPayload);
     
               
