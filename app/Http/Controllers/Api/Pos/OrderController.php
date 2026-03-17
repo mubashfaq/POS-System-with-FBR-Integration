@@ -175,6 +175,10 @@ class OrderController extends Controller
             if (!FbrTokenService::isIntegrationEnabled()) {
 
                 DB::commit();
+
+                Order::where('id', $order->id)->update([
+                    'type' => 'pos_invoice',
+                ]);
         
                 PosCart::where('user_id', auth()->id())->delete();
         
