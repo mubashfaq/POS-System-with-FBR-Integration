@@ -74,8 +74,8 @@
                             <tr>
                                 <th>SN</th>
                                 <th>Product</th>
-                                <th>Description</th>
                                 @if ($business->business_type == 'digital' || $business->business_type == 'both') 
+                                <th>Description</th>
                                 <th>HS Code</th>
                                 <th>UOM</th>
                                 @endif
@@ -91,8 +91,8 @@
                             <tr>
                                 <td>{{$loop->index + 1}}</td>
                                 <td>{{$item->product->name}}</td>
-                                <td>{{$item->product->description}}</td>
                                 @if ($business->business_type == 'digital' || $business->business_type == 'both') 
+                                <td>{{$item->product->hs_description}}</td>
                                 <td>{{$item->product->hsCode}}</td>
                                 <td>{{$item->product->uom}}</td>
                                 @endif
