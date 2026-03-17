@@ -696,13 +696,20 @@ public function storeDigital(Request $request)
             "fedPayable" => 0,
             "discount" => 0,
             "saleType" => $product->sale_type,
-            "sroItemSerialNo" => $product->sro_item,
+            "sroItemSerialNo" => $product->sro_item
         ];
     }
 
     $customer = Customer::find($request->customer_id);
     $business = Business::find($businessId);
 
+    $buyerRegType = null;
+
+        if (strtolower($customer->is_registered) === 'registered' || $customer->is_registered == 1) {
+            $buyerRegType = 'Registered';
+        } else {
+            $buyerRegType = 'Unregistered';
+        }
     $fbrPayload = [
         "invoiceType" => "Sale Invoice",
         "invoiceDate" => now()->format('Y-m-d'),
@@ -714,7 +721,7 @@ public function storeDigital(Request $request)
         "buyerBusinessName" => $customer->name,
         "buyerProvince" => $customer->province,
         "buyerAddress" => $customer->address,
-        "buyerRegistrationType" => $customer->is_registered,
+        "buyerRegistrationType" => $buyerRegType,
         "invoiceRefNo" => "INV-" . $order->id,
         // "invoiceRefNo" => "INV-" . "INV00112200",
         "scenarioId" => "SN001",
@@ -745,6 +752,8 @@ public function storeDigital(Request $request)
     'payload'  => $fbrPayload
 ]);
 
+
+
     // $token = env('FBR_TOKEN');
     $token = FbrTokenService::getToken();
     try {
@@ -761,9 +770,15 @@ public function storeDigital(Request $request)
     } catch (\Illuminate\Http\Client\ConnectionException $e) {
         info('Connection Exception: ' . $e->getMessage());
     }
+    $body = $response->body();
+
+    // fix FBR invalid JSON (trailing comma)
+    $cleanBody = preg_replace('/,\s*([}\]])/', '$1', $body);
+
+    $responseJson = json_decode($cleanBody, true);
 
     
-    $responseJson = $response->json();
+
     
     $statusCode = data_get($responseJson, 'validationResponse.statusCode');
     $errorCode = data_get($responseJson, 'validationResponse.errorCode');

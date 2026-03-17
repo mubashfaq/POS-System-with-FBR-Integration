@@ -168,6 +168,8 @@ class ProductController extends Controller
      */
     public function store(StoreProductRequest $request)
     {
+        dd($request);
+        
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_create'), 403);
         // abort_if(!auth()->user()->can('product_create'), 403);

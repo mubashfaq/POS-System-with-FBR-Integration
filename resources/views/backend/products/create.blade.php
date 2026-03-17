@@ -330,7 +330,7 @@ $(document).ready(function() {
                 $.each(response.uom, function(index, uom) {
                     let option = new Option(
                         uom.description, // text
-                        uom.uoM_ID, // value (better to use ID)
+                        uom.description, // value (better to use ID)
                         false,
                         false
                     );

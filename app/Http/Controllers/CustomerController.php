@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Customer;
 use Illuminate\Http\Request;
 use Yajra\DataTables\DataTables;
+use Illuminate\Validation\Rule;
+
 
 class CustomerController extends Controller
 {
@@ -115,15 +117,27 @@ class CustomerController extends Controller
         }
         $request->validate([
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20|unique:customers,phone',
-            'ntn_cnic' => 'required|integer|unique:customers,ntn_cnic',
+            // 'phone' => 'required|string|max:20|unique:customers,phone',
+            // 'ntn_cnic' => 'required|integer|unique:customers,ntn_cnic',
+            'phone' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('customers')->where(function ($query) use ($businessId) {
+                    return $query->where('business_id', $businessId);
+                }),
+            ],
+            'ntn_cnic' => [
+                'required',
+                'integer',
+                Rule::unique('customers')->where(function ($query) use ($businessId) {
+                    return $query->where('business_id', $businessId);
+                }),
+            ],
             'province' => 'required|string|max:255',
             'address' => 'required|string|max:255',
             'is_registered' => 'required|string|max:255',
-            'ntn_cnic' => 'required|integer|unique:customers,ntn_cnic',
-            'province' => 'required|string|max:255',
-            'address' => 'required|string|max:255',
-            'is_registered' => 'required|string|max:255',
+            
         ]);
 
         $businessId = session('business_id'); // business_id 
@@ -131,15 +145,13 @@ class CustomerController extends Controller
             return redirect()->back()->with('error', 'No business selected.');
         }
 
+
         $customer = Customer::create([
             'name'        => $request->name,
             'phone'       => $request->phone,
             'ntn_cnic'    => $request->ntn_cnic,
             'province'    => $request->province,
-            'ntn_cnic'    => $request->ntn_cnic,
-            'province'    => $request->province,
             'address'     => $request->address,
-            'is_registered' => $request->is_registered,
             'is_registered' => $request->is_registered,
             'business_id' => $businessId, 
         ]);
