@@ -59,6 +59,7 @@ Route::middleware('auth:sanctum')->group(function () {
             ->middleware(['business.type:digital,both']);
             
         Route::apiResource('products', \App\Http\Controllers\Api\ProductController::class);
+        Route::apiResource('customers', \App\Http\Controllers\Api\CustomerController::class);
     });
 });
 
