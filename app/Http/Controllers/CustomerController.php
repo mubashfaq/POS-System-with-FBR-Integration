@@ -96,9 +96,8 @@ class CustomerController extends Controller
     public function store(Request $request)
     {
         $currentBusiness = currentUserBusiness();
-                $businessId = session('business_id');
 
-                $businessId = session('business_id');
+        $businessId = session('business_id');
 
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('customer_create'), 403);
 
@@ -140,7 +139,6 @@ class CustomerController extends Controller
             
         ]);
 
-        $businessId = session('business_id'); // business_id 
         if (!$businessId) {
             return redirect()->back()->with('error', 'No business selected.');
         }
@@ -208,7 +206,6 @@ class CustomerController extends Controller
         ]);
 
         $customer->update($request->only(['name', 'phone', 'ntn_cnic', 'province', 'address', 'is_registered']));
-        $customer->update($request->only(['name', 'phone', 'ntn_cnic', 'province', 'address', 'is_registered']));
 
         session()->flash('success', 'Customer updated successfully.');
         return to_route('backend.admin.customers.index');
@@ -233,10 +230,8 @@ class CustomerController extends Controller
     {
         $businessId = session('business_id');
 
-        $businessId = session('business_id');
 
         if ($request->wantsJson()) {
-            return response()->json(Customer::where('business_id', $businessId)->latest()->get());
             return response()->json(Customer::where('business_id', $businessId)->latest()->get());
         }
     }
