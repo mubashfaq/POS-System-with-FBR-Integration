@@ -110,6 +110,7 @@ class CustomerController extends Controller
 
             $customer = Customer::create([
                 'name' => $request->name,
+                'business_id' => $businessId
             ]);
 
             return response()->json($customer);
