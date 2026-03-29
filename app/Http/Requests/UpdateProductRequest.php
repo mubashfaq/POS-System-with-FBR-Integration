@@ -4,9 +4,20 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class UpdateProductRequest extends FormRequest
 {
+
+    protected function failedValidation(Validator $validator)
+    {
+        throw new HttpResponseException(response()->json([
+            'status' => false,
+            'message' => 'Validation errors',
+            'errors' => $validator->errors()
+        ], 422));
+    }
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -25,6 +36,9 @@ class UpdateProductRequest extends FormRequest
         $productId = $this->route('product'); // Get the product ID from the route
 
         $businessId = session('business_id');
+        if (!$businessId && $this->attributes->has('business')) {
+            $businessId = $this->attributes->get('business')->id;
+        }
 
         $businessType = \App\Models\Business::where('id', $businessId)
                         ->value('business_type');
