@@ -107,6 +107,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::get('products/sale-type/{sale_type}', [ProductController::class, 'getSaleTypeId'])->name('products.sale-type');
     Route::get('products/sro-schedule/{rate_tax_id}', [ProductController::class, 'getSroSchedule'])->name('products.sro-schedule');
     Route::get('products/sro-Items-details/{sro_schedule_id}', [ProductController::class, 'getSroItemDetail'])->name('products.sro-Items-details');
+    Route::post('products/update-stock-setting', [ProductController::class, 'updateStockSetting'])->name('products.update-stock-setting');
 
     
     Route::resource('units', UnitController::class);

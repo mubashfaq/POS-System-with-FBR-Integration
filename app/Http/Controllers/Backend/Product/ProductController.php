@@ -14,6 +14,7 @@ use App\Models\Business;
 use App\Models\Category;
 use App\Models\HsCode;
 use App\Models\Product;
+use App\Models\quantity_validation;
 use App\Models\SaleType;
 use App\Models\SroItemCode;
 use App\Models\Unit;
@@ -866,4 +867,33 @@ class ProductController extends Controller
             'data' => $product
         ]);
     }
+    // public function updateStockSetting(Request $request)
+    // {
+    //      $businessId = session('business_id');
+    //     $request->validate([
+    //         'status' => 'required|in:enabled,disabled'
+    //     ]);
+
+    //     quantity_validation::query()->where('busniess_id' , $businessId)->update([
+    //         'product_quantity_validation' => $request->status
+    //     ]);
+
+    //     return response()->json(['success' => true]);
+    // }
+
+    public function updateStockSetting(Request $request)
+{
+    $businessId = session('business_id');
+
+    $request->validate([
+        'status' => 'required|in:enabled,disabled'
+    ]);
+
+    quantity_validation::updateOrInsert(
+        ['business_id' => $businessId], // condition
+        ['product_quantity_validation' => $request->status] // values to insert/update
+    );
+
+    return response()->json(['success' => true]);
+}
 }
