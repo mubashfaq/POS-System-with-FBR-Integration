@@ -815,4 +815,55 @@ class ProductController extends Controller
             dd('Exception: ' . $e->getMessage());
         }
     }
+
+    public function getFormData()
+    {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_create'), 403);
+
+        $businessId = session('business_id');
+        $business_type = Business::where('id', $businessId)->value('business_type');
+
+        $brands = Brand::where('status', true)
+            ->where(function ($query) use ($businessId) {
+                $query->where('business_id', $businessId)
+                    ->orWhereNull('business_id');
+            })
+            ->get();
+        $categories = Category::where('status', true)
+            ->where(function ($query) use ($businessId) {
+                $query->where('business_id', $businessId)
+                    ->orWhereNull('business_id');
+            })
+            ->get();
+
+        $hsCodes = hsCode::all();
+        $units = Uom::all();
+        $saleTypes = SaleType::all();
+        $sroItems = SroItemCode::all();
+
+        return response()->json(compact('brands', 'categories', 'units', 'hsCodes', 'saleTypes', 'sroItems', 'business_type'));
+    }
+
+    public function storeAjax(StoreProductRequest $request)
+    {
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_create'), 403);
+
+        $validated = $request->validated();
+        $businessId = session('business_id');
+        $validated['business_id'] = $businessId;
+
+        $product = Product::create($validated);
+        if ($request->hasFile("product_image")) {
+            $product->image = $this->fileHandler->fileUploadAndGetPath($request->file("product_image"), "/public/media/products");
+            $product->save();
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Product created successfully!',
+            'data' => $product
+        ]);
+    }
 }
