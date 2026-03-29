@@ -7,6 +7,7 @@ use App\Http\Resources\ProductResource;
 use App\Models\PosCart;
 use App\Models\Product;
 use App\Models\PurchaseItem;
+use App\Models\quantity_validation;
 use App\Services\CartService;
 use Illuminate\Http\Request;
 
@@ -142,11 +143,18 @@ if (
     {
         $businessId = session('business_id');
        
-        // dd($businessId);
-        $products = Product::query()
-        ->where('business_id', $businessId) // ✅ filter current business
+         $quantityVal = quantity_validation::where('business_id' , $businessId)->first();
+        
+        if($quantityVal->product_quantity_validation == "disabled"){
+             $products = Product::query()
+        ->where('business_id', $businessId) // filter current business
         ->active()
         ->stocked();
+        }else{
+        // dd($businessId);
+        $products = Product::query()
+        ->where('business_id', $businessId);
+        }
 
 
         // $products = Product::query()->active()->stocked();
@@ -160,6 +168,7 @@ if (
             $query->where('sku', $barcode);
         });
         $products = $products->latest()->paginate(96);
+
         if (request()->wantsJson()) {
             return ProductResource::collection($products);
         }
@@ -507,9 +516,14 @@ if (
     public function getBatches($productId)
     {
         $businessId = session('business_id');
+
         $product = Product::where('id', $productId)
             ->where('business_id', $businessId)
             ->firstOrFail();
+
+        $quantityVal = quantity_validation::where('business_id' , $businessId)->first();
+
+        if($quantityVal->product_quantity_validation == "disabled"){
 
         $batches = PurchaseItem::where('product_id', $productId)
             ->where('remaining_qty', '>', 0)
@@ -531,6 +545,45 @@ if (
                 ];
             });
 
+        } else {
+                $batches = PurchaseItem::where('product_id', $productId)
+                    ->with('purchase:id,date,supplier_id')
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+
+                // Map batches
+                $batches = $batches->map(function ($batch) {
+                    return [
+                        'id' => $batch->id,
+                        'purchase_id' => $batch->purchase_id, // original purchase_id
+                        'purchase_price' => $batch->purchase_price,
+                        'price' => $batch->price,
+                        'remaining_qty' => $batch->remaining_qty > 0 ? $batch->remaining_qty : 1, // display fix
+                        'quantity' => $batch->quantity > 0 ? $batch->quantity : 1,
+                        'purchase_date' => $batch->purchase 
+                            ? \Carbon\Carbon::parse($batch->purchase->date)->format('Y-m-d') 
+                            : $batch->created_at->format('Y-m-d'),
+                        'created_at' => $batch->created_at,
+                    ];
+                });
+
+                // Dummy batch only if no PurchaseItem exists at all
+                if ($batches->isEmpty()) {
+                    $batches = collect([
+                        [
+                            'id' => null,
+                            'purchase_id' => null, // no purchase exists
+                            'purchase_price' => 0,
+                            'price' => $product->default_sell_price ?? 0,
+                            'remaining_qty' => 1,
+                            'quantity' => 1,
+                            'purchase_date' => now()->format('Y-m-d'),
+                            'created_at' => now(),
+                        ]
+                    ]);
+                }
+    
+        }
         return response()->json([
             'product_id' => $product->id,
             'product_name' => $product->name,

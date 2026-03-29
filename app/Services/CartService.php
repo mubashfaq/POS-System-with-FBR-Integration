@@ -16,21 +16,45 @@ class CartService
     {
         $businessId = session('business_id');
 
-        $product = Product::where('id', $productId)
-            ->where('business_id', $businessId)
-            ->firstOrFail();
 
-        if ($product->quantity <= 0) {
-            throw new \Exception('Insufficient stock');
-        }
+        $quantityVal = quantity_validation::where('business_id' , $businessId)->first();
+        
+        if($quantityVal->product_quantity_validation == "disabled"){
 
-        // If a specific purchase batch is selected, validate it
-        $purchaseItem = null;
-        if ($purchaseItemId) {
-            $purchaseItem = PurchaseItem::where('id', $purchaseItemId)
-                ->where('product_id', $productId)
-                ->where('remaining_qty', '>', 0)
+            $product = Product::where('id', $productId)
+                ->where('business_id', $businessId)
                 ->firstOrFail();
+            if ($product->quantity === 0) {
+            
+
+                throw new \Exception('Insufficient stock');
+            }
+
+            // If a specific purchase batch is selected, validate it
+            $purchaseItem = null;
+            if ($purchaseItemId) {
+                $purchaseItem = PurchaseItem::where('id', $purchaseItemId)
+                    ->where('product_id', $productId)
+                    ->where('remaining_qty', '>', 0)
+                    ->firstOrFail();
+            }
+        }else{
+                $product = Product::where('id', $productId)
+                ->where('business_id', $businessId)
+                ->firstOrFail();
+            if ($product->quantity < 0) {
+            
+                throw new \Exception('Insufficient stock');
+            }
+
+            // If a specific purchase batch is selected, validate it
+            $purchaseItem = null;
+            if ($purchaseItemId) {
+                $purchaseItem = PurchaseItem::where('id', $purchaseItemId)
+                    ->where('product_id', $productId)
+                    ->where('remaining_qty', '>=', 0)
+                    ->firstOrFail();
+            }
         }
 
         // Check if the same product+batch combo is already in cart
@@ -114,15 +138,18 @@ class CartService
     public function increment($id)
     {
         $businessId = session('business_id');
-        $cart = PosCart::with('product')->findOrFail($id);
-        if ($cart->product->quantity <= 0) {
-            throw new \Exception('Insufficient stock available');
-        }
+        
 
         // Check batch stock limit if batch is selected
          $quantityVal = quantity_validation::where('business_id' , $businessId)->first();
         
         if($quantityVal->product_quantity_validation == "disabled"){
+            $cart = PosCart::with('product')->findOrFail($id);
+
+            if ($cart->product->quantity === 0) {
+                throw new \Exception('Insufficient stock available');
+            }
+
             if ($cart->purchase_item_id) {
                 $purchaseItem = PurchaseItem::findOrFail($cart->purchase_item_id);
                 if ($cart->quantity >= $purchaseItem->remaining_qty) {
@@ -133,6 +160,14 @@ class CartService
                     throw new \Exception('Cannot add more, stock limit reached');
                 }
             }
+        }else{
+
+         $cart = PosCart::with('product')->findOrFail($id);
+
+            if ($cart->product->quantity < 0) {
+                throw new \Exception('Insufficient stock available');
+            }
+
         }
 
         $cart->quantity = $cart->quantity + 1;

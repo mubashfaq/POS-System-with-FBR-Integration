@@ -221,7 +221,7 @@ const emptyCartOnCustomerChange = async () => {
                         name: res.data.product_name,
                     };
 
-                    if (batches.length === 0) {
+                    if (batches.length < 0) {
                         toast.error("Insufficient stock or no batches found.");
                         return;
                     }
