@@ -57,6 +57,9 @@ Route::middleware('auth:sanctum')->group(function () {
             ->middleware(['business.type:pos,both']);
         Route::post('/order/createDigital', [OrderController::class, 'storeDigital'])
             ->middleware(['business.type:digital,both']);
+            
+        Route::apiResource('products', \App\Http\Controllers\Api\ProductController::class);
+        Route::apiResource('customers', \App\Http\Controllers\Api\CustomerController::class);
     });
 });
 

@@ -4,6 +4,7 @@ import Swal from "sweetalert2";
 import Cart from "./Cart";
 import toast, { Toaster } from "react-hot-toast";
 import CustomerSelect from "./CutomerSelect";
+import ProductCreateDigitalModal from "./ProductCreateDigitalModal";
 
 import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
@@ -34,6 +35,14 @@ export default function Pos() {
     const [showBatchModal, setShowBatchModal] = useState(false);
     const [availableBatches, setAvailableBatches] = useState([]);
     const [targetProduct, setTargetProduct] = useState(null);
+
+    const [showProductModal, setShowProductModal] = useState(false);
+
+    const handleCreateProduct = () => setShowProductModal(true);
+    const handleProductCreated = (newProductId) => {
+        getUpdatedProducts();
+        addProductToCart(newProductId, customerId);
+    };
 
 
     const handlePriceChange = (cartId, newPrice) => {
@@ -221,10 +230,16 @@ const emptyCartOnCustomerChange = async () => {
                         // Only one batch? Add directly
                         submitToCart(id, batches[0].id);
                     } else {
-                        // Multi-batch? Show selection modal
-                        setTargetProduct(product);
-                        setAvailableBatches(batches);
-                        setShowBatchModal(true);
+                        // Multi-batch? Check if batch selection is enabled
+                        if (res.data.is_batch_enabled === false || res.data.is_batch_enabled === 0) {
+                            // FIFO: Auto-select oldest batch
+                            submitToCart(id, batches[batches.length - 1].id);
+                        } else {
+                            // Show selection modal
+                            setTargetProduct(product);
+                            setAvailableBatches(batches);
+                            setShowBatchModal(true);
+                        }
                     }
                 })
                 .catch((err) => {
@@ -638,6 +653,24 @@ function createOrder(redirect = false) {
                                 </div>
                             </div>
                             <div className="row products-card-container">
+                                {/* FIRST CARD → ADD PRODUCT */}
+                                <div className="col-6 col-md-4 col-lg-3 mb-3">
+                                    <div
+                                        className="text-center add-product-card"
+                                        style={{
+                                            cursor: "pointer",
+                                            border: "2px dashed #ccc",
+                                            padding: "20px",
+                                            height: "100%"
+                                        }}
+                                        onClick={() => handleCreateProduct()} // your function
+                                    >
+                                        <div className="d-flex flex-column justify-content-center align-items-center h-100">
+                                            <h2 style={{ fontSize: "30px", marginBottom: "10px" }}>+</h2>
+                                            <p className="mb-0 fw-bold">Add Product</p>
+                                        </div>
+                                    </div>
+                                </div>
                                 {products.length > 0 &&
                                     products.map((product, index) => (
                                         <div
@@ -735,6 +768,13 @@ function createOrder(redirect = false) {
                     </div>
                 </div>
             )}
+            
+            <ProductCreateDigitalModal 
+                show={showProductModal} 
+                onClose={() => setShowProductModal(false)} 
+                onCreated={handleProductCreated} 
+            />
+
             <Toaster position="top-right" reverseOrder={false} />
         </>
     );

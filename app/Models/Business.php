@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Business extends Model
 {
     use HasFactory;
-        protected $fillable = [
+    protected $fillable = [
         'business_name',
         'email',
         'phone',
@@ -20,6 +20,7 @@ class Business extends Model
         'state',
         'country',
         'city','address',
+        'enable_batch',
     ];
 
     public function users()
