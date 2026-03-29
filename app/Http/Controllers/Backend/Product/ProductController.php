@@ -14,6 +14,7 @@ use App\Models\Business;
 use App\Models\Category;
 use App\Models\HsCode;
 use App\Models\Product;
+use App\Models\quantity_validation;
 use App\Models\SaleType;
 use App\Models\SroItemCode;
 use App\Models\Unit;
@@ -168,7 +169,7 @@ class ProductController extends Controller
      */
     public function store(StoreProductRequest $request)
     {
-        dd($request);
+       
         
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_create'), 403);
@@ -817,4 +818,34 @@ class ProductController extends Controller
             dd('Exception: ' . $e->getMessage());
         }
     }
+
+    // public function updateStockSetting(Request $request)
+    // {
+    //      $businessId = session('business_id');
+    //     $request->validate([
+    //         'status' => 'required|in:enabled,disabled'
+    //     ]);
+
+    //     quantity_validation::query()->where('busniess_id' , $businessId)->update([
+    //         'product_quantity_validation' => $request->status
+    //     ]);
+
+    //     return response()->json(['success' => true]);
+    // }
+
+    public function updateStockSetting(Request $request)
+{
+    $businessId = session('business_id');
+
+    $request->validate([
+        'status' => 'required|in:enabled,disabled'
+    ]);
+
+    quantity_validation::updateOrInsert(
+        ['business_id' => $businessId], // condition
+        ['product_quantity_validation' => $request->status] // values to insert/update
+    );
+
+    return response()->json(['success' => true]);
+}
 }

@@ -188,7 +188,7 @@ public function store(Request $request)
     $subTotal  = round($product->price * $qty, 2);
     $discount  = round(($product->price - $unitPrice) * $qty, 2);
 
-   // ðŸ”¹ FURTHER TAX (NEW)
+   // FURTHER TAX (NEW)
         $rateText = trim($product->rate_of_tax);
         // $furtherTax = 0;
 
@@ -375,68 +375,11 @@ public function store(Request $request)
     'payload'  => $fbrPayload
     ]);
 
-    // $token = env('FBR_TOKEN');
-    // try {
-    //     $response = Http::withOptions([
-    //         'timeout' => 620,
-    //         'connect_timeout' => 620,
-    //     ])->withHeaders([
-    //         'Authorization' => "Bearer $token",
-    //         'Content-Type' => 'application/json',
-    //         'Accept-Encoding' => 'gzip, deflate, br',
-    //         'Accept' => 'application/json'
-    //     ])->post("https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb", $fbrPayload);
-
-    // } catch (\Illuminate\Http\Client\ConnectionException $e) {
-    //     info('Connection Exception: ' . $e->getMessage());
-    // }
-
     
-    // $responseJson = $response->json();
-    
-    // $statusCode = data_get($responseJson, 'validationResponse.statusCode');
-    // $errorCode = data_get($responseJson, 'validationResponse.errorCode');
-
-   
-    // $errorMessage = data_get($responseJson, 'validationResponse.error')
-    //     ?? data_get($responseJson, 'error');
-
-    /* ================= SAVE API STATUS & LOGS (NO ROLLBACK) ================= */
-    // Order::where('id', $order->id)->update([
-    //     'api_status'    => $response->status(),
-    //     'error_code'    => $errorCode,
-    //     'error_message' => $errorMessage,
-    //     'api_message'   => $response->ok(),
-    // ]);
-
-
-    /* ================= FINAL DECISION ================= */
-    // if ($statusCode != "00") {
-
-    //     DB::rollBack();
-
-        // return response()->json([
-        //     'error' => 'FBR validation failed',
-        //     'error_code' => $errorCode,
-        //     'error_message' => $errorMessage,
-        //     'fbr_api_response' => $responseJson,
-        // ]);
-    // }
-
     $token = FbrTokenService::getToken();
     $post_api_response=null;
      try {
-            // $post_api_response = Http::withOptions([
-            //     'timeout' => 620,
-            //     'connect_timeout' => 620,
-            // ])->withHeaders([
-            //     'Authorization' => "Bearer $token",
-            //     'Content-Type' => 'application/json',
-            //     'Accept-Encoding' => 'gzip, deflate, br',
-            //     'Accept' => 'application/json'
-            // ])->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb", $fbrPayload);
-
-
+           
             $post_api_response = Http::withOptions([
                 'timeout' => 620,
                 'connect_timeout' => 620,
@@ -456,7 +399,7 @@ public function store(Request $request)
 
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
             // info('Connection Exception: ' . $e->getMessage());
-            dd($e->getMessage()); 
+            dd("im here"); 
         }
 
 
@@ -587,7 +530,7 @@ public function storeDigital(Request $request)
     $subTotal  = round($product->price * $qty, 2);
     $discount  = round(($product->price - $unitPrice) * $qty, 2);
 
-   // ðŸ”¹ FURTHER TAX (NEW)
+   // FURTHER TAX (NEW)
         $rateText = trim($product->rate_of_tax);
         $furtherTax = 0;
 
@@ -825,16 +768,18 @@ public function storeDigital(Request $request)
         ])->withHeaders([
             'Authorization' => "Bearer $token",
             'Content-Type' => 'application/json',
+            'Accept-Encoding' => 'gzip, deflate, br',
             'Accept' => '*/*'
         ])->withBody(json_encode($fbrPayload), 'application/json')
-          ->post("https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb");
+        ->post("https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb");
 
+        // ->post("https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb", $fbrPayload);
+       
     } catch (\Illuminate\Http\Client\ConnectionException $e) {
         info('Connection Exception: ' . $e->getMessage());
     }
     $body = $response->body();
-    
-
+   
     // fix FBR invalid JSON (trailing comma)
     $cleanBody = preg_replace('/,\s*([}\]])/', '$1', $body);
 
@@ -906,7 +851,7 @@ public function storeDigital(Request $request)
     
 
     PosCart::where('user_id', auth()->id())->delete();
-
+    
     return response()->json([
         'message' => 'Order completed successfully!',
         'fbr_payload_sent' => $fbrPayload,
