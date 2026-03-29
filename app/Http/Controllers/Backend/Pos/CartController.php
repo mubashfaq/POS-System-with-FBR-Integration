@@ -536,6 +536,7 @@ if (
             'product_name' => $product->name,
             'total_stock' => $product->quantity,
             'batches' => $batches,
+            'is_batch_enabled' => \App\Models\Business::find($businessId)->enable_batch ?? true,
         ]);
     }
 

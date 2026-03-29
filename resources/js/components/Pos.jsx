@@ -221,10 +221,16 @@ console.log("CART FROM API", data?.carts);
                         // Only one batch? Add directly
                         submitToCart(id, batches[0].id);
                     } else {
-                        // Multi-batch? Show selection modal
-                        setTargetProduct(product);
-                        setAvailableBatches(batches);
-                        setShowBatchModal(true);
+                        // Multi-batch? Check if batch selection is enabled
+                        if (res.data.is_batch_enabled === false || res.data.is_batch_enabled === 0) {
+                            // FIFO: Auto-select oldest batch
+                            submitToCart(id, batches[batches.length - 1].id);
+                        } else {
+                            // Show selection modal
+                            setTargetProduct(product);
+                            setAvailableBatches(batches);
+                            setShowBatchModal(true);
+                        }
                     }
                 })
                 .catch((err) => {
