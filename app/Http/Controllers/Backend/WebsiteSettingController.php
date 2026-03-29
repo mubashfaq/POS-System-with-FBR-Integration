@@ -7,6 +7,7 @@ use App\Rules\ValidImageType;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Artisan;
 use App\Models\InvoiceSetting;
+use App\Models\quantity_validation;
 use App\Trait\FileHandler;
 use Illuminate\Support\Facades\DB;
 
@@ -32,9 +33,16 @@ class WebsiteSettingController extends Controller
             ->latest('id')
             ->first();
             // dd($fbrToken);
-        }
 
-        return view('backend.settings.website-settings.general', compact('invoiceSetting', 'fbrToken'));
+            $status = quantity_validation::select('product_quantity_validation')
+            ->where('business_id', $businessId)
+            ->first();
+
+            $quantityValidationStatus = $status ? $status->product_quantity_validation : 'disabled'; // default
+
+
+        }
+        return view('backend.settings.website-settings.general', compact('invoiceSetting', 'fbrToken', 'quantityValidationStatus'));
     }
 
     public function websiteInfoUpdate(Request $request)
