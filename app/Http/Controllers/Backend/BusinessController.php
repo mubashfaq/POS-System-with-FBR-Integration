@@ -81,6 +81,7 @@ class BusinessController extends Controller
             'whatsapp_link'   => 'nullable|url|max:255',
             'youtube_link'    => 'nullable|url|max:255',
             'instagram_link'  => 'nullable|url|max:255',
+            'enable_batch'    => 'nullable|boolean',
         ]);
 
     // File Upload
@@ -90,6 +91,7 @@ class BusinessController extends Controller
     }
 
     // Ab $validated use karo instead of $request->all()
+    $validated['enable_batch'] = $request->boolean('enable_batch');
     $business = Business::create($validated);
 
     // Attach business to user
@@ -134,6 +136,7 @@ class BusinessController extends Controller
             'address'         => 'nullable',
             'cnic'         => 'required|numeric|digits:13',
             'state'         => 'required|string|max:255',
+            'enable_batch'    => 'nullable|boolean',
         ]);
 
         // Handle logo upload
@@ -143,6 +146,7 @@ class BusinessController extends Controller
         }
 
         
+        $validated['enable_batch'] = $request->boolean('enable_batch');
         Business::create($validated);
         Business::create($request->only(['business_name','industry','ntn','country','city']));
 
@@ -200,6 +204,7 @@ class BusinessController extends Controller
         'youtube_link'    => 'nullable|url|max:255',
         'instagram_link'  => 'nullable|url|max:255',
         'address' => 'nullable',
+        'enable_batch'    => 'nullable|boolean',
     ]);
 
     $business = Business::findOrFail($id);
@@ -217,6 +222,7 @@ class BusinessController extends Controller
         $validated['logo'] = $business->logo;
     }
 
+    $validated['enable_batch'] = $request->boolean('enable_batch');
     $business->update($validated);
 
 

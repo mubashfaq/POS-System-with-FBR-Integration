@@ -109,6 +109,14 @@
           </div>
 
             <div class="mb-3 col-md-6">
+              <label for="enable_batch" class="form-label">Inventory Deduction Method</label>
+              <select class="form-control" name="enable_batch" id="enable_batch">
+                  <option value="1" {{ old('enable_batch', $business->enable_batch) == 1 ? 'selected' : '' }}>Show Batch Selection Modal</option>
+                  <option value="0" {{ old('enable_batch', $business->enable_batch) == 0 ? 'selected' : '' }}>Use FIFO (Auto-select oldest batch)</option>
+              </select>
+            </div>
+
+            <div class="mb-3 col-md-6">
               <label for="address" class="form-label">Address</label>
               <input type="text" class="form-control" placeholder="Enter Address" name="address"
                 value="{{ old('address', $business->address) }}">
