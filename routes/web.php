@@ -161,6 +161,8 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
         Route::get('/get/customers',[CustomerController::class,'getCustomers']);
         Route::post('/create/customers', [CustomerController::class, 'store']);
     //end pos
+    Route::get('/get/product-form-data', [ProductController::class, 'getFormData'])->name('products.formData');
+    Route::post('/create/ajax-product', [ProductController::class, 'storeAjax'])->name('products.storeAjax');
     Route::get('profile', [DashboardController::class, 'profile'])->name('profile');
     Route::post('profile/update', [AuthController::class, 'update'])->name('profile.update');
 
