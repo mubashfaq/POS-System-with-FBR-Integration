@@ -116,6 +116,16 @@
                                     $taxRate = floatval($taxRate);
                                     $taxAmount = $inclTax *  ($taxRate / 100) ;
                                     $exclTax = $inclTax - $taxAmount;
+                                     $furtherTax = 0;
+   
+                                    if (
+                                        $order->customer->is_registered &&
+                                        strtolower($order->customer->is_registered) === 'unregistered' &&
+                                        $item->product->sale_type != '3rd Schedule Goods'
+                                    ) {
+                                        $furtherTax = number_format($exclTax * 0.04, 2);
+                                    }
+                                        
                                 @endphp
 
                                 <td>{{ number_format($exclTax,2) }}</td>
@@ -147,11 +157,29 @@
                                 <td class="text-right">
                                     {{currency()->symbol.' '.number_format($exclTax,2,'.',',')}}</td>
                             </tr>
+
+                            @if($business->business_type == 'pos')
                             <tr>
                                 <th>Sales Tax:</th>
                                 <td class="text-right">
-                                    {{currency()->symbol.' '.number_format($taxAmount,2,'.',',')}}</td>
+                                    {{currency()->symbol.' '.number_format($taxAmount,2,'.',',') }}</td>
                             </tr>
+                            @endif 
+
+                            @if($business->business_type == 'digital' || $business->business_type == 'both')
+                             <tr>
+                                <th>Sales Tax:</th>
+                                <td class="text-right">
+                                    {{ currency()->symbol.' '.number_format(($taxAmount - $furtherTax), 2, '.', ',') }}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>further Tax:</th>
+                                <td class="text-right">
+                                    {{currency()->symbol.' '.number_format($furtherTax,2,'.',',')}}</td>
+                            </tr>
+                            @endif
+
                             <tr>
                                 <th>Sales Incl. Tax:</th>
                                 <td class="text-right">{{currency()->symbol.' '.number_format($inclTax,2,'.',',')}}

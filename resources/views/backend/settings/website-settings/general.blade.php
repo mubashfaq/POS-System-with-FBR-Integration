@@ -70,6 +70,14 @@
                 &nbsp;Token Settings
             </a>
             @endcan
+
+            <a class="nav-link {{ @$_GET['active-tab'] == 'turn_off_stock_restriction' ? 'active' : '' }}"
+                id="vert-tabs-10" data-toggle="pill" href="#tabs-10" role="tab" aria-controls="tabs-10"
+                aria-selected="false">
+                <i class="fas fa-key"></i>
+                &nbsp; Turn off Stock Restriction
+            </a>
+
         </div>
     </div>
     <div class="col-8 col-sm-10">
@@ -103,12 +111,13 @@
                         </div>
                         <div class="form-group">
                             <label>Meta Keywords</label>
-                            <textarea class="form-control" rows="2" name="meta_keywords" cols="50" placeholder="Enter Keywords">{{ readConfig('meta_keywords') }}</textarea>
+                            <textarea class="form-control" rows="2" name="meta_keywords" cols="50"
+                                placeholder="Enter Keywords">{{ readConfig('meta_keywords') }}</textarea>
                         </div>
                         <div class="form-group">
                             <label>Website URL</label>
-                            <input class="form-control" name="site_url" type="url"
-                                value="{{ readConfig('site_url') }}" placeholder="Enter Site URL">
+                            <input class="form-control" name="site_url" type="url" value="{{ readConfig('site_url') }}"
+                                placeholder="Enter Site URL">
                         </div>
                     </div>
                 </form>
@@ -168,8 +177,8 @@
             </div>
             @endcan
             @can('socials_settings')
-            <div class="tab-pane fade {{ @$_GET['active-tab'] == 'social-links' ? 'active show' : '' }}"
-                id="tabs-3" role="tabpanel" aria-labelledby="vert-tabs-3">
+            <div class="tab-pane fade {{ @$_GET['active-tab'] == 'social-links' ? 'active show' : '' }}" id="tabs-3"
+                role="tabpanel" aria-labelledby="vert-tabs-3">
                 <form action="{{ route('backend.admin.settings.website.social.link.update') }}" method="post">
                     @csrf
                     <div class="col-md-12 d-flex justify-content-between">
@@ -268,8 +277,8 @@
             </div>
             @endcan
             @can('style_settings')
-            <div class="tab-pane fade {{ @$_GET['active-tab'] == 'style-settings' ? 'active show' : '' }}"
-                id="tabs-4" role="tabpanel" aria-labelledby="vert-tabs-4">
+            <div class="tab-pane fade {{ @$_GET['active-tab'] == 'style-settings' ? 'active show' : '' }}" id="tabs-4"
+                role="tabpanel" aria-labelledby="vert-tabs-4">
 
                 <form action="{{ route('backend.admin.settings.website.style.settings.update') }}" method="post"
                     enctype="multipart/form-data">
@@ -383,7 +392,8 @@
                     </div>
                     <div class="col-md-12 mt-2">
                         <div class="form-group">
-                            <textarea placeholder="" class="form-control" rows="17" name="custom_css" cols="50">{{ readConfig('custom_css') }}</textarea>
+                            <textarea placeholder="" class="form-control" rows="17" name="custom_css"
+                                cols="50">{{ readConfig('custom_css') }}</textarea>
                         </div>
                     </div>
                 </form>
@@ -392,8 +402,7 @@
             @can('notification_settings')
             <div class="tab-pane fade {{ @$_GET['active-tab'] == 'notification-settings' ? 'active show' : '' }}"
                 id="tabs-6" role="tabpanel" aria-labelledby="vert-tabs-6">
-                <form action="{{ route('backend.admin.settings.website.notification.settings.update') }}"
-                    method="post">
+                <form action="{{ route('backend.admin.settings.website.notification.settings.update') }}" method="post">
                     @csrf
                     <div class="col-md-12 d-flex justify-content-between">
                         <h5>
@@ -452,8 +461,8 @@
             </div>
             @endcan
             @can('website_status_settings')
-            <div class="tab-pane fade {{ @$_GET['active-tab'] == 'website-status' ? 'active show' : '' }}"
-                id="tabs-7" role="tabpanel" aria-labelledby="vert-tabs-7">
+            <div class="tab-pane fade {{ @$_GET['active-tab'] == 'website-status' ? 'active show' : '' }}" id="tabs-7"
+                role="tabpanel" aria-labelledby="vert-tabs-7">
                 <form action="{{ route('backend.admin.settings.website.status.update') }}" method="post">
                     @csrf
                     <div class="col-md-12 d-flex justify-content-between">
@@ -471,15 +480,15 @@
                             <label>Website Status : </label>
                             <div class="radio bg-white rounded pt-2 pl-2 border">
                                 <label class="ui-check ui-check-md">
-                                    <input {{ readConfig('is_live') == 1 ? 'checked' : '' }} name="is_live"
-                                        type="radio" value="1">
+                                    <input {{ readConfig('is_live') == 1 ? 'checked' : '' }} name="is_live" type="radio"
+                                        value="1">
                                     <i class="dark-white"></i>
                                     Active
                                 </label>
                                 &nbsp; &nbsp;
                                 <label class="ui-check ui-check-md">
-                                    <input {{ readConfig('is_live') == 0 ? 'checked' : '' }} name="is_live"
-                                        type="radio" value="0">
+                                    <input {{ readConfig('is_live') == 0 ? 'checked' : '' }} name="is_live" type="radio"
+                                        value="0">
                                     <i class="dark-white"></i>
                                     Not Active
                                 </label>
@@ -488,224 +497,236 @@
 
                         <div class="form-group {{ readConfig('is_live') == 1 ? 'd-none' : '' }}" id="close_msg_div">
                             <label>Close Message</label>
-                            <textarea placeholder="Close Message" class="form-control" rows="4" name="close_msg" cols="50">Website under maintenance&lt;h1&gt;Comming SOON&lt;/h1&gt;</textarea>
+                            <textarea placeholder="Close Message" class="form-control" rows="4" name="close_msg"
+                                cols="50">Website under maintenance&lt;h1&gt;Comming SOON&lt;/h1&gt;</textarea>
                         </div>
                     </div>
                 </form>
             </div>
             @endcan
-@can('invoice_settings')
-<div class="tab-pane fade {{ @$_GET['active-tab'] == 'invoice-settings' ? 'active show' : '' }}" id="tabs-8"
-    role="tabpanel" aria-labelledby="vert-tabs-8">
-    
-    <form action="{{ route('backend.admin.settings.website.invoice.update') }}" method="post">
-        @csrf
-        <div class="col-md-12 d-flex justify-content-between">
-            <h5>
-                <i class="fas fa-file-invoice"></i>
-                &nbsp;&nbsp;Invoice Settings
-            </h5>
-            <button type="submit" class="btn action-button">
-                <i class="fas fa-reply"></i>
-                &nbsp;Save Changes
-            </button>
-        </div>
-        
-        <div class="col-md-12 mt-3">
-            {{-- <div class="form-group">
+            @can('invoice_settings')
+            <div class="tab-pane fade {{ @$_GET['active-tab'] == 'invoice-settings' ? 'active show' : '' }}" id="tabs-8"
+                role="tabpanel" aria-labelledby="vert-tabs-8">
+
+                <form action="{{ route('backend.admin.settings.website.invoice.update') }}" method="post">
+                    @csrf
+                    <div class="col-md-12 d-flex justify-content-between">
+                        <h5>
+                            <i class="fas fa-file-invoice"></i>
+                            &nbsp;&nbsp;Invoice Settings
+                        </h5>
+                        <button type="submit" class="btn action-button">
+                            <i class="fas fa-reply"></i>
+                            &nbsp;Save Changes
+                        </button>
+                    </div>
+
+                    <div class="col-md-12 mt-3">
+                        {{-- <div class="form-group">
                 <label>Note to customer message (Optional)</label>
                 <input type="text" class="form-control" placeholder="Enter message for invoice" 
                        name="note_message" value="{{ old('note_message', $invoiceSetting->note_message ?? '') }}">
-                <small class="text-muted">Yeh message tab show hoga jab "Note to customer" switch ON hogi</small>
-            </div> --}}
+                        <small class="text-muted">Yeh message tab show hoga jab "Note to customer" switch ON
+                            hogi</small>
+                    </div> --}}
 
-            <div class="form-group">
-                <label for="note_msg">Above Note Message</label>
-                <input type="text" class="form-control" id="note_msg" 
-                    name="note_msg"
-                    value="{{ $invoiceSetting->note_msg ?? '' }}"
-                    placeholder="Enter message to display above note">
+                    <div class="form-group">
+                        <label for="note_msg">Above Note Message</label>
+                        <input type="text" class="form-control" id="note_msg" name="note_msg"
+                            value="{{ $invoiceSetting->note_msg ?? '' }}"
+                            placeholder="Enter message to display above note">
+                    </div>
+
+                    <!-- Logo Switch -->
+                    <div class="form-group d-flex align-items-center">
+                        <label class="switch">
+                            <input type="hidden" name="is_show_logo_invoice" value="0">
+                            <input type="checkbox" name="is_show_logo_invoice" value="1"
+                                {{ isset($invoiceSetting) && $invoiceSetting->logo == 1 ? 'checked' : '' }}>
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="ml-3">Show Logo on Invoice</span>
+                    </div>
+
+                    <!-- Site Name Switch -->
+                    <div class="form-group d-flex align-items-center">
+                        <label class="switch">
+                            <input type="hidden" name="is_show_site_invoice" value="0">
+                            <input type="checkbox" name="is_show_site_invoice" value="1"
+                                {{ isset($invoiceSetting) && $invoiceSetting->site_name == 1 ? 'checked' : '' }}>
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="ml-3">Show Site Name</span>
+                    </div>
+
+                    <!-- Phone Switch -->
+                    <div class="form-group d-flex align-items-center">
+                        <label class="switch">
+                            <input type="hidden" name="is_show_phone_invoice" value="0">
+                            <input type="checkbox" name="is_show_phone_invoice" value="1"
+                                {{ isset($invoiceSetting) && $invoiceSetting->phone == 1 ? 'checked' : '' }}>
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="ml-3">Show Phone Number</span>
+                    </div>
+
+                    <!-- Email Switch -->
+                    <div class="form-group d-flex align-items-center">
+                        <label class="switch">
+                            <input type="hidden" name="is_show_email_invoice" value="0">
+                            <input type="checkbox" name="is_show_email_invoice" value="1"
+                                {{ isset($invoiceSetting) && $invoiceSetting->email == 1 ? 'checked' : '' }}>
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="ml-3">Show Email Address</span>
+                    </div>
+
+                    <!-- Address Switch -->
+                    <div class="form-group d-flex align-items-center">
+                        <label class="switch">
+                            <input type="hidden" name="is_show_address_invoice" value="0">
+                            <input type="checkbox" name="is_show_address_invoice" value="1"
+                                {{ isset($invoiceSetting) && $invoiceSetting->address == 1 ? 'checked' : '' }}>
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="ml-3">Show Address</span>
+                    </div>
+
+                    <!-- Customer Switch -->
+                    <div class="form-group d-flex align-items-center">
+                        <label class="switch">
+                            <input type="hidden" name="is_show_customer_invoice" value="0">
+                            <input type="checkbox" name="is_show_customer_invoice" value="1"
+                                {{ isset($invoiceSetting) && $invoiceSetting->customer == 1 ? 'checked' : '' }}>
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="ml-3">Show Customer Details</span>
+                    </div>
+
+                    <!-- Note to Customer Switch -->
+                    <div class="form-group d-flex align-items-center">
+                        <label class="switch">
+                            <input type="hidden" name="note_to_customer" value="0">
+                            <input type="checkbox" name="note_to_customer" value="1"
+                                {{ isset($invoiceSetting) && $invoiceSetting->note_to_customer == 1 ? 'checked' : '' }}>
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="ml-3">Show Note to Customer</span>
+                    </div>
+
+                    <!-- POS Invoice Width -->
+                    <div class="form-group">
+                        <label>POS Invoice Width</label>
+                        <select name="receiptMaxwidth" class="form-control col-6">
+                            <option value="300px"
+                                {{ (isset($invoiceSetting) && $invoiceSetting->post_invoice_width == '300px') ? 'selected' : '' }}>
+                                Small</option>
+                            <option value="400px"
+                                {{ (isset($invoiceSetting) && $invoiceSetting->post_invoice_width == '400px') ? 'selected' : '' }}>
+                                Medium</option>
+                            <option value="500px"
+                                {{ (isset($invoiceSetting) && $invoiceSetting->post_invoice_width == '500px') ? 'selected' : '' }}>
+                                Large</option>
+                        </select>
+                    </div>
             </div>
+            </form>
+        </div>
+        @endcan
+        @can('invoice_settings')
+        <div class="tab-pane fade {{ @$_GET['active-tab'] == 'fbr-token-settings' ? 'active show' : '' }}" id="tabs-9"
+            role="tabpanel" aria-labelledby="vert-tabs-9">
+
+            <form action="{{ route('backend.admin.settings.website.fbr.token.update') }}" method="post">
+                @csrf
+
+                <div class="col-md-12 d-flex justify-content-between">
+                    <h5>
+                        <i class="fas fa-key"></i>
+                        &nbsp;&nbsp;FBR Token Settings
+                    </h5>
+                    <button type="submit" class="btn action-button">
+                        <i class="fas fa-save"></i>
+                        &nbsp;Save Changes
+                    </button>
+                </div>
+
+                <div class="col-md-12 mt-3">
+
+                    {{-- POS Tokens --}}
+                    <div class="card p-3 mb-3">
+                        <h6 class="mb-3"><strong>POS Tokens</strong></h6>
+
+                        <div class="form-group">
+                            <label>POS Sandbox Token</label>
+                            <input type="text" name="pos_sandbox_token" class="form-control"
+                                value="{{ $fbrToken->pos_sandbox_token ?? '' }}" placeholder="Enter POS sandbox token">
+                        </div>
+
+                        <div class="form-group">
+                            <label>POS Production Token</label>
+                            <input type="text" name="pos_production_token" class="form-control"
+                                value="{{ $fbrToken->pos_production_token ?? '' }}"
+                                placeholder="Enter POS production token">
+                        </div>
+                    </div>
+
+                    {{-- Digital Tokens --}}
+                    <div class="card p-3 mb-3">
+                        <h6 class="mb-3"><strong>Digital Invoice Tokens</strong></h6>
+
+                        <div class="form-group">
+                            <label>Digital Sandbox Token</label>
+                            <input type="text" name="digital_sandbox_token" class="form-control"
+                                value="{{ $fbrToken->digital_sandbox_token ?? '' }}"
+                                placeholder="Enter Digital sandbox token">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Digital Production Token</label>
+                            <input type="text" name="digital_production_token" class="form-control"
+                                value="{{ $fbrToken->digital_production_token ?? '' }}"
+                                placeholder="Enter Digital production token">
+                        </div>
+                    </div>
+
+                    {{-- Environment Selector --}}
+                    <div class="form-group col-md-6">
+                        <label>Select Environment</label>
+                        <select name="environment" class="form-control">
+                            <option value="0" {{ (isset($fbrToken) && $fbrToken->environment == 0) ? 'selected' : '' }}>
+                                Sandbox
+                            </option>
+
+                            <option value="1" {{ (isset($fbrToken) && $fbrToken->environment == 1) ? 'selected' : '' }}>
+                                Production
+                            </option>
+                        </select>
+                        <small class="text-muted">
+                            System will automatically use selected environment token.
+                        </small>
+                    </div>
+
+                 </div>
+            </form>
+        </div>
+        @endcan
+
+        <div class="tab-pane fade {{ @$_GET['active-tab'] == 'turn_off_stock_restriction' ? 'active show' : '' }}"
+            id="tabs-10" role="tabpanel" aria-labelledby="vert-tabs-10">
+
+           
+                <div class="col-md-12 d-flex justify-content-between">
+                    <div class="custom-control custom-switch">
+                        <input type="checkbox" class="custom-control-input" id="customSwitch1"
+                        {{ $quantityValidationStatus == 'enabled' ? 'checked' : '' }}>
+                        
+                        <label class="custom-control-label" for="customSwitch1">switch to turn off stock restriction</label>
+                    </div>
+                </div>
             
-            <!-- Logo Switch -->
-            <div class="form-group d-flex align-items-center">
-                <label class="switch">
-                    <input type="hidden" name="is_show_logo_invoice" value="0">
-                    <input type="checkbox" name="is_show_logo_invoice" value="1" 
-                           {{ isset($invoiceSetting) && $invoiceSetting->logo == 1 ? 'checked' : '' }}>
-                    <span class="slider round"></span>
-                </label>
-                <span class="ml-3">Show Logo on Invoice</span>
-            </div>
-
-            <!-- Site Name Switch -->
-            <div class="form-group d-flex align-items-center">
-                <label class="switch">
-                    <input type="hidden" name="is_show_site_invoice" value="0">
-                    <input type="checkbox" name="is_show_site_invoice" value="1" 
-                           {{ isset($invoiceSetting) && $invoiceSetting->site_name == 1 ? 'checked' : '' }}>
-                    <span class="slider round"></span>
-                </label>
-                <span class="ml-3">Show Site Name</span>
-            </div>
-
-            <!-- Phone Switch -->
-            <div class="form-group d-flex align-items-center">
-                <label class="switch">
-                    <input type="hidden" name="is_show_phone_invoice" value="0">
-                    <input type="checkbox" name="is_show_phone_invoice" value="1" 
-                           {{ isset($invoiceSetting) && $invoiceSetting->phone == 1 ? 'checked' : '' }}>
-                    <span class="slider round"></span>
-                </label>
-                <span class="ml-3">Show Phone Number</span>
-            </div>
-
-            <!-- Email Switch -->
-            <div class="form-group d-flex align-items-center">
-                <label class="switch">
-                    <input type="hidden" name="is_show_email_invoice" value="0">
-                    <input type="checkbox" name="is_show_email_invoice" value="1" 
-                           {{ isset($invoiceSetting) && $invoiceSetting->email == 1 ? 'checked' : '' }}>
-                    <span class="slider round"></span>
-                </label>
-                <span class="ml-3">Show Email Address</span>
-            </div>
-
-            <!-- Address Switch -->
-            <div class="form-group d-flex align-items-center">
-                <label class="switch">
-                    <input type="hidden" name="is_show_address_invoice" value="0">
-                    <input type="checkbox" name="is_show_address_invoice" value="1" 
-                           {{ isset($invoiceSetting) && $invoiceSetting->address == 1 ? 'checked' : '' }}>
-                    <span class="slider round"></span>
-                </label>
-                <span class="ml-3">Show Address</span>
-            </div>
-
-            <!-- Customer Switch -->
-            <div class="form-group d-flex align-items-center">
-                <label class="switch">
-                    <input type="hidden" name="is_show_customer_invoice" value="0">
-                    <input type="checkbox" name="is_show_customer_invoice" value="1" 
-                           {{ isset($invoiceSetting) && $invoiceSetting->customer == 1 ? 'checked' : '' }}>
-                    <span class="slider round"></span>
-                </label>
-                <span class="ml-3">Show Customer Details</span>
-            </div>
-
-            <!-- Note to Customer Switch -->
-            <div class="form-group d-flex align-items-center">
-                <label class="switch">
-                    <input type="hidden" name="note_to_customer" value="0">
-                    <input type="checkbox" name="note_to_customer" value="1" 
-                           {{ isset($invoiceSetting) && $invoiceSetting->note_to_customer == 1 ? 'checked' : '' }}>
-                    <span class="slider round"></span>
-                </label>
-                <span class="ml-3">Show Note to Customer</span>
-            </div>
-
-            <!-- POS Invoice Width -->
-            <div class="form-group">
-                <label>POS Invoice Width</label>
-                <select name="receiptMaxwidth" class="form-control col-6">
-                    <option value="300px" {{ (isset($invoiceSetting) && $invoiceSetting->post_invoice_width == '300px') ? 'selected' : '' }}>Small</option>
-                    <option value="400px" {{ (isset($invoiceSetting) && $invoiceSetting->post_invoice_width == '400px') ? 'selected' : '' }}>Medium</option>
-                    <option value="500px" {{ (isset($invoiceSetting) && $invoiceSetting->post_invoice_width == '500px') ? 'selected' : '' }}>Large</option>
-                </select>
-            </div>
-        </div>
-    </form>
-</div>
-@endcan
-@can('invoice_settings')
-<div class="tab-pane fade {{ @$_GET['active-tab'] == 'fbr-token-settings' ? 'active show' : '' }}" 
-     id="tabs-9" role="tabpanel" aria-labelledby="vert-tabs-9">
-    
-    <form action="{{ route('backend.admin.settings.website.fbr.token.update') }}" method="post">
-        @csrf
-
-        <div class="col-md-12 d-flex justify-content-between">
-            <h5>
-                <i class="fas fa-key"></i>
-                &nbsp;&nbsp;FBR Token Settings
-            </h5>
-            <button type="submit" class="btn action-button">
-                <i class="fas fa-save"></i>
-                &nbsp;Save Changes
-            </button>
         </div>
 
-        <div class="col-md-12 mt-3">
-
-            {{-- POS Tokens --}}
-            <div class="card p-3 mb-3">
-                <h6 class="mb-3"><strong>POS Tokens</strong></h6>
-
-                <div class="form-group">
-                    <label>POS Sandbox Token</label>
-                    <input type="text" 
-                           name="pos_sandbox_token" 
-                           class="form-control"
-                           value="{{ $fbrToken->pos_sandbox_token ?? '' }}"
-                           placeholder="Enter POS sandbox token">
-                </div>
-
-                <div class="form-group">
-                    <label>POS Production Token</label>
-                    <input type="text" 
-                           name="pos_production_token" 
-                           class="form-control"
-                           value="{{ $fbrToken->pos_production_token ?? '' }}"
-                           placeholder="Enter POS production token">
-                </div>
-            </div>
-
-            {{-- Digital Tokens --}}
-            <div class="card p-3 mb-3">
-                <h6 class="mb-3"><strong>Digital Invoice Tokens</strong></h6>
-
-                <div class="form-group">
-                    <label>Digital Sandbox Token</label>
-                    <input type="text" 
-                           name="digital_sandbox_token" 
-                           class="form-control"
-                           value="{{ $fbrToken->digital_sandbox_token ?? '' }}"
-                           placeholder="Enter Digital sandbox token">
-                </div>
-
-                <div class="form-group">
-                    <label>Digital Production Token</label>
-                    <input type="text" 
-                           name="digital_production_token" 
-                           class="form-control"
-                           value="{{ $fbrToken->digital_production_token ?? '' }}"
-                           placeholder="Enter Digital production token">
-                </div>
-            </div>
-
-            {{-- Environment Selector --}}
-            <div class="form-group col-md-6">
-                <label>Select Environment</label>
-                <select name="environment" class="form-control">
-                    <option value="0"
-                        {{ (isset($fbrToken) && $fbrToken->environment == 0) ? 'selected' : '' }}>
-                        Sandbox
-                    </option>
-                
-                    <option value="1"
-                        {{ (isset($fbrToken) && $fbrToken->environment == 1) ? 'selected' : '' }}>
-                        Production
-                    </option>
-                </select>
-                <small class="text-muted">
-                    System will automatically use selected environment token.
-                </small>
-            </div>
-
-        </div>
-    </form>
-</div>
-@endcan
     </div>
 </div>
 </div>
@@ -713,44 +734,70 @@
 
 @push('script')
 <script>
-    $('input[type=radio][name=is_live]').on("change", function() {
-        if (this.value == '0') {
-            $("#close_msg_div").removeClass('d-none');
-        } else {
-            $("#close_msg_div").addClass('d-none');
-        }
-    });
+$('input[type=radio][name=is_live]').on("change", function() {
+    if (this.value == '0') {
+        $("#close_msg_div").removeClass('d-none');
+    } else {
+        $("#close_msg_div").addClass('d-none');
+    }
+});
 
-    // Checkbox values automatically update karne ke liye - CORRECTED VERSION
-    document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.switch input[type="checkbox"]').forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-                // Hidden input update karein - agar checkbox checked hai toh hidden value 0 rahegi
-                const hiddenInput = this.parentElement.querySelector('input[type="hidden"]');
-                if (hiddenInput) {
-                    hiddenInput.value = this.checked ? '0' : '0'; // Hidden input always 0 rahega
-                }
-                
-                // Debugging ke liye
-                console.log('Checkbox changed:', this.name, 'Checked:', this.checked, 'Value:', this.value);
-            });
-            
-            // Page load par bhi check karein
-            const hiddenInput = checkbox.parentElement.querySelector('input[type="hidden"]');
+// Checkbox values automatically update karne ke liye - CORRECTED VERSION
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.switch input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            // Hidden input update karein - agar checkbox checked hai toh hidden value 0 rahegi
+            const hiddenInput = this.parentElement.querySelector('input[type="hidden"]');
             if (hiddenInput) {
-                hiddenInput.value = checkbox.checked ? '0' : '0';
+                hiddenInput.value = this.checked ? '0' : '0'; // Hidden input always 0 rahega
             }
-        });
-    });
 
-    // Agar aapko manually value change karni hai toh yeh function use karein
-    function updateCheckboxValue(checkbox) {
-        checkbox.value = checkbox.checked ? '1' : '0';
-        // Hidden input ko bhi update karein
+            // Debugging ke liye
+            console.log('Checkbox changed:', this.name, 'Checked:', this.checked, 'Value:', this
+                .value);
+        });
+
+        // Page load par bhi check karein
         const hiddenInput = checkbox.parentElement.querySelector('input[type="hidden"]');
         if (hiddenInput) {
             hiddenInput.value = checkbox.checked ? '0' : '0';
         }
+    });
+});
+
+// Agar aapko manually value change karni hai toh yeh function use karein
+function updateCheckboxValue(checkbox) {
+    checkbox.value = checkbox.checked ? '1' : '0';
+    // Hidden input ko bhi update karein
+    const hiddenInput = checkbox.parentElement.querySelector('input[type="hidden"]');
+    if (hiddenInput) {
+        hiddenInput.value = checkbox.checked ? '0' : '0';
     }
+}
+
+$(document).ready(function(){
+
+    $('#customSwitch1').on('change', function() {
+
+        let status = $(this).is(':checked') ? 'enabled' : 'disabled';
+
+        $.ajax({
+           url: "{{ route('backend.admin.products.update-stock-setting') }}", 
+            type: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                status: status
+            },
+            success: function(response) {
+                console.log(response);
+            },
+            error: function(error) {
+                console.log(error);
+            }
+        });
+
+    });
+
+});
 </script>
 @endpush
