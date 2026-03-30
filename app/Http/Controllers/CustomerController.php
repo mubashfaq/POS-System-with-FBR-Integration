@@ -106,10 +106,33 @@ class CustomerController extends Controller
         if ($request->wantsJson()) {
             $request->validate([
                 'name' => 'required|string',
+                'phone' => [
+                    'nullable',
+                    'string',
+                    'max:20',
+                    Rule::unique('customers')->where(function ($query) use ($businessId) {
+                        return $query->where('business_id', $businessId);
+                    }),
+                ],
+                'ntn_cnic' => [
+                    'nullable',
+                    'integer',
+                    Rule::unique('customers')->where(function ($query) use ($businessId) {
+                        return $query->where('business_id', $businessId);
+                    }),
+                ],
+                'province' => 'nullable|string|max:255',
+                'address' => 'nullable|string|max:255',
+                'is_registered' => 'nullable|string|max:255',
             ]);
 
             $customer = Customer::create([
                 'name' => $request->name,
+                'phone' => $request->phone,
+                'ntn_cnic' => $request->ntn_cnic,
+                'province' => $request->province,
+                'address' => $request->address,
+                'is_registered' => $request->is_registered ?? 'Unregistered',
                 'business_id' => $businessId
             ]);
 
