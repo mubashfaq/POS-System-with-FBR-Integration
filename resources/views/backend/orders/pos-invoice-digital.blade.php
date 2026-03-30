@@ -105,12 +105,12 @@
               
         </div>
 
-        <div class="col-md-2 mr-4">
-          <div class="img">
+        <div class="col-6 col-md-2 mr-4">
+          <div class="img text-center">
             @if($order->type == 'pos_invoice')
-              <img src="{{ asset('assets/images/fbr_pos_invoice_system.png') }}" style="width: 200%;" alt="">
+              <img src="{{ asset('assets/images/fbr_pos_invoice_system.png') }}" class="img-fluid" alt="POS Invoice">
             @else
-              <img src="{{ asset('assets/images/fbr_logo-icon.png') }}" style="width: 200%;" alt="">
+              <img src="{{ asset('assets/images/fbr_logo-icon.png') }}" class="img-fluid" alt="Digital Invoice">
             @endif
           </div>
         </div>
