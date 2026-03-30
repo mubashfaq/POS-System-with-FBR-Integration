@@ -287,7 +287,7 @@ export default function ProductCreateDigitalModal({ show, onClose, onCreated }) 
                                         <input type="number" step="0.01" min="0" className="form-control" name="purchase_price" value={formData.purchase_price} onChange={handleChange} required />
                                     </div>
                                     <div className="mb-3 col-md-6">
-                                        <label className="form-label">Quantity</label>
+                                        <label className="form-label">Stock Quantity</label>
                                         <input type="number" className="form-control" name="quantity" value={formData.quantity} onChange={handleChange} min="0" step="1"  />
                                     </div>
 
