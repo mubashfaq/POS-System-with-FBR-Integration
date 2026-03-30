@@ -378,6 +378,11 @@ export default function ProductCreateDigitalModal({ show, onClose, onCreated }) 
                                         <label className="form-label">Discount Amount</label>
                                         <input type="number" step="0.01" min="0" className="form-control" name="discount" value={formData.discount} onChange={handleChange} />
                                     </div>
+
+                                    <div className="mb-3 col-md-6">
+                                        <label className="form-label">Quantity</label>
+                                        <input type="number" className="form-control" name="quantity" value={formData.quantity} onChange={handleChange} min="0" step="1"  />
+                                    </div>
                                     
                                     <div className="mb-3 col-md-12">
                                         <label className="form-label">Product Description</label>
