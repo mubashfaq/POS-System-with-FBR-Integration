@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from "react";
 import CreatableSelect from "react-select/creatable";
 import axios from "axios";
+import CustomerCreateModal from "./CustomerCreateModal";
+import toast from "react-hot-toast"; 
 
 const CustomerSelect = ({ setCustomerId ,setIsRegistered, emptyCart }) => {
     const [customers, setCustomers] = useState([]);
     const [selectedCustomer, setSelectedCustomer] = useState({});
+
+     // ✅ Modal state
+     const [showModal, setShowModal] = useState(false);
+     const [pendingName, setPendingName] = useState("");
 
     // Fetch existing customers from the backend
     useEffect(() => {
@@ -20,23 +26,22 @@ const CustomerSelect = ({ setCustomerId ,setIsRegistered, emptyCart }) => {
     setCustomerId(selectedCustomer?.value);
   }, [selectedCustomer]);
 
+    // ✅ Instead of creating directly, open the modal with the typed name
     const handleCreateCustomer = (inputValue) => {
-        axios
-            .post("/admin/create/customers", { name: inputValue })
-            .then((response) => {
-                const newCustomer = response.data;
-                const newOption = {
-                    value: newCustomer.id,
-                    label: newCustomer.name,
-                };
-                setCustomers((prev) => [newOption, ...prev]);
-                
-                // ✅ Route through handleChange so all the same logic applies
-                handleChange(newOption);
-            })
-            .catch((error) => {
-                console.error("Error creating customer:", error);
-            });
+        setPendingName(inputValue);
+        setShowModal(true);
+    };
+
+    // ✅ Called by modal after successful creation
+    const handleModalCreated = async (newCustomer) => {
+        const newOption = {
+            value: newCustomer.id,
+            label: newCustomer.name,
+        };
+        setCustomers((prev) => [newOption, ...prev]);
+        // setShowModal(false);
+        // setPendingName("");
+        await handleChange(newOption); // apply same logic as selecting existing
     };
 
 const handleChange = async (newValue) => {
@@ -60,6 +65,7 @@ const handleChange = async (newValue) => {
 
 
     return (
+        <>
         <CreatableSelect
             isClearable
             options={customers}
@@ -68,6 +74,15 @@ const handleChange = async (newValue) => {
             value={selectedCustomer}
             placeholder="Select or create customer"
         />
+
+        {/* ✅ Modal receives pre-filled name and reports back created customer */}
+            <CustomerCreateModal
+                show={showModal}
+                onClose={() => { setShowModal(false); setPendingName(""); }}
+                initialName={pendingName}
+                onCreated={handleModalCreated}
+            />
+        </>
     );
 };
 
