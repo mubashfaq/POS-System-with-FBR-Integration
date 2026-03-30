@@ -34,6 +34,7 @@
                         <strong>Name: {{$order->customer->name??"N/A"}}</strong><br>
                         Address: {{$order->customer->address??"N/A"}}<br>
                         Phone: {{$order->customer->phone??"N/A"}}<br>
+                        NTN/CNIC: {{$order->customer->ntn_cnic??"N/A"}}<br>
                     </address>
                     @endif
                 </div>
@@ -50,7 +51,7 @@
                         @if(readConfig('is_show_address_invoice'))Address: {{ $business->address }}<br>@endif
                         @if(readConfig('is_show_phone_invoice'))Phone: {{ $business->phone }}<br>@endif
                         @if(readConfig('is_show_email_invoice'))Email: {{ $business->email }}<br>@endif
-
+                            NTN/CNIC: {{ ($business->ntn) ? $business->ntn :$business->cnic }}
                     </address>
                 </div>
                 <!-- /.col -->
@@ -76,7 +77,7 @@
                                 <th>Product</th>
                                 <!--<th>Description</th>-->
                                 @if ($business->business_type == 'digital' || $business->business_type == 'both') 
-                                <!--<th>HS Code</th>-->
+                                <th>HS Code</th>
                                 <th>UOM</th>
                                 @endif
                                 <th>Quantity</th>
@@ -93,7 +94,7 @@
                                 <td>{{$item->product->name}}</td>
                                 <!--<td>{{$item->product->hs_description}}</td>-->
                                 @if ($business->business_type == 'digital' || $business->business_type == 'both') 
-                                <!--<td>{{$item->product->hsCode}}</td>-->
+                                <td>{{$item->product->hsCode}}</td>
                                 <td>{{$item->product->uom}}</td>
                                 @endif
                                 <td>{{$item->quantity}} {{optional($item->product->unit)->short_name}}</td>
@@ -174,7 +175,7 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>further Tax:</th>
+                                <th>Further Tax:</th>
                                 <td class="text-right">
                                     {{currency()->symbol.' '.number_format($furtherTax,2,'.',',')}}</td>
                             </tr>

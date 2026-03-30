@@ -42,17 +42,16 @@ class CartService
                 $product = Product::where('id', $productId)
                 ->where('business_id', $businessId)
                 ->firstOrFail();
-            if ($product->quantity < 0) {
+            // if ($product->quantity < 0) {
             
-                throw new \Exception('Insufficient stock');
-            }
+            //     throw new \Exception('Insufficient stock');
+            // }
 
             // If a specific purchase batch is selected, validate it
             $purchaseItem = null;
             if ($purchaseItemId) {
                 $purchaseItem = PurchaseItem::where('id', $purchaseItemId)
                     ->where('product_id', $productId)
-                    ->where('remaining_qty', '>=', 0)
                     ->firstOrFail();
             }
         }
@@ -164,10 +163,7 @@ class CartService
 
          $cart = PosCart::with('product')->findOrFail($id);
 
-            if ($cart->product->quantity < 0) {
-                throw new \Exception('Insufficient stock available');
-            }
-
+          
         }
 
         $cart->quantity = $cart->quantity + 1;
