@@ -5,15 +5,15 @@ import toast from "react-hot-toast";
 export default function ProductCreateDigitalModal({ show, onClose, onCreated }) {
     const [formData, setFormData] = useState({
         name: "",
-        sku: "",
-        brand_id: "",
-        category_id: "",
+        // sku: "",
+        // brand_id: "",
+        // category_id: "",
         price: "",
         purchase_price: "",
-        discount: "",
-        discount_type: "",
-        description: "",
-        expire_date: "",
+        // discount: "",
+        // discount_type: "",
+        // description: "",
+        // expire_date: "",
         quantity: 0,
         status: 1,
 
@@ -26,7 +26,7 @@ export default function ProductCreateDigitalModal({ show, onClose, onCreated }) 
         hs_description: "",
         uom: "",
         salesTaxWithheldAtSource: 0,
-        sale_type: "",
+        sale_type: "Goods at standard rate (default)",
         sale_type_id: "",
         rate_of_tax: "",
         rate_of_tax_id: "",
@@ -273,30 +273,16 @@ export default function ProductCreateDigitalModal({ show, onClose, onCreated }) 
                                         <input type="text" className="form-control" name="name" value={formData.name} onChange={handleChange} required />
                                     </div>
                                     <div className="mb-3 col-md-6">
-                                        <label className="form-label">SKU <span className="text-danger">*</span></label>
-                                        <input type="text" className="form-control" name="sku" value={formData.sku} onChange={handleChange} required />
-                                    </div>
-                                    <div className="mb-3 col-md-6">
-                                        <label className="form-label">Brand <span className="text-danger">*</span></label>
-                                        <select className="form-control" name="brand_id" value={formData.brand_id} onChange={handleChange} required>
-                                            <option value="">Select Brand</option>
-                                            {formOptions.brands?.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className="mb-3 col-md-6">
-                                        <label className="form-label">Category <span className="text-danger">*</span></label>
-                                        <select className="form-control" name="category_id" value={formData.category_id} onChange={handleChange} required>
-                                            <option value="">Select Category</option>
-                                            {formOptions.categories?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className="mb-3 col-md-6">
                                         <label className="form-label">Price <span className="text-danger">*</span></label>
                                         <input type="number" step="0.01" min="0" className="form-control" name="price" value={formData.price} onChange={handleChange} required />
                                     </div>
                                     <div className="mb-3 col-md-6">
                                         <label className="form-label">Purchase Price <span className="text-danger">*</span></label>
                                         <input type="number" step="0.01" min="0" className="form-control" name="purchase_price" value={formData.purchase_price} onChange={handleChange} required />
+                                    </div>
+                                    <div className="mb-3 col-md-6">
+                                        <label className="form-label">Quantity</label>
+                                        <input type="number" className="form-control" name="quantity" value={formData.quantity} onChange={handleChange} min="0" step="1"  />
                                     </div>
 
                                     {bType === 'pos' ? (
@@ -365,29 +351,7 @@ export default function ProductCreateDigitalModal({ show, onClose, onCreated }) 
                                             </div>
                                         </>
                                     )}
-
-                                    <div className="mb-3 col-md-6">
-                                        <label className="form-label">Discount Type</label>
-                                        <select className="form-control" name="discount_type" value={formData.discount_type} onChange={handleChange}>
-                                            <option value="">Select Discount Type</option>
-                                            <option value="fixed">Fixed</option>
-                                            <option value="percentage">Percentage</option>
-                                        </select>
-                                    </div>
-                                    <div className="mb-3 col-md-6">
-                                        <label className="form-label">Discount Amount</label>
-                                        <input type="number" step="0.01" min="0" className="form-control" name="discount" value={formData.discount} onChange={handleChange} />
-                                    </div>
-
-                                    <div className="mb-3 col-md-6">
-                                        <label className="form-label">Quantity</label>
-                                        <input type="number" className="form-control" name="quantity" value={formData.quantity} onChange={handleChange} min="0" step="1"  />
-                                    </div>
-                                    
-                                    <div className="mb-3 col-md-12">
-                                        <label className="form-label">Product Description</label>
-                                        <textarea className="form-control" name="description" value={formData.description} onChange={handleChange}></textarea>
-                                    </div>
+                             
                                 </div>
                                 <div className="modal-footer px-0 pb-0 border-top mt-3 pt-3">
                                     <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
