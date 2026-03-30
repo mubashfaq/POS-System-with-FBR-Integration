@@ -866,6 +866,11 @@ class ProductController extends Controller
 
         $validated['business_id'] = $businessId;
 
+        // ✅ Auto-generate SKU if not provided
+        if (empty($validated['sku'])) {
+            $validated['sku'] = $this->generateUniqueSku($validated['name']);
+        }
+
         // Remove quantity from product data — stock is managed via purchase
         $openingQty = $validated['quantity'] ?? 0;
         $validated['quantity'] = 0; // Start at 0; purchase will increment it
@@ -927,6 +932,21 @@ class ProductController extends Controller
             'data'    => $product->fresh() // fresh() to get updated quantity
         ]);
     }
+
+    private function generateUniqueSku(string $name): string
+    {
+        $base = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $name)); // strip spaces & special chars
+        $base = substr($base, 0, 12);                                   // max 12 chars from name
+        $sku  = $base . '-' . time();                                   // e.g. APPLEJUICE-1743300000
+
+        // Fallback: if somehow duplicate (same name, same second), append microseconds
+        if (Product::where('sku', $sku)->exists()) {
+            $sku = $base . '-' . str_replace('.', '', microtime(true)); // e.g. APPLEJUICE-17433000001234
+        }
+
+        return $sku;
+    }
+    
     // public function updateStockSetting(Request $request)
     // {
     //      $businessId = session('business_id');
