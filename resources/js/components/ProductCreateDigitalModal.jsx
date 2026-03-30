@@ -58,6 +58,12 @@ export default function ProductCreateDigitalModal({ show, onClose, onCreated }) 
         }
     }, [show]);
 
+    useEffect(() => {
+        if (formOptions) {
+            handleSaleTypeChange({ target: { value: "Goods at standard rate (default)" } });
+        }
+    }, [formOptions]);
+
     const fetchFormData = async () => {
         try {
             const res = await axios.get("/admin/get/product-form-data");
