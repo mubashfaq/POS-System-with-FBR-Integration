@@ -88,6 +88,13 @@
                             </tr>
                         </thead>
                         <tbody>
+                            @php
+                                $totalExclTax = 0;
+                                $totalTaxAmount = 0;
+                                $totalFurtherTax = 0;
+                                $totalInclTax = 0;
+                            @endphp
+
                             @foreach ($order->products as $item )
                             <tr>
                                 <td>{{$loop->index + 1}}</td>
@@ -99,7 +106,7 @@
                                 @endif
                                 <td>{{$item->quantity}} {{optional($item->product->unit)->short_name}}</td>
                                 <td>
-                                    {{$item->discounted_price }}
+                                    {{$item->price }}
                                     {{-- @if ($item->price>$item->discounted_price)
                                     <br><del>{{ $item->price }}</del>
                                     @endif --}}
@@ -107,31 +114,34 @@
                                 @php
                                     $inclTax = $item->total;
                                     if($business->business_type == 'digital' || $business->business_type == 'both'){
-                                    $taxRate = $item->product->rate_of_tax;
+                                        $taxRate = $item->product->rate_of_tax;
                                     } else {
                                         $taxRate = $item->product->pos_sale_tax;
-                                    } 
+                                    }
 
-                                    // Handle both "10" and "10%"
-                                    $taxRate = str_replace('%', '', $taxRate);
-                                    $taxRate = floatval($taxRate);
-                                    $taxAmount = $inclTax *  ($taxRate / 100) ;
-                                    $exclTax = $inclTax - $taxAmount;
-                                     $furtherTax = 0;
-   
+                                    $taxRate = floatval(str_replace('%', '', $taxRate));
+                                    $taxAmount = $item->sub_total * ($taxRate / 100);
+                                    $exclTax = $item->sub_total;
+                                    $furtherTax = 0;
+
                                     if (
                                         $order->customer->is_registered &&
                                         strtolower($order->customer->is_registered) === 'unregistered' &&
                                         $item->product->sale_type != '3rd Schedule Goods'
                                     ) {
-                                        $furtherTax = number_format($exclTax * 0.04, 2);
+                                        $furtherTax = $exclTax * 0.04;
                                     }
-                                        
+
+                                    // ✅ Accumulate into totals
+                                    $totalExclTax    += $exclTax;
+                                    $totalTaxAmount  += $taxAmount;
+                                    $totalFurtherTax += $furtherTax;
+                                    $totalInclTax    += $inclTax;
                                 @endphp
 
-                                <td>{{ number_format($exclTax,2) }}</td>
-                                <td>{{ number_format($taxAmount,2) }}</td>
-                                <td>{{ number_format($inclTax,2) }}</td>
+                                <td>{{ number_format($exclTax, 2) }}</td>
+                                <td>{{ number_format($taxAmount, 2) }}</td>
+                                <td>{{ number_format($inclTax, 2) }}</td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -156,14 +166,14 @@
                             <tr>
                                 <th style="width:50%">Sales Excl. Tax:</th>
                                 <td class="text-right">
-                                    {{currency()->symbol.' '.number_format($exclTax,2,'.',',')}}</td>
+                                    {{currency()->symbol.' '.number_format($totalExclTax,2,'.',',')}}</td>
                             </tr>
 
                             @if($business->business_type == 'pos')
                             <tr>
                                 <th>Sales Tax:</th>
                                 <td class="text-right">
-                                    {{currency()->symbol.' '.number_format($taxAmount,2,'.',',') }}</td>
+                                    {{currency()->symbol.' '.number_format($totalTaxAmount,2,'.',',') }}</td>
                             </tr>
                             @endif 
 
@@ -171,19 +181,19 @@
                              <tr>
                                 <th>Sales Tax:</th>
                                 <td class="text-right">
-                                    {{ currency()->symbol.' '.number_format(($taxAmount - $furtherTax), 2, '.', ',') }}
+                                    {{ currency()->symbol.' '.number_format(($totalTaxAmount - $totalFurtherTax), 2, '.', ',') }}
                                 </td>
                             </tr>
                             <tr>
                                 <th>Further Tax:</th>
                                 <td class="text-right">
-                                    {{currency()->symbol.' '.number_format($furtherTax,2,'.',',')}}</td>
+                                    {{currency()->symbol.' '.number_format($totalFurtherTax,2,'.',',')}}</td>
                             </tr>
                             @endif
 
                             <tr>
                                 <th>Sales Incl. Tax:</th>
-                                <td class="text-right">{{currency()->symbol.' '.number_format($inclTax,2,'.',',')}}
+                                <td class="text-right">{{currency()->symbol.' '.number_format($totalInclTax,2,'.',',')}}
                                 </td>
                             </tr>
                             <tr>
