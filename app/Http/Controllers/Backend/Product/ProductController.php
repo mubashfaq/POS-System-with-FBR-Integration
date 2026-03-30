@@ -15,6 +15,8 @@ use App\Models\Category;
 use App\Models\HsCode;
 use App\Models\Product;
 use App\Models\quantity_validation;
+use App\Models\Purchase;
+use App\Models\PurchaseItem;
 use App\Models\SaleType;
 use App\Models\SroItemCode;
 use App\Models\Unit;
@@ -26,6 +28,7 @@ use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\DataTables;
 use App\Services\FbrTokenService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
@@ -853,18 +856,75 @@ class ProductController extends Controller
 
         $validated = $request->validated();
         $businessId = session('business_id');
+
+        if (!$businessId) {
+            return response()->json([
+                'status' => false,
+                'message' => 'No business selected.'
+            ], 400);
+        }
+
         $validated['business_id'] = $businessId;
 
+        // Remove quantity from product data — stock is managed via purchase
+        $openingQty = $validated['quantity'] ?? 0;
+        $validated['quantity'] = 0; // Start at 0; purchase will increment it
+
         $product = Product::create($validated);
+
         if ($request->hasFile("product_image")) {
-            $product->image = $this->fileHandler->fileUploadAndGetPath($request->file("product_image"), "/public/media/products");
+            $product->image = $this->fileHandler->fileUploadAndGetPath(
+                $request->file("product_image"),
+                "/public/media/products"
+            );
             $product->save();
         }
 
+        // Auto-create opening stock purchase if quantity > 0
+        if ($openingQty > 0) {
+            DB::beginTransaction();
+            try {
+                $purchase = Purchase::create([
+                    'supplier_id'    => $validated['supplier_id'] ?? null, // nullable
+                    'user_id'        => auth()->id(),
+                    'business_id'    => $businessId,
+                    'sub_total'      => $validated['purchase_price'] * $openingQty,
+                    'tax'            => 0,
+                    'discount_value' => 0,
+                    'shipping'       => 0,
+                    'grand_total'    => $validated['purchase_price'] * $openingQty,
+                    'date'           => Carbon::now()->toDateString(),
+                    'status'         => 1,
+                ]);
+
+                PurchaseItem::create([
+                    'purchase_id'    => $purchase->id,
+                    'product_id'     => $product->id,
+                    'purchase_price' => $validated['purchase_price'],
+                    'price'          => $validated['price'],
+                    'quantity'       => $openingQty,
+                    'remaining_qty'  => $openingQty,
+                ]);
+
+                // Now increment product stock
+                $product->increment('quantity', $openingQty);
+
+                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollBack();
+                // Optionally delete the product if purchase fails
+                $product->delete();
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Product created but opening stock failed: ' . $e->getMessage()
+                ], 400);
+            }
+        }
+
         return response()->json([
-            'status' => true,
+            'status'  => true,
             'message' => 'Product created successfully!',
-            'data' => $product
+            'data'    => $product->fresh() // fresh() to get updated quantity
         ]);
     }
     // public function updateStockSetting(Request $request)

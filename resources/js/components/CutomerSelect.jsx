@@ -29,8 +29,10 @@ const CustomerSelect = ({ setCustomerId ,setIsRegistered, emptyCart }) => {
                     value: newCustomer.id,
                     label: newCustomer.name,
                 };
-                setCustomers((prev) => [newOption,...prev]);
-                setSelectedCustomer(newOption);
+                setCustomers((prev) => [newOption, ...prev]);
+                
+                // ✅ Route through handleChange so all the same logic applies
+                handleChange(newOption);
             })
             .catch((error) => {
                 console.error("Error creating customer:", error);
