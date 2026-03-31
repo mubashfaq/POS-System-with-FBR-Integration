@@ -376,7 +376,13 @@ public function store(Request $request)
     ]);
 
     
-    $token = FbrTokenService::getToken();
+    $tokens = FbrTokenService::getToken();
+
+        if (is_array($tokens)) {
+            $token = $tokens['pos_token']; 
+        } else {
+            $token = $tokens;
+        }
     $post_api_response=null;
      try {
            
@@ -736,12 +742,6 @@ public function storeDigital(Request $request)
     "scenarioId" => $SN,
     "items" => $fbrItems
 ];
-    Log::info('FBR Payload', [
-        'order_id' => $order->id ?? null,
-        'payload'  => $fbrPayload
-    ]);
-    
-    // dd($fbrPayload);
     
     // Check if FBR integration is disabled
     if (!FbrTokenService::isIntegrationEnabled()) {
@@ -767,7 +767,14 @@ public function storeDigital(Request $request)
 // dd($fbrPayload);
 
     // $token = env('FBR_TOKEN');
-    $token = FbrTokenService::getToken();
+        $tokens = FbrTokenService::getToken();
+
+        if (is_array($tokens)) {
+            $token = $tokens['digital_token']; 
+        } else {
+            $token = $tokens;
+        }
+
     try {
         // $response = Http::withOptions([
         //     'timeout' => 2420,

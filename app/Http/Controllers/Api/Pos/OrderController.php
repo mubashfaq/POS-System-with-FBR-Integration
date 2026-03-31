@@ -416,7 +416,13 @@ class OrderController extends Controller
                 ], 200);
             } else {
 
-                $token = FbrTokenService::getToken();
+                $tokens = FbrTokenService::getToken();
+
+                if (is_array($tokens)) {
+                    $token = $tokens['digital_token'];
+                } else {
+                    $token = $tokens;
+                }
 
                 try {
                     $response = Http::withOptions([
