@@ -111,7 +111,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
 
     
     Route::resource('units', UnitController::class);
-    Route::resource('currencies', CurrencyController::class);
+    // Route::resource('currencies', CurrencyController::class);
     Route::match(['get', 'post'], 'import/products', [ProductController::class,'import'])->name('products.import');
     Route::get('currencies/default/{id}', [CurrencyController::class, 'setDefault'])->name('currencies.setDefault');
     Route::get('customers/orders/{id}', [CustomerController::class, 'orders'])->name('customers.orders');
@@ -181,7 +181,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
         // website settings
         Route::prefix('website')->group(function () {
             Route::controller(WebsiteSettingController::class)->prefix('general')->group(function () {
-                Route::get('/', 'websiteGeneral')->name('settings.website.general');
+                // Route::get('/', 'websiteGeneral')->name('settings.website.general');
                 Route::post('update-info', 'websiteInfoUpdate')->name('settings.website.info.update');
                 Route::post('update-contacts', 'websiteContactsUpdate')->name('settings.website.contacts.update');
                 Route::post('update-social-links', 'websiteSocialLinkUpdate')->name('settings.website.social.link.update');
