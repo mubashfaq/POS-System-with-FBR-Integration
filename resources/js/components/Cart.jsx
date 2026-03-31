@@ -35,16 +35,13 @@ export default function Cart({
             const rateText = String(item.product.rate_of_tax).trim();
     
             let saleTax = 0;
-            let exTaxAmount = baseTotal;
-    
+            let exTaxAmount = baseTotal; // price is already ex-tax
+
             if (rateText.endsWith("%")) {
                 const rate = parseFloat(rateText.replace("%", ""));
-                exTaxAmount = baseTotal / (1 + rate / 100);
-                saleTax = baseTotal - exTaxAmount;
+                saleTax = exTaxAmount * (rate / 100); // ✅ direct %
             } else {
-                const taxValue = parseFloat(rateText) || 0;
-                saleTax = taxValue;
-                exTaxAmount = baseTotal - taxValue;
+                saleTax = parseFloat(rateText) || 0;
             }
     
             let furtherTax = 0;
