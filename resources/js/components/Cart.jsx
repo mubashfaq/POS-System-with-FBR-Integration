@@ -25,58 +25,58 @@ export default function Cart({
     const registrationStatus = isRegistered || "Registered";
 
     useEffect(() => {
-        let subTotalCalc = 0;
+        let subTotalExTax = 0;
         let furtherTaxCalc = 0;
-
+        let saleTaxCalc = 0;
+    
         const updatedCarts = carts.map((item) => {
-            // const baseTotal = Number(item.product.discounted_price) * item.quantity;
-            const price = Number(
-                item.unit_price ?? item.product.discounted_price,
-            );
+            const price = Number(item.unit_price ?? item.product.discounted_price);
             const baseTotal = price * item.quantity;
-
+            const rateText = String(item.product.rate_of_tax).trim();
+    
+            let saleTax = 0;
+            let exTaxAmount = baseTotal;
+    
+            if (rateText.endsWith("%")) {
+                const rate = parseFloat(rateText.replace("%", ""));
+                exTaxAmount = baseTotal / (1 + rate / 100);
+                saleTax = baseTotal - exTaxAmount;
+            } else {
+                const taxValue = parseFloat(rateText) || 0;
+                saleTax = taxValue;
+                exTaxAmount = baseTotal - taxValue;
+            }
+    
             let furtherTax = 0;
             if (
-                item.product.sale_type?.trim().toLowerCase() !=
-                    "3rd schedule goods" &&
+                item.product.sale_type?.trim().toLowerCase() !== "3rd schedule goods" &&
                 registrationStatus?.trim().toLowerCase() === "unregistered"
             ) {
-                const rateText = String(item.product.rate_of_tax).trim();
-                    console.log("rateText", rateText);
-                if (rateText.endsWith("%")) {
-                    const rate = parseFloat(rateText.replace("%", ""));
-                    const valueExTax = baseTotal / (1 + rate / 100);
-                    furtherTax = valueExTax * (4/100);
-                } else {
-                    // agar fixed tax number
-                    const taxValue = parseFloat(rateText) || 0;
-                    furtherTax = taxValue;
-                }
+                furtherTax = exTaxAmount * (4 / 100);
             }
-
-            subTotalCalc += baseTotal;
+    
+            subTotalExTax += exTaxAmount;
+            saleTaxCalc += saleTax;
             furtherTaxCalc += furtherTax;
-
+    
             return {
                 ...item,
-                base_total: baseTotal.toFixed(2),
+                base_total: exTaxAmount.toFixed(2),
+                sale_tax: saleTax.toFixed(2),
                 further_tax: furtherTax.toFixed(2),
-                total_with_tax: (baseTotal + furtherTax).toFixed(2),
+                total_with_tax: (exTaxAmount + furtherTax + saleTax).toFixed(2), // ✅ FIXED
             };
         });
-
+    
+        const grandTotal = subTotalExTax + saleTaxCalc + furtherTaxCalc;
+    
         setCartItems(updatedCarts);
-        setSubTotal(subTotalCalc.toFixed(2));
+        setSubTotal(subTotalExTax.toFixed(2));
         setFurtherTaxTotal(furtherTaxCalc.toFixed(2));
-        setGrandTotal((subTotalCalc + furtherTaxCalc).toFixed(2));
-
-        // Send totals to POS
+        setGrandTotal(grandTotal.toFixed(2));
+    
         if (onTotalsChange) {
-            onTotalsChange(
-                subTotalCalc,
-                furtherTaxCalc,
-                subTotalCalc + furtherTaxCalc,
-            );
+            onTotalsChange(subTotalExTax, saleTaxCalc, furtherTaxCalc, grandTotal);
         }
     }, [carts, registrationStatus]);
 
@@ -372,13 +372,17 @@ export default function Cart({
                                                                     further
                                                                     tax
                                                                 </div>
+                                                                <div className="small text-warning">+{item.sale_tax} sale tax</div>  {/* ✅ NEW */}
                                                             </>
                                                         ) : (
-                                                            <div className="font-weight-bold">
-                                                                {
-                                                                    item.base_total
-                                                                }
-                                                            </div>
+                                                            <>
+                                                                <div className="font-weight-bold">
+                                                                    {
+                                                                        item.base_total
+                                                                    }
+                                                                </div>
+                                                                <div className="small text-warning">+{item.sale_tax} sale tax</div>  {/* ✅ NEW */}
+                                                            </>
                                                         )}
                                                     </td>
                                                 </tr>
