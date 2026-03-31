@@ -348,7 +348,7 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                     </p>
                 </a>
                 <ul class="nav nav-treeview">
-                    <!-- @if ($currentBusiness->hasAnyPermission([
+                    {{-- @if ($currentBusiness->hasAnyPermission([
                     'website_settings',
                     'contact_settings',
                     'socials_settings',
@@ -365,8 +365,8 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                             <p>General Settings</p>
                         </a>
                     </li>
-                    @endif -->
-                    <!-- @if ($currentBusiness->hasAnyPermission(['currency_create','currency_view','currency_update','currency_delete']))
+                    @endif  --}}
+                     {{-- @if ($currentBusiness->hasAnyPermission(['currency_create','currency_view','currency_update','currency_delete']))
                     <li class="nav-item">
                         <a href="{{ route('backend.admin.currencies.index') }}"
                             class="nav-link {{ request()->routeIs([ 'backend.admin.currencies.index', 'backend.admin.currencies.create', 'backend.admin.currencies.edit']) ? 'active' : '' }}">
@@ -374,7 +374,7 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                             <p>Currency</p>
                         </a>
                     </li>
-                    @endif -->
+                    @endif  --}}
                     @if ($currentBusiness->hasAnyPermission([
                     'role_create',
                     'role_view',
