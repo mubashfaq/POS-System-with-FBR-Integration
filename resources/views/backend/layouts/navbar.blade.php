@@ -18,6 +18,21 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
         </li>
     </ul>
 
+    <ul class="navbar-nav ml-auto" >
+        <?php
+
+        use Illuminate\Support\Facades\DB;
+
+        $fbrTokenDetail = DB::table('fbr_tokens')->where('business_id', session('business_id'))->first();
+        if ($fbrTokenDetail->environment == '0') {
+            echo '<li class="nav-item text-danger fw-bold"> Sandbox Token (Allow Testing)</li>';
+        }else{
+            echo "<li class='nav-item text-danger fw-bold'> Production Token (Don't make extra invoices )</li>";
+
+        }
+        ?>
+    </ul>
+
     <!-- Right navbar links -->
     <ul class="navbar-nav ml-auto">
 
