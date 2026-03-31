@@ -527,7 +527,7 @@ public function storeDigital(Request $request)
     $unitPrice = $cart->price_override ?? $product->discounted_price;
     $qty = $cart->quantity;
     $lineTotal = round($unitPrice * $qty, 2);
-    $subTotal  = round($product->price * $qty, 2);
+    $subTotal  = round($unitPrice * $qty, 2);
     $discount  = round(($product->price - $unitPrice) * $qty, 2);
 
    // FURTHER TAX (NEW)
@@ -536,19 +536,32 @@ public function storeDigital(Request $request)
 
         if (str_ends_with($rateText, '%')) {
             $rate = floatval(str_replace('%', '', $rateText));
-            $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
+          //  $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
+            $valueExTax = round($lineTotal, 2);
+            $salesTax  = round($valueExTax * ($rate / 100), 2);
 
-            if (
-                $customer->is_registered &&
-                strtolower($customer->is_registered) === 'unregistered' &&
-                $product->sale_type != '3rd Schedule Goods'
-            ) {
-                $furtherTax = round($valueExTax * 0.04, 2);
+            if($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods'){
+                $furtherTax = round($valueExTax * (4 / 100), 2);
+  
+            }else{
+                $furtherTax = 0;
+            }
+
+        } else {
+            $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+           // $valueExTax = round($lineTotal - $salesTax, 2);
+           $valueExTax = round($lineTotal, 2);
+
+             if($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods'){
+                $furtherTax = round($valueExTax * (4 / 100), 2);
+  
+            }else{
+                $furtherTax = 0;
             }
         }
 
         //  FINAL TOTAL = line total + further tax
-        $finalTotal = round($lineTotal + $furtherTax, 2);
+        $finalTotal = round($lineTotal + $salesTax + $furtherTax, 2);
 
     $totalAmountOrder += $finalTotal;
 
@@ -602,8 +615,8 @@ public function storeDigital(Request $request)
 
         if (str_ends_with($rateText, '%')) {
             $rate = floatval(str_replace('%', '', $rateText));
-            $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
-            // $salesTax = round($lineTotal - $valueExTax, 2);
+          //  $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
+            $valueExTax = $lineTotal;
             $salesTax  = round($valueExTax * ($rate / 100), 2);
 
             if($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods'){
@@ -615,7 +628,8 @@ public function storeDigital(Request $request)
 
         } else {
             $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
-            $valueExTax = round($lineTotal - $salesTax, 2);
+           // $valueExTax = round($lineTotal - $salesTax, 2);
+           $valueExTax = $lineTotal;
 
              if($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods'){
                 $furtherTax = round($valueExTax * (4 / 100), 2);
@@ -653,15 +667,15 @@ public function storeDigital(Request $request)
             "uoM" => $product->uom,
 
             // FLOAT banane ke liye (1.0, 50.0)
-            "quantity" => (float) $qty,
-            "totalValues" => (float) ($lineTotal + $furtherTax),
-            "valueSalesExcludingST" => (float) $valueExTax,
-            "fixedNotifiedValueOrRetailPrice" => (float) $product->price,
-            "salesTaxApplicable" => (float) $salesTax,
+            "quantity" => number_format((float) $qty, 2),
+            "totalValues" => number_format(($lineTotal + $salesTax + $furtherTax), 2, '.', ''),
+            "valueSalesExcludingST" => number_format((float) $valueExTax , 2),
+            "fixedNotifiedValueOrRetailPrice" => number_format((float) $product->price,2),
+            "salesTaxApplicable" => number_format((float) $salesTax,2),
 
             "salesTaxWithheldAtSource" => 0,
             "extraTax" => 0,
-            "furtherTax" => (float) $furtherTax,
+            "furtherTax" => number_format((float) $furtherTax,2),
 
             // NULL handling
             "sroScheduleNo" => $product->sro_schedule ?: null,
@@ -679,8 +693,10 @@ public function storeDigital(Request $request)
 
         if (strtolower($customer->is_registered) === 'registered') {
             $buyerRegType = 'Registered';
+            $SN = "SN001";
         } else {
             $buyerRegType = 'Unregistered';
+            $SN = "SN002";
            
         }
     // $fbrPayload = [
@@ -717,7 +733,7 @@ public function storeDigital(Request $request)
     "buyerProvince" => $customer->province,
     "buyerAddress" => $customer->address,
     "invoiceRefNo" => "INV-" . $order->id,
-    "scenarioId" => "SN002",
+    "scenarioId" => $SN,
     "items" => $fbrItems
 ];
     Log::info('FBR Payload', [
