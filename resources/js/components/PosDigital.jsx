@@ -31,6 +31,9 @@ export default function Pos() {
     const [totalPages, setTotalPages] = useState(0);
     const [loading, setLoading] = useState(false);
     const [furtherTaxTotal, setFurtherTaxTotal] = useState(0);
+    const [SaleTax, setSaleTax] = useState(0);
+    const [subTotal, setSubTotal] = useState(0);
+
 
     const [showBatchModal, setShowBatchModal] = useState(false);
     const [availableBatches, setAvailableBatches] = useState([]);
@@ -138,8 +141,8 @@ const emptyCartOnCustomerChange = async () => {
         try {
             const res = await axios.get("/admin/digitalCart");
             const data = res.data;
-            setTotal(data?.total);
-            setUpdateTotal(data?.total - orderDiscount);
+            // setTotal(data?.total);
+            // setUpdateTotal(data?.total - orderDiscount);
             setCarts(data?.carts);
             console.log("CART FROM API", data?.carts);
 
@@ -359,11 +362,14 @@ function orderCreate() {
 }
 
 
-const handleCartTotals = (subTotalCalc, furtherTaxCalc, grandTotalCalc) => {
-    setTotal(grandTotalCalc); // ✅ include further tax
-    setUpdateTotal(grandTotalCalc - orderDiscount); // after discount
-    setDue(grandTotalCalc - orderDiscount - paid); // due
-    setFurtherTaxTotal(furtherTaxCalc); // optional display
+const handleCartTotals = (subTotalCalc, saleTaxCalc, furtherTaxCalc, grandTotalCalc) => {
+    const computedSubTotal = subTotalCalc + furtherTaxCalc; 
+    setSubTotal(computedSubTotal.toFixed(2));
+    setSaleTax(saleTaxCalc.toFixed(2));
+    setTotal(grandTotalCalc);                              
+    setUpdateTotal((grandTotalCalc - orderDiscount).toFixed(2));
+    setDue((grandTotalCalc - orderDiscount - paid).toFixed(2));
+    setFurtherTaxTotal(furtherTaxCalc.toFixed(2));
 };
 
 
@@ -507,8 +513,13 @@ function createOrder(redirect = false) {
                                         <div className="col">Sub Total:</div>
                                         <div className="col text-right mr-2">
                                             {/* {total} */}
-                                            {Number(total).toFixed(2)}
+                                            {/* {Number(total).toFixed(2)} */}
+                                            {subTotal}
                                         </div>
+                                    </div>
+                                    <div className="row text-bold mb-1">
+                                        <div className="col">Sale Tax:</div>
+                                        <div className="col text-right mr-2">{Number(SaleTax).toFixed(2)}</div>
                                     </div>
                                     {/* <div className="row text-bold mb-1">
                                         <div className="col">Discount:</div>
