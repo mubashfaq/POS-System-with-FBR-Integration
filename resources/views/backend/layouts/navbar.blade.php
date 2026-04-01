@@ -25,9 +25,9 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
 
         $fbrTokenDetail = DB::table('fbr_tokens')->where('business_id', session('business_id'))->first();
         if ($fbrTokenDetail->environment == '0') {
-            echo '<li class="nav-item text-danger fw-bold"> Sandbox Token (Allow Testing)</li>';
+            echo '<li class="nav-item text-danger fw-bold"> Sandbox</li>';
         }else{
-            echo "<li class='nav-item text-danger fw-bold'> Production Token (Don't make extra invoices )</li>";
+            echo "<li class='nav-item text-danger fw-bold'> Production</li>";
 
         }
         ?>
