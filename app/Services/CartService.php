@@ -7,14 +7,14 @@ use App\Models\Product;
 use App\Models\PurchaseItem;
 use App\Models\quantity_validation;
 use Illuminate\Support\Facades\Auth;
-
+use Illuminate\Support\Facades\Log;
 
 class CartService
 {
 
     public function addToCart($productId, $businessId, $registrationStatus, $purchaseItemId = null)
     {
-        $businessId = session('business_id');
+        $businessId = session('business_id') ? session('business_id') : $businessId;
 
 
         $quantityVal = quantity_validation::where('business_id' , $businessId)->first();
@@ -134,9 +134,10 @@ class CartService
         return $furtherTax;
     }
 
-    public function increment($id)
+    public function increment($id, $businessId)
     {
-        $businessId = session('business_id');
+        $businessId = session('business_id') ? session('business_id') : $businessId;
+
         
 
         // Check batch stock limit if batch is selected
@@ -199,9 +200,9 @@ class CartService
         return $deletedCount;
     }
 
-    public function updateQuantity($id, $quantity, $registrationStatus)
+    public function updateQuantity($id, $quantity, $registrationStatus, $businessId)
     {
-         $businessId = session('business_id');
+        $businessId = session('business_id') ? session('business_id') : $businessId;
         $cart = PosCart::with('product')->findOrFail($id);
 
         // Stock check: batch-aware
