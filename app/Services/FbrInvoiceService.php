@@ -12,7 +12,13 @@ class FbrInvoiceService
     public function postInvoice($payload)
     {
         
-        $token = FbrTokenService::getToken();
+        $tokens = FbrTokenService::getToken();
+
+        if (is_array($tokens)) {
+            $token = $tokens['pos_token']; 
+        } else {
+            $token = $tokens;
+        }
 
         $response = Http::withHeaders([
             'Authorization' => "Bearer $token",

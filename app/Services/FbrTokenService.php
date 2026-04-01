@@ -46,14 +46,20 @@ class FbrTokenService
         $type = $business->business_type;
 
         // 1 = production, 0 = sandbox
-        if ($settings->environment == 1) {
-            return $type === 'digital'
-                ? $settings->digital_production_token
-                : $settings->pos_production_token;
-        }
+        $env = $settings->environment == 1 ? 'production' : 'sandbox';
 
-        return $type === 'digital'
-            ? $settings->digital_sandbox_token
-            : $settings->pos_sandbox_token;
+        switch ($type) {
+            case 'digital':
+                return $settings->{"digital_{$env}_token"};
+
+            case 'pos':
+                return $settings->{"pos_{$env}_token"};
+
+            default:
+                return [
+                    'digital_token' => $settings->{"digital_{$env}_token"},
+                    'pos_token' => $settings->{"pos_{$env}_token"},
+                ];
+        }
     }
 }
