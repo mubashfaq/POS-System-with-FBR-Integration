@@ -111,7 +111,10 @@ export default function Cart({
 
     function increment(id) {
         const item = carts.find((cart) => cart.id === id);
-        if (item && item.quantity < item.product.quantity) {
+        // if (item && item.quantity < item.product.quantity) {
+        //     updateQuantity(id, item.quantity + 1);
+        // }
+         if (item) {
             updateQuantity(id, item.quantity + 1);
         }
     }
@@ -278,11 +281,11 @@ export default function Cart({
                                                                     item.id,
                                                                 )
                                                             }
-                                                            disabled={
-                                                                item.quantity >=
-                                                                item.product
-                                                                    .quantity
-                                                            }
+                                                            // disabled={
+                                                            //     item.quantity >=
+                                                            //     item.product
+                                                            //         .quantity
+                                                            // }
                                                         >
                                                             <i className="fas fa-plus"></i>
                                                         </button>
