@@ -1260,152 +1260,95 @@ public function storeDigital(Request $request)
 //         $sale_type = $product->sale_type;
 //         $sro_schedule = $product->sro_schedule;
         
-//         $fbrItems[] = [
-//             "hsCode" => $hsCode,
-//             "productDescription" => $hs_desc,
-//             "rate" => $rate_of_taxx,
-//             "uoM" => $uom,
-//             "quantity" => (float) number_format($quantity, 4, '.', ''),
-//             "totalValues" => (float) number_format($lineTotal, 2, '.', ''),
-//             "valueSalesExcludingST" => (float) number_format($valueExTax, 2, '.', ''),
-//             "fixedNotifiedValueOrRetailPrice" => 0,
-//             "salesTaxApplicable" => (float) number_format($salesTax, 2, '.', ''),
-//             // "salesTaxApplicable" => 9,
-//             // "salesTaxWithheldAtSource" => 5,
-//             "salesTaxWithheldAtSource" => (float) number_format($cart->salesTaxWithheldAtSource, 2, '.', ''),
-//             // numberic extra tax fbr 
-//             "extraTax" => 0.00,
-//             "furtherTax" => 0,
-//             "sroScheduleNo" => $sro_schedule,
-//             "fedPayable" => 0,
-//             "discount" => (float) number_format($discount, 2, '.', ''),
-//             // "discount" => $discount,
-//             "saleType" => $sale_type,
-//             // "saleType" => "Local Sale",
-//             "sroItemSerialNo" => $sro_item,
-//         ];
-//     }
+                return response()->json([
+                    'message' => 'Order completed successfully (FBR Not Integrated)',
+                    'order'   => $order,
+                ], 200);
+            } else {
 
-//     // BUILD FBR PAYLOAD
-//     $customer = Customer::find($request->customer_id);
-//      $businessId = session('business_id');
-//      $businessData = Business::find($businessId);
+                $tokens = FbrTokenService::getToken();
 
-//     $fbrPayload = [
-//         "invoiceType" => "Sale Invoice",
-//         "invoiceDate" => now()->format('Y-m-d'),
-//         "sellerNTNCNIC" => $businessData->cnic,
-//         "sellerBusinessName" => $businessData->business_name,
-//         "sellerProvince" => $businessData->state,
-//         "sellerAddress" => $businessData->address,
-//         "buyerNTNCNIC" => "",
-//         "buyerBusinessName" => $customer->name,
-//         "buyerProvince" => $customer->province ?? "Punjab",
-//         "buyerAddress" => $customer->address ?? "",
-//         "buyerRegistrationType" => $customer->is_registered ? "Registered" : "Unregistered",
-//         "invoiceRefNo" => "INV-" . $order->id,
-//         "scenarioId" => "SN002",
-//         "items" => $fbrItems
-//     ];
+                if (is_array($tokens)) {
+                    $token = $tokens['digital_token'];
+                } else {
+                    $token = $tokens;
+                }
 
-//     // SEND TO FBR API
-//     $token = env('FBR_TOKEN');
+                try {
+                    $response = Http::withOptions([
+                        'timeout' => 620,
+                        'connect_timeout' => 620,
+                    ])->withHeaders([
+                        'Authorization' => "Bearer $token",
+                        'Content-Type' => 'application/json',
+                        'Accept-Encoding' => 'gzip, deflate, br',
+                        'Accept' => 'application/json'
+                    ])->post("https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb", $fbrPayload);
+                } catch (\Illuminate\Http\Client\ConnectionException $e) {
+                    info('Connection Exception: ' . $e->getMessage());
+                }
 
-//    try {
-//     $response = Http::withOptions([
-//     'timeout' => 620,        // total request timeout
-//     'connect_timeout' => 620, // connection timeout
-//     ])->withHeaders([
-//         'Authorization' => "Bearer $token",
-//         'Content-Type' => 'application/json',
-//         'Accept-Encoding' => 'gzip, deflate, br',
-//         'Accept' => 'application/json'
-//     ])->post("https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb", $fbrPayload);
+                $responseJson = $response->json();
 
-//     } catch (\Illuminate\Http\Client\ConnectionException $e) {
-//         info('Connection Exception: ' . $e->getMessage());
-// }
+                $statusCode = data_get($responseJson, 'validationResponse.statusCode');
+                $errorCode  = data_get($responseJson, 'validationResponse.errorCode');
+                $errorMsg   = data_get($responseJson, 'validationResponse.error');
 
-//     // RECORD PAYMENT (IF ANY)
+                $order->update([
+                    'api_status'    => $response->status(),
+                    'error_code'    => $errorCode,
+                    'error_message' => $errorMsg,
+                    'api_message'   => $response->ok(),
+                ]);
 
-//     if ($request->paid > 0) {
-//         $order->transactions()->create([
-//             'amount'      => $request->paid,
-//             'customer_id' => $order->customer_id,
-//             'user_id'     => auth()->id(),
-//             'paid_by'     => 'cash',
-//         ]);
-//     }
+                if ($statusCode != "00") {
 
-//     PosCart::where('user_id', auth()->id())->delete();
+                    DB::rollBack();
 
-//      $responseJson = $response->json();
+                    return response()->json([
+                        'error' => 'FBR validation failed',
+                        'error_code' => $errorCode,
+                        'error_message' => $errorMsg,
+                        'fbr_response' => $responseJson
+                    ], 422);
+                }
 
-//     $errorCode =
-//     data_get($responseJson, 'validationResponse.invoiceStatuses.0.errorCode')
-//     ?? data_get($responseJson, 'errorCode');
+                DB::commit();
 
-//     $errorMessage =
-//     data_get($responseJson, 'validationResponse.invoiceStatuses.0.error')
-//     ?? data_get($responseJson, 'error');
+                /* ================= POST INVOICE ================= */
 
-//     // update fbr api status and response in orders table
-//     Order::where('id', $order->id)->update([            
-//         'api_status' => $response->status(),
-//         'error_code' => $errorCode,
-//         'error_message' => $errorMessage,
-//         'api_message' => $response->ok(),
+                try {
+                    $post_api_response = Http::withOptions([
+                        'timeout' => 620,
+                        'connect_timeout' => 620,
 
-//     ]);
+                    ])->withHeaders([
+                        'Authorization' => "Bearer $token",
+                        'Content-Type' => 'application/json',
+                        'Accept-Encoding' => 'gzip, deflate, br',
+                        'Accept' => 'application/json'
+                    ])->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb", $fbrPayload);
+                } catch (\Illuminate\Http\Client\ConnectionException $e) {
+                    info('Connection Exception: ' . $e->getMessage());
+                }
 
-//     // Save Order logs 
-//        OrderLog::create([
-//         'order_id'       => $order->id,
-//         'request_payload'=> $fbrPayload,
-//         'response'       => $responseJson,
-//         'status_code'    => $response->status(),
-//         'error_code'     => $errorCode,
-//         'error_message'  => $errorMessage,
-//         'success'        => $response->ok(),
-//     ]);
+                $postResponseJson = $post_api_response->json();
 
-//     // FBR Logs 
+                $invoiceNumber = data_get($postResponseJson, 'invoiceNumber');
 
-//     // Log the request & response
-//     Log::channel('fbr')->info('FBR API Request', [
-//         'order_id' => $order->id,
-//         'payload'  => $fbrPayload
-//     ]);
+                $order->update([
+                    'fbr_invoice_no' => $invoiceNumber,
+                ]);
 
+                PosCart::where('user_id', auth()->id())->delete();
 
-//     Log::channel('fbr')->info('FBR API Response', [
-//         'order_id'       => $order->id,
-//         'response'       => $responseJson,
-//         'status_code'    => $response->status(),
-//         'error_code'     => $errorCode,
-//         'error_message'  => $errorMessage,
-//         'success'        => $response->ok(),
-//     ]);
-
-
-//     // FINAL RESPONSE
-//     return response()->json([
-//         'message' => 'Order completed successfully!',
-//         'fbr_payload_sent' => $fbrPayload,
-//         'fbr_api_response' => $response->json(),
-//         'fbr_api_response_statu' => $response->status(),
-//         'fbr_api_response_message' => $response->ok(),
-//     ], 200);
-
-
-//     // return response()->json(['message' => 'Order completed successfully', 'order' => $order], 200);
-// }
-
-
-    public function show(string $id)
-    {
-        //
-    }
+                return response()->json([
+                    'message' => 'Order completed successfully',
+                    'order'   => $order,
+                    'fbr_invoice_no' => $invoiceNumber
+                ], 200);
+            }
+        } catch (\Exception $e) {
 
     /**
      * Show the form for editing the specified resource.
