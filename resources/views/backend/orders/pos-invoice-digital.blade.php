@@ -99,18 +99,18 @@
       <h6>{{ $order->fbr_invoice_no }}</h6>
       <!-- Qr and image -->
       <div class="row justify-content-center">
-        <div class="col-md-3 mt-2">
+        <div class="col-6 col-md-3 mt-2">
             <!-- <h3>FBR Dig</h3> -->
             <div id="qrcode"></div>
               
         </div>
 
-        <div class="col-6 col-md-2 mr-4">
-          <div class="img text-center">
+        <div class="col-6 col-md-2 mr-md-4 fbr-logo">
+          <div class="img">
             @if($order->type == 'pos_invoice')
-              <img src="{{ asset('assets/images/fbr_pos_invoice_system.png') }}" class="img-fluid" alt="POS Invoice">
+              <img src="{{ asset('assets/images/fbr_pos_invoice_system.png') }}" alt="POS Invoice">
             @else
-              <img src="{{ asset('assets/images/fbr_logo-icon.png') }}" class="img-fluid" alt="Digital Invoice">
+              <img src="{{ asset('assets/images/fbr_logo-icon.png') }}" alt="Digital Invoice">
             @endif
           </div>
         </div>
@@ -134,6 +134,21 @@
 
 @push('style')
 <style>
+  .fbr-logo img {
+    width: 200%;
+  }
+
+  @media screen and (max-width: 767px) {
+    .fbr-logo img {
+      width: 100%;
+      max-width: 80px;
+    }
+
+    .fbr-logo {
+      margin-top: -8px;
+    }
+  }
+
   .receipt-container {
     border: 1px dotted #000;
     padding: 8px;
