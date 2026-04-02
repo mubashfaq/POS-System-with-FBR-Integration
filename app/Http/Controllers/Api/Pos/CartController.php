@@ -38,11 +38,13 @@ class CartController extends Controller
         }
     }
 
-    public function increment($id, CartService $cartService)
+    public function increment(Request $request, $id, CartService $cartService)
     {
+        $business = $request->attributes->get('business');
+
         try {
 
-            $cart = $cartService->increment($id);
+            $cart = $cartService->increment($id, $business->id);
 
             return response()->json([
                 'message' => 'Cart updated',
@@ -81,12 +83,15 @@ class CartController extends Controller
             'quantity' => 'required|integer|min:1',
         ]);
 
+        $business = $request->attributes->get('business');
+
         try {
 
             $cart = $cartService->updateQuantity(
                 $request->cart_id,
                 $request->quantity,
-                currentRegistrationStatus()
+                currentRegistrationStatus(),
+                $business->id
             );
 
             return response()->json([
