@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Business;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Rinvex\Country\CountryLoader;
@@ -83,7 +84,6 @@ class BusinessController extends Controller
             'instagram_link'  => 'nullable|url|max:255',
             'enable_batch'    => 'nullable|boolean',
         ]);
-
     // File Upload
     if ($request->hasFile('logo')) {
         $logoPath = $request->file('logo')->store('logos', 'public');
@@ -92,22 +92,41 @@ class BusinessController extends Controller
 
     // Ab $validated use karo instead of $request->all()
     $validated['enable_batch'] = $request->boolean('enable_batch');
-    $business = Business::create($validated);
+    DB::beginTransaction();
 
-    // Attach business to user
-    Auth::user()->businesses()->attach($business->id);
+    try {
 
-        // ✅ Create UserBusiness record
-    $userBusiness = \App\Models\UserBusiness::where('user_id', Auth::id())
-        ->where('business_id', $business->id)
-        ->first();
+        $business = Business::create($validated);
 
-    if ($userBusiness) {
-        $userBusiness->assignRole(1);
+        DB::table('quantity_validations')->insert([
+            'business_id' => $business->id,
+        ]);
+
+        DB::table('fbr_tokens')->insert([
+            'business_id' => $business->id,
+        ]);
+
+        // Attach business to user
+        Auth::user()->businesses()->attach($business->id);
+
+            // ✅ Create UserBusiness record
+        $userBusiness = \App\Models\UserBusiness::where('user_id', Auth::id())
+            ->where('business_id', $business->id)
+            ->first();
+
+        if ($userBusiness) {
+            $userBusiness->assignRole(1);
+        }
+
+        // Store selected business in session
+        session(['business_id' => $business->id]);
+
+        DB::commit();
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        throw $e;
     }
-
-    // Store selected business in session
-    session(['business_id' => $business->id]);
 
     return redirect()->route('backend.admin.dashboard')
         ->with('success', 'Business created successfully');
@@ -147,8 +166,10 @@ class BusinessController extends Controller
 
         
         $validated['enable_batch'] = $request->boolean('enable_batch');
-        Business::create($validated);
-        Business::create($request->only(['business_name','industry','ntn','country','city']));
+        $business = Business::create($validated);
+        $business = Business::create($request->only(['business_name','industry','ntn','country','city']));
+
+        
 
         return redirect()->route('backend.admin.business.index')
                          ->with('success', 'Business created successfully!');
