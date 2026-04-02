@@ -21,15 +21,25 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
     <ul class="navbar-nav ml-auto" >
         <?php
 
-        use Illuminate\Support\Facades\DB;
+use App\Services\FbrTokenService;
+use Illuminate\Support\Facades\DB;
 
+        $token = env('FBR_TOKEN');
+        $tokens = FbrTokenService::getToken();
+
+        if (is_array($tokens)) {
+            $token = $tokens['digital_token']; 
+        } else {
+            $token = $tokens;
+        }
         $fbrTokenDetail = DB::table('fbr_tokens')->where('business_id', session('business_id'))->first();
         if ($fbrTokenDetail->environment == '0') {
             echo '<li class="nav-item text-danger fw-bold"> Sandbox</li>';
         }else{
-            echo "<li class='nav-item text-danger fw-bold'> Production</li>";
+            echo "<li class='nav-item text-danger fw-bold'> Production</li>>";
 
         }
+       
         ?>
     </ul>
 

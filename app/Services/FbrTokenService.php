@@ -62,4 +62,17 @@ class FbrTokenService
                 ];
         }
     }
+
+    public static function getTokenURL()
+    {
+        $settings = self::getSettings();
+
+        if (!$settings) {
+            return null;
+        }
+
+        return $settings->environment == 1? '' : '_sb';
+
+
+    }
 }

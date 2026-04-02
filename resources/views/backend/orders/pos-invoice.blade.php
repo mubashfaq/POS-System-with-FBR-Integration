@@ -76,30 +76,33 @@
 
 
       <tbody>
-    @php $totalTaxAmount = 0; @endphp
-    @foreach ($order->products as $item)
-    @php
-        // Har product ka apna tax rate
-        $taxRateRaw = str_replace('%', '', $item->product->pos_sale_tax); // "18%"
-        $taxRateNumeric = (float) $taxRateRaw;
-        
-        // Is product ka tax amount (Quantity ke sath)
-        // Agar discounted_price unit price hai, to total tax = price * qty * rate / 100
-        $currentProductTax = ($item->discounted_price * $item->quantity * $taxRateNumeric) / 100;
-        
-        // Poore order ka total tax jama karna
-        $totalTaxAmount += $currentProductTax;
+   @php $totalTaxAmount = 0; @endphp
+@foreach ($order->products as $item)
+@php
+    // Ensure numeric values
+    $unitPrice = (float) $item->discounted_price;
+    $quantity  = (float) $item->quantity;
+    $total     = (float) $item->total;
 
-        $pfinalPricePerUnit = $item->discounted_price - ($item->discounted_price * $taxRateNumeric / 100);
-        $pfinalLineTotal = $item->total - $currentProductTax;
-    @endphp
-    <tr>
-        <td>{{ $item->product->name }}  </td>
-         <!-- <br> <small>(Tax: {{ $item->product->rate_of_tax }})</small> -->
-        <td class="text-center">{{ $item->quantity }} * {{ number_format($pfinalPricePerUnit, 2) }}</td>
-        <td class="text-right">{{ number_format($pfinalLineTotal, 2) }}</td>
-    </tr>
-    @endforeach
+    // Har product ka apna tax rate
+    $taxRateRaw = $item->product->pos_sale_tax ?? '0'; // fallback if null
+    $taxRateNumeric = (float) str_replace('%', '', $taxRateRaw);
+
+    // Is product ka tax amount
+    $currentProductTax = ($unitPrice * $quantity * $taxRateNumeric) / 100;
+
+    // Poore order ka total tax jama karna
+    $totalTaxAmount += $currentProductTax;
+
+    $pfinalPricePerUnit = $unitPrice - ($unitPrice * $taxRateNumeric / 100);
+    $pfinalLineTotal = $total - $currentProductTax;
+@endphp
+<tr>
+    <td>{{ $item->product->name }}</td>
+    <td class="text-center">{{ $quantity }} * {{ number_format($pfinalPricePerUnit, 2) }}</td>
+    <td class="text-right">{{ number_format($pfinalLineTotal, 2) }}</td>
+</tr>
+@endforeach
 </tbody>
 </table>
 
