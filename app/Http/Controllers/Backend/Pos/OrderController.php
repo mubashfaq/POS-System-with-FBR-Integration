@@ -62,7 +62,12 @@ class OrderController extends Controller
                 ->addColumn('total', fn($data) => number_format($data->total, 2, '.', ','))
                 ->addColumn('paid', fn($data) => number_format($data->paid, 2, '.', ','))
                 ->addColumn('due', fn($data) => number_format($data->due, 2, '.', ','))
-                // ->addColumn('stock_total', fn($data) => number_format($stockTotal->sum('grand_total'), 2, '.', ','))
+                ->addColumn('type', fn($data) => 
+                    ($data->type == 'pos_invoice') 
+                        ? '<span class="badge bg-info">POS</span>' 
+                        : '<span class="badge bg-secondary">Digital</span>'
+                )
+                ->rawColumns(['type'])                // ->addColumn('stock_total', fn($data) => number_format($stockTotal->sum('grand_total'), 2, '.', ','))
                 ->addColumn('status', fn($data) => $data->status
                     ? '<span class="badge bg-primary">Paid</span>'
                     : '<span class="badge bg-danger">Due</span>')
@@ -93,7 +98,7 @@ class OrderController extends Controller
                     $buttons .= '<a class="btn btn-primary btn-sm" href="' . route('backend.admin.orders.transactions', $data->id) . '"><i class="fas fa-exchange-alt"></i> Transactions</a>';
                     return $buttons;
                 })
-                ->rawColumns(['saleId', 'customer', 'item', 'sub_total', 'discount', 'total', 'paid', 'due', 'status', 'fbr_status', 'action'])
+                ->rawColumns(['saleId', 'customer', 'item', 'sub_total', 'discount', 'total', 'paid', 'due', 'type', 'status', 'fbr_status', 'action'])
                 ->toJson();
         }
         return view('backend.orders.index');
@@ -716,6 +721,11 @@ class OrderController extends Controller
 
             PosCart::where('user_id', auth()->id())->delete();
 
+            Order::where('id', $order->id)->update([
+                'type' => 'digital_invoice',
+            ]);
+
+
             return response()->json([
                 'message' => 'Order completed successfully (FBR Not Integrated)',
                 'order'   => $order,
@@ -841,6 +851,9 @@ class OrderController extends Controller
             $postResponseJson = $post_api_response->json();
             $fbr_invoice_number = data_get($postResponseJson, 'invoiceNumber');
 
+            Order::where('id', $order->id)->update([
+                'type' => 'digital_invoice',
+            ]);
 
 
             Log::info('FBR Payload', [
