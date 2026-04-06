@@ -1260,95 +1260,95 @@ public function storeDigital(Request $request)
 //         $sale_type = $product->sale_type;
 //         $sro_schedule = $product->sro_schedule;
         
-                return response()->json([
-                    'message' => 'Order completed successfully (FBR Not Integrated)',
-                    'order'   => $order,
-                ], 200);
-            } else {
+        //         return response()->json([
+        //             'message' => 'Order completed successfully (FBR Not Integrated)',
+        //             'order'   => $order,
+        //         ], 200);
+        //     } else {
 
-                $tokens = FbrTokenService::getToken();
+        //         $tokens = FbrTokenService::getToken();
 
-                if (is_array($tokens)) {
-                    $token = $tokens['digital_token'];
-                } else {
-                    $token = $tokens;
-                }
+        //         if (is_array($tokens)) {
+        //             $token = $tokens['digital_token'];
+        //         } else {
+        //             $token = $tokens;
+        //         }
 
-                try {
-                    $response = Http::withOptions([
-                        'timeout' => 620,
-                        'connect_timeout' => 620,
-                    ])->withHeaders([
-                        'Authorization' => "Bearer $token",
-                        'Content-Type' => 'application/json',
-                        'Accept-Encoding' => 'gzip, deflate, br',
-                        'Accept' => 'application/json'
-                    ])->post("https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb", $fbrPayload);
-                } catch (\Illuminate\Http\Client\ConnectionException $e) {
-                    info('Connection Exception: ' . $e->getMessage());
-                }
+        //         try {
+        //             $response = Http::withOptions([
+        //                 'timeout' => 620,
+        //                 'connect_timeout' => 620,
+        //             ])->withHeaders([
+        //                 'Authorization' => "Bearer $token",
+        //                 'Content-Type' => 'application/json',
+        //                 'Accept-Encoding' => 'gzip, deflate, br',
+        //                 'Accept' => 'application/json'
+        //             ])->post("https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb", $fbrPayload);
+        //         } catch (\Illuminate\Http\Client\ConnectionException $e) {
+        //             info('Connection Exception: ' . $e->getMessage());
+        //         }
 
-                $responseJson = $response->json();
+        //         $responseJson = $response->json();
 
-                $statusCode = data_get($responseJson, 'validationResponse.statusCode');
-                $errorCode  = data_get($responseJson, 'validationResponse.errorCode');
-                $errorMsg   = data_get($responseJson, 'validationResponse.error');
+        //         $statusCode = data_get($responseJson, 'validationResponse.statusCode');
+        //         $errorCode  = data_get($responseJson, 'validationResponse.errorCode');
+        //         $errorMsg   = data_get($responseJson, 'validationResponse.error');
 
-                $order->update([
-                    'api_status'    => $response->status(),
-                    'error_code'    => $errorCode,
-                    'error_message' => $errorMsg,
-                    'api_message'   => $response->ok(),
-                ]);
+        //         $order->update([
+        //             'api_status'    => $response->status(),
+        //             'error_code'    => $errorCode,
+        //             'error_message' => $errorMsg,
+        //             'api_message'   => $response->ok(),
+        //         ]);
 
-                if ($statusCode != "00") {
+        //         if ($statusCode != "00") {
 
-                    DB::rollBack();
+        //             DB::rollBack();
 
-                    return response()->json([
-                        'error' => 'FBR validation failed',
-                        'error_code' => $errorCode,
-                        'error_message' => $errorMsg,
-                        'fbr_response' => $responseJson
-                    ], 422);
-                }
+        //             return response()->json([
+        //                 'error' => 'FBR validation failed',
+        //                 'error_code' => $errorCode,
+        //                 'error_message' => $errorMsg,
+        //                 'fbr_response' => $responseJson
+        //             ], 422);
+        //         }
 
-                DB::commit();
+        //         DB::commit();
 
-                /* ================= POST INVOICE ================= */
+        //         /* ================= POST INVOICE ================= */
 
-                try {
-                    $post_api_response = Http::withOptions([
-                        'timeout' => 620,
-                        'connect_timeout' => 620,
+        //         try {
+        //             $post_api_response = Http::withOptions([
+        //                 'timeout' => 620,
+        //                 'connect_timeout' => 620,
 
-                    ])->withHeaders([
-                        'Authorization' => "Bearer $token",
-                        'Content-Type' => 'application/json',
-                        'Accept-Encoding' => 'gzip, deflate, br',
-                        'Accept' => 'application/json'
-                    ])->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb", $fbrPayload);
-                } catch (\Illuminate\Http\Client\ConnectionException $e) {
-                    info('Connection Exception: ' . $e->getMessage());
-                }
+        //             ])->withHeaders([
+        //                 'Authorization' => "Bearer $token",
+        //                 'Content-Type' => 'application/json',
+        //                 'Accept-Encoding' => 'gzip, deflate, br',
+        //                 'Accept' => 'application/json'
+        //             ])->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb", $fbrPayload);
+        //         } catch (\Illuminate\Http\Client\ConnectionException $e) {
+        //             info('Connection Exception: ' . $e->getMessage());
+        //         }
 
-                $postResponseJson = $post_api_response->json();
+        //         $postResponseJson = $post_api_response->json();
 
-                $invoiceNumber = data_get($postResponseJson, 'invoiceNumber');
+        //         $invoiceNumber = data_get($postResponseJson, 'invoiceNumber');
 
-                $order->update([
-                    'fbr_invoice_no' => $invoiceNumber,
-                ]);
+        //         $order->update([
+        //             'fbr_invoice_no' => $invoiceNumber,
+        //         ]);
 
-                PosCart::where('user_id', auth()->id())->delete();
+        //         PosCart::where('user_id', auth()->id())->delete();
 
-                return response()->json([
-                    'message' => 'Order completed successfully',
-                    'order'   => $order,
-                    'fbr_invoice_no' => $invoiceNumber
-                ], 200);
-            }
-        } catch (\Exception $e) {
+        //         return response()->json([
+        //             'message' => 'Order completed successfully',
+        //             'order'   => $order,
+        //             'fbr_invoice_no' => $invoiceNumber
+        //         ], 200);
+        //     }
+        // } catch (\Exception $e) {
 
     /**
      * Show the form for editing the specified resource.
