@@ -30,6 +30,7 @@ export default function Pos() {
     const [totalPages, setTotalPages] = useState(0);
     const [loading, setLoading] = useState(false);
     const [furtherTaxTotal, setFurtherTaxTotal] = useState(0);
+    const [saleTaxTotal, setSaleTaxTotal] = useState(0);
 
     const [showBatchModal, setShowBatchModal] = useState(false);
     const [availableBatches, setAvailableBatches] = useState([]);
@@ -148,19 +149,18 @@ console.log("CART FROM API", data?.carts);
     }, [cartUpdated]);
 
     useEffect(() => {
-        let paid1 = paid;
-        let disc = orderDiscount;
-        if (paid == "") {
-            paid1 = 0;
-        }
-        if (orderDiscount == "") {
-            disc = 0;
-        }
-        const updatedTotalAmount = parseFloat(total) - parseFloat(disc);
-        const dueAmount = updatedTotalAmount - parseFloat(paid1);
-        setUpdateTotal(updatedTotalAmount?.toFixed(2));
-        setDue(dueAmount?.toFixed(2));
-    }, [orderDiscount, paid, total]);
+        const paid1 = paid === "" ? 0 : parseFloat(paid);
+        const disc = orderDiscount === "" ? 0 : parseFloat(orderDiscount);
+    
+        // ✅ Calculate grand total from source values, not from updateTotal
+        const grandTotal = parseFloat(total) + parseFloat(saleTaxTotal) + parseFloat(furtherTaxTotal);
+        const afterDiscount = grandTotal - disc;
+        const dueAmount = afterDiscount - paid1;
+    
+        setUpdateTotal(afterDiscount.toFixed(2));
+        setDue(dueAmount.toFixed(2));
+    
+    }, [orderDiscount, paid, total, saleTaxTotal, furtherTaxTotal]); // ✅ No updateTotal dependency
     useEffect(() => {
         if (searchQuery) {
             setProducts([]);
@@ -350,9 +350,10 @@ function orderCreate() {
 }
 
 
-const handleCartTotals = (subTotalCalc, furtherTaxCalc, grandTotalCalc) => {
+const handleCartTotals = (subTotalCalc, saleTaxCalc, furtherTaxCalc, grandTotalCalc) => {
     // setTotal(grandTotalCalc); // ✅ include further tax
     setTotal(subTotalCalc); // ✅ include further tax
+    setSaleTaxTotal(saleTaxCalc);
     setUpdateTotal(grandTotalCalc - orderDiscount); // after discount
     setDue(grandTotalCalc - orderDiscount - paid); // due
     setFurtherTaxTotal(furtherTaxCalc); // optional display
@@ -501,6 +502,13 @@ function createOrder(redirect = false) {
                                             {Number(total).toFixed(2)}
                                         </div>
                                     </div>
+                                    <div className="row text-bold mb-1">
+                                        <div className="col">Sale Tax:</div>
+                                        <div className="col text-right mr-2">
+                                            {/* {total} */}
+                                            {Number(saleTaxTotal).toFixed(2)}
+                                        </div>
+                                    </div>
                                     {/* <div className="row text-bold mb-1">
                                         <div className="col">Discount:</div>
                                         <div className="col text-right mr-2">
@@ -554,7 +562,7 @@ function createOrder(redirect = false) {
                                     <div className="row text-bold mb-1">
                                         <div className="col">Total:</div>
                                         <div className="col text-right mr-2">
-                                            {updateTotal}
+                                        {Number(updateTotal).toFixed(2)}
                                         </div>
                                     </div>
                                     <div className="row text-bold mb-1">

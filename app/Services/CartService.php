@@ -136,10 +136,6 @@ class CartService
 
     public function increment($id, $businessId)
     {
-        $businessId = session('business_id') ? session('business_id') : $businessId;
-
-        
-
         // Check batch stock limit if batch is selected
          $quantityVal = quantity_validation::where('business_id' , $businessId)->first();
         
@@ -202,9 +198,7 @@ class CartService
 
     public function updateQuantity($id, $quantity, $registrationStatus, $businessId)
     {
-        $businessId = session('business_id') ? session('business_id') : $businessId;
         $cart = PosCart::with('product')->findOrFail($id);
-
         // Stock check: batch-aware
          $quantityVal = quantity_validation::where('business_id' , $businessId)->first();
         

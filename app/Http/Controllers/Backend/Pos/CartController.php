@@ -258,7 +258,7 @@ if (
         ]);
 
         try {
-            $cart = $cartService->increment($request->id);
+            $cart = $cartService->increment($request->id, session('business_id'));
 
             return response()->json(['message' => 'Cart Updated successfully'], 200);
 
@@ -360,7 +360,8 @@ public function updateQuantity(Request $request, CartService $cartService)
         $cart = $cartService->updateQuantity(
             $request->id,
             $request->quantity,
-            $registrationStatus
+            $registrationStatus,
+            session('business_id')
         );
 
         return response()->json([

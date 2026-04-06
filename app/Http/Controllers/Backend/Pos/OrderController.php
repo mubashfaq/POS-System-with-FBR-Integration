@@ -195,17 +195,20 @@ class OrderController extends Controller
             $subTotal  = round($product->price * $qty, 2);
             $discount  = round(($product->price - $unitPrice) * $qty, 2);
 
-            // FURTHER TAX (NEW)
-            $rateText = trim($product->rate_of_tax);
-            // $furtherTax = 0;
+   // Sale TAX (NEW)
+    $rateText = trim($product->pos_sale_tax);
 
-            if (str_ends_with($rateText, '%')) {
-                $rate = floatval(str_replace('%', '', $rateText));
-                $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
-            }
+    $saleTax = 0;
 
-            // FINAL TOTAL = line total + further tax
-            $finalTotal = round($lineTotal, 2);
+    if (str_ends_with($rateText, '%')) {
+        $rate = floatval(str_replace('%', '', $rateText));
+        $saleTax = round($lineTotal * ($rate / 100), 2);
+    } else {
+        $saleTax = floatval($rateText) ?: 0;
+    }        
+
+    // âœ… FINAL TOTAL = line total + further tax
+    $finalTotal = round($lineTotal + $saleTax, 2);
 
             $totalAmountOrder += $finalTotal;
 
@@ -255,57 +258,87 @@ class OrderController extends Controller
             $unitPrice = $cart->price_override ?? $product->discounted_price;
             $lineTotal = round($unitPrice * $qty, 2);
 
-            $rateText = trim($product->pos_sale_tax); // 18%
-            $taxRate  = (float) str_replace('%', '', $rateText); // 18
-            if (str_ends_with($rateText, '%')) {
-                $rate = floatval(str_replace('%', '', $rateText));
-                $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
-                $salesTax  = round($valueExTax * ($rate / 100), 2);
-            } else {
-                $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
-                $valueExTax = round($lineTotal - $salesTax, 2);
-            }
-
-
-
-            $fbrItems[] = [
-
-                "ItemCode" => $product->sku,
-                "ItemName" => $product->name,
-                "quantity" => $qty,
-                "PCTCode" => $product->PCTCode,
-                // "PCTCode" => "11001010",
-                "TaxRate" => $taxRate,
-                "SaleValue" => $valueExTax,
-                "TotalAmount" => $lineTotal, //+ $furtherTax,
-                "TaxCharged" => $salesTax,
-                "discount" => 0,
-                "InvoiceType" => 1,
-
-            ];
+        $rateText = trim($product->pos_sale_tax); // 18%
+        $taxRate  = (float) str_replace('%', '', $rateText); // 18
+        $salesTax = 0;
+        $valueExTax = $lineTotal; // already ex-tax
+        if (str_ends_with($rateText, '%')) {
+            $rate = floatval(str_replace('%', '', $rateText));
+        
+            $salesTax = round($valueExTax * ($rate / 100), 2);
+        } else {
+            $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
         }
+
+
+       
+        $fbrItems[] = [
+            // "hsCode" => $product->hsCode,
+            // "productDescription" => $product->name,
+            // "rate" => $rateText,
+            // "uoM" => $product->uom
+            // "quantity" => $qty,
+            // "totalValues" => $lineTotal + $furtherTax,
+            // "valueSalesExcludingST" => $valueExTax,
+            // "fixedNotifiedValueOrRetailPrice" => $product->price,
+            // "salesTaxApplicable" => $salesTax,
+            // "salesTaxWithheldAtSource" => 0,
+            // "extraTax" => 0,
+            // "furtherTax" => $furtherTax,
+            // "sroScheduleNo" => $product->sro_schedule,
+            // "fedPayable" => 0,
+            "ItemCode"=> $product->sku,
+            "ItemName" => $product->name,
+            "quantity" => $qty,
+            "PCTCode" => $product->PCTCode,
+            // "PCTCode" => "11001010",
+            "TaxRate" => $taxRate,
+            "SaleValue" => $valueExTax,
+            "TotalAmount" => $lineTotal + $salesTax ,//+ $furtherTax,
+            "TaxCharged" => $salesTax,
+            "discount" => 0,
+            //  "FurtherTax" => $furtherTax,
+             "InvoiceType" => 1,
+            // "saleType" => $product->sale_type,
+            // "sroItemSerialNo" => $product->sro_item,
+        ];
+    }
 
         $customer = Customer::find($request->customer_id);
         $business = Business::find($businessId);
 
-        $fbrPayload = [
-            "POSID" => 819045,
-            "USIN" => "USIN-" . $order->id,
-            "DateTime" => now()->format('Y-m-d'),
-            "buyerNTN" => $customer->ntn_cnic,
-            "buyerCNIC" => $customer->ntn_cnic,
-            "BuyerName" => $customer->name,
-            "BuyerPhoneNumber" => $customer->phone,
-            "items" => $fbrItems,
-            "TotalBillAmount" => $lineTotal,
-            "TotalQuantity" => $qty,
-            "TotalSaleValue" => $valueExTax,
-            "TotalTaxCharged" => $salesTax,
-            "PaymentMode" => 2,
-            "InvoiceType" => 1
-        ];
+    $fbrPayload = [
+        "POSID" => 819045,
+        "USIN" => "USIN-" .$order->id,
+        "DateTime" => now()->format('Y-m-d'),
+        // "invoiceType" => "Sale Invoice",
+        // "invoiceDate" => now()->format('Y-m-d'),
+        // "sellerNTNCNIC" => $business->cnic,
+        // "sellerBusinessName" => $business->business_name,
+        // "sellerProvince" => $business->state,
+        // "sellerAddress" => $business->address,
+        "buyerNTN" => $customer->ntn_cnic,
+        "buyerCNIC" => $customer->ntn_cnic,
+        "BuyerName" => $customer->name,
+         "BuyerPhoneNumber" => $customer->phone,
+        // "buyerBusinessName" => $customer->name,
+        // "buyerProvince" => $customer->province,
+        // "buyerAddress" => $customer->address,
+        // "buyerRegistrationType" => $customer->is_registered,
+        // "invoiceRefNo" => "INV-" . $order->id,
+        // "invoiceRefNo" => "INV-" . "INV00112200",
+        // "scenarioId" => "SN015",
+        "items" => $fbrItems,
 
-        // dd($fbrPayload);
+        "TotalBillAmount" => $lineTotal + $salesTax  ,
+        "TotalQuantity" => $qty,
+        "TotalSaleValue" => $valueExTax,
+        "TotalTaxCharged" => $salesTax,
+        "PaymentMode" => 2,
+        "InvoiceType" => 1
+    ];
+    
+    // dd($fbrPayload);
 
         if (!FbrTokenService::isIntegrationEnabled()) {
 
