@@ -20,6 +20,7 @@
                 <th>Total {{currency()->symbol??''}}</th>
                 <th>Paid {{currency()->symbol??''}}</th>
                 <th>Due {{currency()->symbol??''}}</th>
+                <th>Type</th>
                 <th>Status</th>
                 <th>FBR Status</th>
                 <th data-orderable="false">Action</th>
@@ -109,8 +110,8 @@
         //   name: 'stock_total'
         // }, 
         {
-          data: 'status',
-          name: 'status'
+          data: 'type',
+          name: 'type'
         },
        
         {
