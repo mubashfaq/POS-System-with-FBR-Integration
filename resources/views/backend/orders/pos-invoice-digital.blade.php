@@ -63,7 +63,7 @@
           <td>{{ $item->product->name }}</td>
           <!-- <td class="text-right">{{ $item->quantity }}</td> -->
           <td class="text-right">{{ $item->quantity }}*{{ $item->discounted_price}}</td>
-          <td class="text-right">{{ $item->total }}</td>
+          <td class="text-right">{{ number_format( $item->sub_total, 2 )}}</td>
         </tr>
         @endforeach
       </tbody>
@@ -72,7 +72,7 @@
     <div class="summary">
       <table style="width: 100%;">
         <tr>
-          <td>Subtotal:</td>
+          <td>Subtotal (Incl. Tax):</td>
           <td class="text-right">{{number_format($order->sub_total, 2) }}</td>
         </tr>
         <tr>
