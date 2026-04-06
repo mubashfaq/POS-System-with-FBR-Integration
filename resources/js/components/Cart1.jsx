@@ -27,6 +27,7 @@ export default function Cart1({
     useEffect(() => {
         let subTotalCalc = 0;
         let furtherTaxCalc = 0;
+        let saleTaxCalc = 0;
 
         const updatedCarts = carts.map((item) => {
             // const baseTotal = Number(item.product.discounted_price) * item.quantity;
@@ -35,47 +36,63 @@ export default function Cart1({
             );
             const baseTotal = price * item.quantity;
 
-            let furtherTax = 0;
-            if (
-                item.product.sale_type?.trim().toLowerCase() !=
-                    "3rd schedule goods" &&
-                registrationStatus?.trim().toLowerCase() === "unregistered"
-            ) {
-                const rateText = String(item.product.rate_of_tax).trim();
-                    console.log("rateText", rateText);
-                if (rateText.endsWith("%")) {
-                    const rate = parseFloat(rateText.replace("%", ""));
-                    const valueExTax = baseTotal / (1 + rate / 100);
-                    furtherTax = valueExTax * (4/100);
-                } else {
-                    // agar fixed tax number
-                    const taxValue = parseFloat(rateText) || 0;
-                    furtherTax = taxValue;
-                }
+            const rateText = String(item.product.pos_sale_tax).trim();
+    
+            let saleTax = 0;
+            let exTaxAmount = baseTotal; // price is already ex-tax
+
+            if (rateText.endsWith("%")) {
+                const rate = parseFloat(rateText.replace("%", ""));
+                saleTax = exTaxAmount * (rate / 100); // ✅ direct %
+            } else {
+                saleTax = parseFloat(rateText) || 0;
             }
+            // console.log(saleTax);
+
+            let furtherTax = 0;
+            // if (
+            //     item.product.sale_type?.trim().toLowerCase() !=
+            //         "3rd schedule goods" &&
+            //     registrationStatus?.trim().toLowerCase() === "unregistered"
+            // ) {
+            //     const rateText = String(item.product.rate_of_tax).trim();
+            //         console.log("rateText", rateText);
+            //     if (rateText.endsWith("%")) {
+            //         const rate = parseFloat(rateText.replace("%", ""));
+            //         const valueExTax = baseTotal / (1 + rate / 100);
+            //         furtherTax = valueExTax * (4/100);
+            //     } else {
+            //         // agar fixed tax number
+            //         const taxValue = parseFloat(rateText) || 0;
+            //         furtherTax = taxValue;
+            //     }
+            // }
 
             subTotalCalc += baseTotal;
+            saleTaxCalc += saleTax;
             furtherTaxCalc += furtherTax;
 
             return {
                 ...item,
                 base_total: baseTotal.toFixed(2),
+                sale_tax: saleTax.toFixed(2),
                 further_tax: furtherTax.toFixed(2),
-                total_with_tax: (baseTotal + furtherTax).toFixed(2),
+                total_with_tax: (baseTotal+ saleTax + furtherTax).toFixed(2),
             };
         });
 
         setCartItems(updatedCarts);
         setSubTotal(subTotalCalc.toFixed(2));
         setFurtherTaxTotal(furtherTaxCalc.toFixed(2));
-        setGrandTotal((subTotalCalc + furtherTaxCalc).toFixed(2));
+        setGrandTotal((subTotalCalc + furtherTaxCalc + saleTaxCalc).toFixed(2));
 
         // Send totals to POS
         if (onTotalsChange) {
             onTotalsChange(
                 subTotalCalc,
+                saleTaxCalc,
                 furtherTaxCalc,
-                subTotalCalc + furtherTaxCalc,
+                subTotalCalc + furtherTaxCalc + saleTaxCalc,
             );
         }
     }, [carts, registrationStatus]);
@@ -354,19 +371,23 @@ export default function Cart1({
                                                             <>
                                                                 <div className="text-success font-weight-bold">
                                                                     {
-                                                                        // item.total_with_tax
-                                                                        item.base_total
+                                                                        item.total_with_tax
+                                                                        // item.base_total
                                                                     }
                                                                 </div>
-                                                               
+                                                                <div className="small text-warning">+{item.sale_tax} sale tax</div>
                                                               
                                                             </>
                                                         ) : (
-                                                            <div className="font-weight-bold">
-                                                                {
-                                                                    item.base_total
-                                                                }
-                                                            </div>
+                                                            <>
+                                                                <div className="font-weight-bold">
+                                                                    {
+                                                                        // item.base_total
+                                                                        item.total_with_tax
+                                                                    }
+                                                                </div>
+                                                                <div className="small text-warning">+{item.sale_tax} sale tax</div>
+                                                            </>
                                                         )}
                                                     </td>
                                                 </tr>
