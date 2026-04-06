@@ -76,7 +76,7 @@
                                 <th>SN</th>
                                 <th>Product</th>
                                 <!--<th>Description</th>-->
-                                @if ($business->business_type == 'digital' || $business->business_type == 'both') 
+                                @if ($order->type !== 'pos_invoice') 
                                 <th>HS Code</th>
                                 <th>UOM</th>
                                 @endif
@@ -90,7 +90,7 @@
                         <tbody>
                             @php
                                 $totalExclTax = 0;
-                                $totalTaxAmount = 0;
+                                $totalSalesTax = 0;
                                 $totalFurtherTax = 0;
                                 $totalInclTax = 0;
                             @endphp
@@ -100,7 +100,7 @@
                                 <td>{{$loop->index + 1}}</td>
                                 <td>{{$item->product->name}}</td>
                                 <!--<td>{{$item->product->hs_description}}</td>-->
-                                @if ($business->business_type == 'digital' || $business->business_type == 'both') 
+                                @if ($order->type !== 'pos_invoice') 
                                 <td>{{$item->product->hsCode}}</td>
                                 <td>{{$item->product->uom}}</td>
                                 @endif
@@ -113,10 +113,10 @@
                                 </td>
                                 @php
                                     $inclTax = $item->total;
-                                    if($business->business_type == 'digital' || $business->business_type == 'both'){
-                                        $taxRate = $item->product->rate_of_tax;
-                                    } else {
+                                    if($order->type == 'pos_invoice'){
                                         $taxRate = $item->product->pos_sale_tax;
+                                    } else {
+                                        $taxRate = $item->product->rate_of_tax;
                                     }
 
                                     $taxRate = floatval(str_replace('%', '', $taxRate));
@@ -134,7 +134,7 @@
 
                                     // ✅ Accumulate into totals
                                     $totalExclTax    += $exclTax;
-                                    $totalTaxAmount  += $taxAmount;
+                                    $totalSalesTax  += $taxAmount;
                                     $totalFurtherTax += $furtherTax;
                                     $totalInclTax    += $inclTax;
                                 @endphp
@@ -169,19 +169,19 @@
                                     {{currency()->symbol.' '.number_format($totalExclTax,2,'.',',')}}</td>
                             </tr>
 
-                            @if($business->business_type == 'pos')
+                            @if($order->type == 'pos_invoice')
                             <tr>
                                 <th>Sales Tax:</th>
                                 <td class="text-right">
-                                    {{currency()->symbol.' '.number_format($totalTaxAmount,2,'.',',') }}</td>
+                                    {{currency()->symbol.' '.number_format($totalSalesTax,2,'.',',') }}</td>
                             </tr>
                             @endif 
 
-                            @if($business->business_type == 'digital' || $business->business_type == 'both')
+                            @if($order->type !== 'pos_invoice')
                              <tr>
                                 <th>Sales Tax:</th>
                                 <td class="text-right">
-                                    {{ currency()->symbol.' '.number_format(($totalTaxAmount - $totalFurtherTax), 2, '.', ',') }}
+                                    {{ currency()->symbol.' '.number_format($totalSalesTax, 2, '.', ',') }}
                                 </td>
                             </tr>
                             <tr>

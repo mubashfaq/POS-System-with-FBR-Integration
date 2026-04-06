@@ -195,17 +195,20 @@ class OrderController extends Controller
             $subTotal  = round($product->price * $qty, 2);
             $discount  = round(($product->price - $unitPrice) * $qty, 2);
 
-            // FURTHER TAX (NEW)
-            $rateText = trim($product->rate_of_tax);
-            // $furtherTax = 0;
+   // Sale TAX (NEW)
+    $rateText = trim($product->pos_sale_tax);
+
+    $saleTax = 0;
 
             if (str_ends_with($rateText, '%')) {
                 $rate = floatval(str_replace('%', '', $rateText));
-                $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
+        $saleTax = round($lineTotal * ($rate / 100), 2);
+    } else {
+        $saleTax = floatval($rateText) ?: 0;
             }
 
-            // FINAL TOTAL = line total + further tax
-            $finalTotal = round($lineTotal, 2);
+    // âœ… FINAL TOTAL = line total + further tax
+    $finalTotal = round($lineTotal + $saleTax, 2);
 
             $totalAmountOrder += $finalTotal;
 
@@ -257,13 +260,14 @@ class OrderController extends Controller
 
             $rateText = trim($product->pos_sale_tax); // 18%
             $taxRate  = (float) str_replace('%', '', $rateText); // 18
+        $salesTax = 0;
+        $valueExTax = $lineTotal; // already ex-tax
             if (str_ends_with($rateText, '%')) {
                 $rate = floatval(str_replace('%', '', $rateText));
-                $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
-                $salesTax  = round($valueExTax * ($rate / 100), 2);
+        
+            $salesTax = round($valueExTax * ($rate / 100), 2);
             } else {
                 $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
-                $valueExTax = round($lineTotal - $salesTax, 2);
             }
 
 
@@ -277,7 +281,7 @@ class OrderController extends Controller
                 // "PCTCode" => "11001010",
                 "TaxRate" => $taxRate,
                 "SaleValue" => $valueExTax,
-                "TotalAmount" => $lineTotal, //+ $furtherTax,
+            "TotalAmount" => $lineTotal + $salesTax ,//+ $furtherTax,
                 "TaxCharged" => $salesTax,
                 "discount" => 0,
                 "InvoiceType" => 1,
@@ -297,7 +301,8 @@ class OrderController extends Controller
             "BuyerName" => $customer->name,
             "BuyerPhoneNumber" => $customer->phone,
             "items" => $fbrItems,
-            "TotalBillAmount" => $lineTotal,
+
+        "TotalBillAmount" => $lineTotal + $salesTax  ,
             "TotalQuantity" => $qty,
             "TotalSaleValue" => $valueExTax,
             "TotalTaxCharged" => $salesTax,

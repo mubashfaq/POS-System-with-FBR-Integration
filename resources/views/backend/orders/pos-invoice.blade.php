@@ -94,15 +94,16 @@
     // Poore order ka total tax jama karna
     $totalTaxAmount += $currentProductTax;
 
-    $pfinalPricePerUnit = $unitPrice - ($unitPrice * $taxRateNumeric / 100);
-    $pfinalLineTotal = $total - $currentProductTax;
-@endphp
-<tr>
-    <td>{{ $item->product->name }}</td>
-    <td class="text-center">{{ $quantity }} * {{ number_format($pfinalPricePerUnit, 2) }}</td>
-    <td class="text-right">{{ number_format($pfinalLineTotal, 2) }}</td>
-</tr>
-@endforeach
+        $pfinalPricePerUnit = $item->discounted_price;
+        $pfinalLineTotal = $item->total - $currentProductTax;
+    @endphp
+    <tr>
+        <td>{{ $item->product->name }}  </td>
+         <!-- <br> <small>(Tax: {{ $item->product->rate_of_tax }})</small> -->
+        <td class="text-center">{{ $item->quantity }} * {{ number_format($pfinalPricePerUnit, 2) }}</td>
+        <td class="text-right">{{ number_format($pfinalLineTotal, 2) }}</td>
+    </tr>
+    @endforeach
 </tbody>
 </table>
 
