@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Backend\Pos;
+namespace App\Http\Controllers\Api\Pos;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\SendFBRInvoiceJob;
@@ -125,7 +125,7 @@ public function store(Request $request)
         'paid' => ['nullable', 'numeric', 'min:0'],
     ]);
 
-    $businessId = session('business_id');
+    $businessId = $request->attributes->get('business')->id;
 
     if (!$businessId) {
         return response()->json(['error' => 'No business selected'], 422);
@@ -188,25 +188,20 @@ public function store(Request $request)
     $subTotal  = round($product->price * $qty, 2);
     $discount  = round(($product->price - $unitPrice) * $qty, 2);
 
-   // FURTHER TAX (NEW)
-        $rateText = trim($product->rate_of_tax);
-        // $furtherTax = 0;
+   // Sale TAX (NEW)
+   $rateText = trim($product->pos_sale_tax);
 
-        if (str_ends_with($rateText, '%')) {
-            $rate = floatval(str_replace('%', '', $rateText));
-            $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
+   $saleTax = 0;
 
-            // if (
-            //     $customer->is_registered &&
-            //     strtolower($customer->is_registered) === 'unregistered' &&
-            //     $product->sale_type != '3rd Schedule Goods'
-            // ) {
-            //     $furtherTax = round($valueExTax * 0.04, 2);
-            // }
-        }
+           if (str_ends_with($rateText, '%')) {
+               $rate = floatval(str_replace('%', '', $rateText));
+       $saleTax = round($lineTotal * ($rate / 100), 2);
+   } else {
+       $saleTax = floatval($rateText) ?: 0;
+           }
 
-        // âœ… FINAL TOTAL = line total + further tax
-        $finalTotal = round($lineTotal , 2);
+   // âœ… FINAL TOTAL = line total + further tax
+   $finalTotal = round($lineTotal + $saleTax, 2);
 
     $totalAmountOrder += $finalTotal;
 
@@ -257,64 +252,33 @@ public function store(Request $request)
         $lineTotal = round($unitPrice * $qty, 2);
 
         $rateText = trim($product->pos_sale_tax); // 18%
-        $taxRate  = (float) str_replace('%', '', $rateText); // 18
-        if (str_ends_with($rateText, '%')) {
-            $rate = floatval(str_replace('%', '', $rateText));
-            $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
-            // $salesTax = round($lineTotal - $valueExTax, 2);
-            $salesTax  = round($valueExTax * ($rate / 100), 2);
-
-            // if($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods'){
-            //     $furtherTax = round($valueExTax * (4 / 100), 2);
-  
-            // }else{
-            //     $furtherTax = 0;
-            // }
-
-        } else {
-            $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
-            $valueExTax = round($lineTotal - $salesTax, 2);
-
-            //  if($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods'){
-            //     $furtherTax = round($valueExTax * (4 / 100), 2);
-  
-            // }else{
-            //     $furtherTax = 0;
-            // }
-        }
+            $taxRate  = (float) str_replace('%', '', $rateText); // 18
+        $salesTax = 0;
+        $valueExTax = $lineTotal; // already ex-tax
+            if (str_ends_with($rateText, '%')) {
+                $rate = floatval(str_replace('%', '', $rateText));
+        
+            $salesTax = round($valueExTax * ($rate / 100), 2);
+            } else {
+                $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+            }
 
 
        
-        $fbrItems[] = [
-            // "hsCode" => $product->hsCode,
-            // "productDescription" => $product->name,
-            // "rate" => $rateText,
-            // "uoM" => $product->uom
-            // "quantity" => $qty,
-            // "totalValues" => $lineTotal + $furtherTax,
-            // "valueSalesExcludingST" => $valueExTax,
-            // "fixedNotifiedValueOrRetailPrice" => $product->price,
-            // "salesTaxApplicable" => $salesTax,
-            // "salesTaxWithheldAtSource" => 0,
-            // "extraTax" => 0,
-            // "furtherTax" => $furtherTax,
-            // "sroScheduleNo" => $product->sro_schedule,
-            // "fedPayable" => 0,
-            "ItemCode"=> $product->sku,
-            "ItemName" => $product->name,
-            "quantity" => $qty,
-            "PCTCode" => $product->PCTCode,
-            // "PCTCode" => "11001010",
-            "TaxRate" => $taxRate,
-            "SaleValue" => $valueExTax,
-            "TotalAmount" => $lineTotal ,//+ $furtherTax,
-            "TaxCharged" => $salesTax,
-            "discount" => 0,
-            //  "FurtherTax" => $furtherTax,
-             "InvoiceType" => 1,
-            // "saleType" => $product->sale_type,
-            // "sroItemSerialNo" => $product->sro_item,
-        ];
+            $fbrItems[] = [
+
+                "ItemCode" => $product->sku,
+                "ItemName" => $product->name,
+                "quantity" => $qty,
+                "PCTCode" => $product->PCTCode,
+                "TaxRate" => $taxRate,
+                "SaleValue" => $valueExTax,
+                "TotalAmount" => $lineTotal + $salesTax ,//+ $furtherTax,
+                "TaxCharged" => $salesTax,
+                "discount" => 0,
+                "InvoiceType" => 1,
+
+            ];
     }
 
     $customer = Customer::find($request->customer_id);
@@ -322,28 +286,14 @@ public function store(Request $request)
 
     $fbrPayload = [
         "POSID" => 819045,
-        "USIN" => "USIN-" .$order->id,
+        "USIN" => "USIN-" . $order->id,
         "DateTime" => now()->format('Y-m-d'),
-        // "invoiceType" => "Sale Invoice",
-        // "invoiceDate" => now()->format('Y-m-d'),
-        // "sellerNTNCNIC" => $business->cnic,
-        // "sellerBusinessName" => $business->business_name,
-        // "sellerProvince" => $business->state,
-        // "sellerAddress" => $business->address,
         "buyerNTN" => $customer->ntn_cnic,
         "buyerCNIC" => $customer->ntn_cnic,
         "BuyerName" => $customer->name,
-         "BuyerPhoneNumber" => $customer->phone,
-        // "buyerBusinessName" => $customer->name,
-        // "buyerProvince" => $customer->province,
-        // "buyerAddress" => $customer->address,
-        // "buyerRegistrationType" => $customer->is_registered,
-        // "invoiceRefNo" => "INV-" . $order->id,
-        // "invoiceRefNo" => "INV-" . "INV00112200",
-        // "scenarioId" => "SN015",
+        "BuyerPhoneNumber" => $customer->phone,
         "items" => $fbrItems,
-
-        "TotalBillAmount" => $lineTotal  ,
+        "TotalBillAmount" => $lineTotal + $salesTax  ,
         "TotalQuantity" => $qty,
         "TotalSaleValue" => $valueExTax,
         "TotalTaxCharged" => $salesTax,
@@ -376,7 +326,13 @@ public function store(Request $request)
     ]);
 
     
-    $token = FbrTokenService::getToken();
+    $tokens = FbrTokenService::getToken();
+    if (is_array($tokens)) {
+        $token = $tokens['pos_token'];
+    } else {
+        $token = $tokens;
+    }
+    
     $post_api_response=null;
      try {
            
@@ -467,7 +423,7 @@ public function storeDigital(Request $request)
         'paid' => ['nullable', 'numeric', 'min:0'],
     ]);
 
-    $businessId = session('business_id');
+    $businessId = $request->attributes->get('business')->id;
 
     if (!$businessId) {
         return response()->json(['error' => 'No business selected'], 422);
@@ -531,34 +487,31 @@ public function storeDigital(Request $request)
     $discount  = round(($product->price - $unitPrice) * $qty, 2);
 
    // FURTHER TAX (NEW)
-        $rateText = trim($product->rate_of_tax);
-        $furtherTax = 0;
+   $rateText = trim($product->rate_of_tax);
+   $furtherTax = 0;
 
-        if (str_ends_with($rateText, '%')) {
-            $rate = floatval(str_replace('%', '', $rateText));
-          //  $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
-            $valueExTax = round($lineTotal, 2);
-            $salesTax  = round($valueExTax * ($rate / 100), 2);
+   if (str_ends_with($rateText, '%')) {
+       $rate = floatval(str_replace('%', '', $rateText));
+       //  $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
+       $valueExTax = round($lineTotal, 2);
+       $salesTax  = round($valueExTax * ($rate / 100), 2);
 
-            if($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods'){
-                $furtherTax = round($valueExTax * (4 / 100), 2);
-  
-            }else{
-                $furtherTax = 0;
-            }
+       if ($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods') {
+           $furtherTax = round($valueExTax * (4 / 100), 2);
+       } else {
+           $furtherTax = 0;
+       }
+   } else {
+       $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+       // $valueExTax = round($lineTotal - $salesTax, 2);
+       $valueExTax = round($lineTotal, 2);
 
-        } else {
-            $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
-           // $valueExTax = round($lineTotal - $salesTax, 2);
-           $valueExTax = round($lineTotal, 2);
-
-             if($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods'){
-                $furtherTax = round($valueExTax * (4 / 100), 2);
-  
-            }else{
-                $furtherTax = 0;
-            }
-        }
+       if ($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods') {
+           $furtherTax = round($valueExTax * (4 / 100), 2);
+       } else {
+           $furtherTax = 0;
+       }
+   }
 
         //  FINAL TOTAL = line total + further tax
         $finalTotal = round($lineTotal + $salesTax + $furtherTax, 2);
@@ -767,8 +720,12 @@ public function storeDigital(Request $request)
 // dd(json_encode($fbrPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 // dd($fbrPayload);
 
-    // $token = env('FBR_TOKEN');
-    $token = FbrTokenService::getToken();
+    $tokens = FbrTokenService::getToken();
+    if (is_array($tokens)) {
+        $token = $tokens['digital_token'];
+    } else {
+        $token = $tokens;
+    }
     
     try {
         // $response = Http::withOptions([
