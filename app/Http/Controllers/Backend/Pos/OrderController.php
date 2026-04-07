@@ -260,8 +260,8 @@ class OrderController extends Controller
 
             $rateText = trim($product->pos_sale_tax); // 18%
             $taxRate  = (float) str_replace('%', '', $rateText); // 18
-        $salesTax = 0;
-        $valueExTax = $lineTotal; // already ex-tax
+            $salesTax = 0;
+            $valueExTax = $lineTotal; // already ex-tax
             if (str_ends_with($rateText, '%')) {
                 $rate = floatval(str_replace('%', '', $rateText));
         
@@ -301,8 +301,7 @@ class OrderController extends Controller
             "BuyerName" => $customer->name,
             "BuyerPhoneNumber" => $customer->phone,
             "items" => $fbrItems,
-
-        "TotalBillAmount" => $lineTotal + $salesTax  ,
+            "TotalBillAmount" => $lineTotal + $salesTax,
             "TotalQuantity" => $qty,
             "TotalSaleValue" => $valueExTax,
             "TotalTaxCharged" => $salesTax,
