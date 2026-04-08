@@ -167,7 +167,7 @@ class BusinessController extends Controller
         
         $validated['enable_batch'] = $request->boolean('enable_batch');
         $business = Business::create($validated);
-        $business = Business::create($request->only(['business_name','industry','ntn','country','city']));
+        // $business = Business::create($request->only(['business_name','industry','ntn','country','city']));
 
         
 
@@ -190,7 +190,8 @@ class BusinessController extends Controller
      */
     public function edit(string $id)
     {
-        // abort_if(!auth()->user()->can('business_update'), 403);
+        $currentBusiness = currentUserBusiness();
+        abort_if(!$currentBusiness || !$currentBusiness->hasPermission('business_update'), 403);
 
         $currentBusinessId = session('business_id');
         

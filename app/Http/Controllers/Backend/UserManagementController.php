@@ -9,6 +9,7 @@ use Yajra\DataTables\DataTables;
 use Spatie\Permission\Models\Role;
 use App\Http\Controllers\Controller;
 use App\Trait\FileHandler;
+use Illuminate\Support\Facades\DB;
 
 class UserManagementController extends Controller
 {
@@ -136,20 +137,44 @@ class UserManagementController extends Controller
                 'is_mobile' => 'nullable|boolean'
             ]);
 
-            $newUser = new User();
-            $newUser->name = $request->name;
-            $newUser->email = $request->email;
-            $newUser->password = bcrypt($request->password);
-            $newUser->username = uniqid();
-            $newUser->is_mobile = $request->is_mobile ?? 0;
+            DB::beginTransaction();
 
-            if ($request->hasFile("profile_image")) {
-                $newUser->profile_image = $this->fileHandler->fileUploadAndGetPath($request->file("profile_image"), "/public/media/users");
+            try {
+
+                $newUser = new User();
+                $newUser->name = $request->name;
+                $newUser->email = $request->email;
+                $newUser->password = bcrypt($request->password);
+                $newUser->username = uniqid();
+                $newUser->is_mobile = $request->is_mobile ?? 0;
+
+                if ($request->hasFile("profile_image")) {
+                    $newUser->profile_image = $this->fileHandler->fileUploadAndGetPath($request->file("profile_image"), "/public/media/users");
+                }
+                $newUser->save();
+
+                $role = Role::find($request->role);
+                $newUser->syncRoles($role);
+
+                // ✅ Link user to the CURRENT business
+                $businessId = session('business_id');
+                $newUser->businesses()->attach($businessId);
+
+                // ✅ Assign role in UserBusiness (business-scoped role)
+                $userBusiness = \App\Models\UserBusiness::where('user_id', $newUser->id)
+                    ->where('business_id', $businessId)
+                    ->first();
+
+                if ($userBusiness) {
+                    $userBusiness->assignRole($request->role); // role ID or name
+                }
+
+                DB::commit();
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
             }
-            $newUser->save();
-
-            $role = Role::find($request->role);
-            $newUser->syncRoles($role);
 
             return to_route('backend.admin.users')->with('success', 'User added successfully');
         } else {
