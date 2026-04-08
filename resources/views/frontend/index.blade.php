@@ -46,7 +46,7 @@
                 </div>
             </div>
             <div class="showcase-card">
-                <img src="{{ asset('assets/images/invoice-03.jpeg') }}" alt="Analytics & Reporting"
+                <img src="{{ asset('assets/images/invoice-03.png') }}" alt="Analytics & Reporting"
                     class="showcase-image">
                 <div class="showcase-content">
                     <h4>Actionable Analytics</h4>
