@@ -71,7 +71,7 @@ class OrderController extends Controller
                 ->addColumn('status', fn($data) => $data->status
                     ? '<span class="badge bg-primary">Paid</span>'
                     : '<span class="badge bg-danger">Due</span>')
-
+                ->addColumn('date', fn($data) => $data->created_at->format('Y-m-d'))
                 ->addColumn('fbr_status', function ($d) {
                     if ($d->api_status == 200 && (empty($d->error_code) || $d->error_code == null)) {
                         return "<button data-id=$d->id class='fbr-status btn btn-md bg-white' title='Data Submitted'><i class='fas fa-check-circle text-success'></i></button>";
@@ -83,11 +83,11 @@ class OrderController extends Controller
                         return "<button data-id=$d->id class='fbr-status btn btn-md bg-white' title='Api Faild' ><i class='fas fa-exclamation-triangle text-warning'></i></button>";
                     }
                 })
-                ->addColumn('action', function ($data) use ($business_type) {
+                ->addColumn('action', function ($data) {
                     $buttons = '';
 
                     $buttons .= '<a class="btn btn-success btn-sm" href="' . route('backend.admin.orders.invoice', $data->id) . '"><i class="fas fa-file-invoice"></i> Invoice</a>';
-                    if ($business_type == "pos") {
+                    if ($data->type == "pos_invoice") {
                         $buttons .= '<a class="btn btn-secondary btn-sm" href="' . route('backend.admin.orders.pos-invoice', $data->id) . '"><i class="fas fa-file-invoice"></i> Pos Invoice</a>';
                     } else {
                         $buttons .= '<a class="btn btn-secondary btn-sm" href="' . route('backend.admin.orders.pos-invoice-digital', $data->id) . '"><i class="fas fa-file-invoice"></i> Digital Invoice</a>';
@@ -98,7 +98,7 @@ class OrderController extends Controller
                     $buttons .= '<a class="btn btn-primary btn-sm" href="' . route('backend.admin.orders.transactions', $data->id) . '"><i class="fas fa-exchange-alt"></i> Transactions</a>';
                     return $buttons;
                 })
-                ->rawColumns(['saleId', 'customer', 'item', 'sub_total', 'discount', 'total', 'paid', 'due', 'type', 'status', 'fbr_status', 'action'])
+                ->rawColumns(['saleId', 'customer', 'item', 'sub_total', 'discount', 'total', 'paid', 'due', 'type', 'date', 'status', 'fbr_status', 'action'])
                 ->toJson();
         }
         return view('backend.orders.index');
