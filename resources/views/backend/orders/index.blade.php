@@ -21,6 +21,7 @@
                 <th>Paid {{currency()->symbol??''}}</th>
                 <th>Due {{currency()->symbol??''}}</th>
                 <th>Type</th>
+                <th>Date</th>
                 <th>Status</th>
                 <th>FBR Status</th>
                 <th data-orderable="false">Action</th>
@@ -113,7 +114,14 @@
           data: 'type',
           name: 'type'
         },
-       
+        {
+          data: 'date',
+          name: 'date'
+        },
+        {
+          data: 'status',
+          name: 'status'
+        },
         {
           data: 'fbr_status',
           name: 'fbr_status', orderable:false, 
