@@ -279,19 +279,18 @@ class BusinessController extends Controller
     // Login time buiness create or select logic
 
     public function selection()
-    {
-        if (!Auth::check()) {
-                    return view('frontend.authentication.business-selection');
+{
+    if (!Auth::check()) {
+        return view('frontend.authentication.business-selection');
+    } 
 
-        }else{
+    $user = Auth::user();
+    $businesses = $user->hasRole('super_admin') 
+    ? Business::all() 
+    : $user->businesses;
 
-             $user = Auth::user();
-        $businesses = $user->businesses;
-        
-        return view('frontend.authentication.business-selection', compact('businesses'));
-        }
-       
-    }
+    return view('frontend.authentication.business-selection', compact('businesses'));
+}
 
     public function select(Request $request)
     {
@@ -302,7 +301,7 @@ class BusinessController extends Controller
 
         // Check if user has access to this business
         $user = Auth::user();
-        if (!$user->businesses()->where('business_id', $request->business_id)->exists()) {
+        if (!$user->hasRole('super_admin') && !$user->businesses()->where('business_id', $request->business_id)->exists()) {
             return back()->with('error', 'You do not have access to this business');
         }
 
@@ -319,7 +318,7 @@ class BusinessController extends Controller
 
         // dd($businessId);
         // Check that this business belongs to the current user
-        if (!auth()->user()->businesses()->where('businesses.id', $businessId)->exists()) {
+        if (!auth()->user()->hasRole('super_admin') && !auth()->user()->businesses()->where('businesses.id', $businessId)->exists()) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
