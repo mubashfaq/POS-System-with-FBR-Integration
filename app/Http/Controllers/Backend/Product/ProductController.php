@@ -174,18 +174,59 @@ class ProductController extends Controller
     {
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_create'), 403);
-        // abort_if(!auth()->user()->can('product_create'), 403);
         $validated = $request->validated();
 
-        // $businessId = auth()->user()->businesses()->first()->id ?? null;
-        // $businessId = Session::get('business_id');
         $businessId = session('business_id');
 
         $validated['business_id'] = $businessId;
+
+        // Remove quantity from product data — stock is managed via purchase
+        // Log::debug('quantity : ' . $validated['quantity']);
+        $openingQty = $validated['quantity'] ?? 0;
+        $validated['quantity'] = 0; // Start at 0; purchase will increment it
+
         $product = Product::create($validated);
         if ($request->hasFile("product_image")) {
             $product->image = $this->fileHandler->fileUploadAndGetPath($request->file("product_image"), "/public/media/products");
             $product->save();
+        }
+
+        // Auto-create opening stock purchase if quantity > 0
+        if ($openingQty > 0) {
+            DB::beginTransaction();
+            try {
+                $purchase = Purchase::create([
+                    'supplier_id'    => $validated['supplier_id'] ?? null, // nullable
+                    'user_id'        => auth()->id(),
+                    'business_id'    => $businessId,
+                    'sub_total'      => $validated['purchase_price'] * $openingQty,
+                    'tax'            => 0,
+                    'discount_value' => 0,
+                    'shipping'       => 0,
+                    'grand_total'    => $validated['purchase_price'] * $openingQty,
+                    'date'           => Carbon::now()->toDateString(),
+                    'status'         => 1,
+                ]);
+
+                PurchaseItem::create([
+                    'purchase_id'    => $purchase->id,
+                    'product_id'     => $product->id,
+                    'purchase_price' => $validated['purchase_price'],
+                    'price'          => $validated['price'],
+                    'quantity'       => $openingQty,
+                    'remaining_qty'  => $openingQty,
+                ]);
+
+                // Now increment product stock
+                $product->increment('quantity', $openingQty);
+
+                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollBack();
+                // Optionally delete the product if purchase fails
+                $product->delete();
+                return redirect()->back()->with('error', 'Product created but opening stock failed!');
+            }
         }
 
         return redirect()->route('backend.admin.products.index')->with('success', 'Product created successfully!');
@@ -828,25 +869,12 @@ class ProductController extends Controller
         $businessId = session('business_id');
         $business_type = Business::where('id', $businessId)->value('business_type');
 
-        $brands = Brand::where('status', true)
-            ->where(function ($query) use ($businessId) {
-                $query->where('business_id', $businessId)
-                    ->orWhereNull('business_id');
-            })
-            ->get();
-        $categories = Category::where('status', true)
-            ->where(function ($query) use ($businessId) {
-                $query->where('business_id', $businessId)
-                    ->orWhereNull('business_id');
-            })
-            ->get();
-
         $hsCodes = hsCode::all();
         $units = Uom::all();
         $saleTypes = SaleType::all();
         $sroItems = SroItemCode::all();
 
-        return response()->json(compact('brands', 'categories', 'units', 'hsCodes', 'saleTypes', 'sroItems', 'business_type'));
+        return response()->json(compact('units', 'hsCodes', 'saleTypes', 'sroItems', 'business_type'));
     }
 
     public function storeAjax(StoreProductRequest $request)
@@ -946,7 +974,7 @@ class ProductController extends Controller
 
         return $sku;
     }
-    
+
     // public function updateStockSetting(Request $request)
     // {
     //      $businessId = session('business_id');
