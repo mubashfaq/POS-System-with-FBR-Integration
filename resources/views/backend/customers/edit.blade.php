@@ -34,7 +34,7 @@
               <span class="text-danger">*</span>
 
             </label>
-            <input type="number" class="form-control" placeholder="Enter NTN or CNIC" name="ntn_cnic"
+            <input type="number" class="form-control" id="cnic" placeholder="Enter NTN or CNIC" name="ntn_cnic"
               value="{{ $customer->ntn_cnic }}" required >
           </div>
           <div class="mb-3 col-md-6">
@@ -61,7 +61,7 @@
               Status
               <span class="text-danger">*</span>
             </label>
-            <select name="is_registered" id="is_registered" class="form-control" required>
+            <select name="is_registered" id="is_registered" class="form-control" required disabled>
               <option value="">Select Status</option>
               <option value="Registered" {{ $customer->is_registered == 'Registered' ? 'selected' : '' }}>Registered</option>
               <option value="Unregistered" {{ $customer->is_registered == 'Unregistered' ? 'selected' : '' }}>Unregistered</option>
@@ -80,5 +80,40 @@
 @endsection
 @push('script')
 <script>
+$(document).ready(function () {
+
+    $("#cnic").blur(function () {
+
+        let cnic = $(this).val();
+
+        let url = "{{ route('backend.admin.customers.is-registered', ':cnic') }}";
+url = url.replace(':cnic', cnic);
+
+        // API call
+        $.ajax({
+            url: url,
+            type: "POST",
+            data: {
+                cnic: cnic,
+                _token: "{{ csrf_token() }}"
+            },
+            success: function (res) {
+
+                if (res.registered) {
+                    $("#is_registered").val("Registered");
+                } else {
+                    $("#is_registered").val("Unregistered");
+                }
+
+            },
+            error: function () {
+                console.log("Error aagya");
+            }
+        });
+
+    });
+
+});
+
 </script>
 @endpush
