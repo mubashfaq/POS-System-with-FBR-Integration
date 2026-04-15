@@ -652,7 +652,7 @@ class OrderController extends Controller
                 "quantity" => number_format((float) $qty, 2, '.', ''),
                 "totalValues" => number_format(($lineTotal + $salesTax + $furtherTax), 2, '.', ''),
                 "valueSalesExcludingST" => number_format((float) $valueExTax, 2, '.', ''),
-                "fixedNotifiedValueOrRetailPrice" => number_format((float) $product->price, 2, '.', ''),
+                "fixedNotifiedValueOrRetailPrice" => 0,
                 "salesTaxApplicable" => number_format((float) $salesTax, 2, '.', ''),
 
                 "salesTaxWithheldAtSource" => 0,

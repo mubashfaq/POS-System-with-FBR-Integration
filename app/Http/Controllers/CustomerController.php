@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
+use App\Services\FbrTokenService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Yajra\DataTables\DataTables;
 use Illuminate\Validation\Rule;
 
@@ -23,9 +25,9 @@ class CustomerController extends Controller
         $businessId = session('business_id');
 
         if ($request->ajax()) {
-            $customers = Customer::where('business_id', $businessId) 
-            ->latest()
-            ->get();
+            $customers = Customer::where('business_id', $businessId)
+                ->latest()
+                ->get();
             return DataTables::of($customers)
                 ->addIndexColumn()
                 ->addColumn('name', fn($data) => $data->name)
@@ -75,7 +77,7 @@ class CustomerController extends Controller
         }
 
 
-        return view('backend.customers.index',compact('currentBusiness'));
+        return view('backend.customers.index', compact('currentBusiness'));
     }
 
     /**
@@ -160,7 +162,7 @@ class CustomerController extends Controller
             'province' => 'required|string|max:255',
             'address' => 'required|string|max:255',
             'is_registered' => 'required|string|max:255',
-            
+
         ]);
 
         if (!$businessId) {
@@ -169,13 +171,13 @@ class CustomerController extends Controller
 
 
         $customer = Customer::create([
-            'name'        => $request->name,
-            'phone'       => $request->phone,
-            'ntn_cnic'    => $request->ntn_cnic,
-            'province'    => $request->province,
-            'address'     => $request->address,
+            'name' => $request->name,
+            'phone' => $request->phone,
+            'ntn_cnic' => $request->ntn_cnic,
+            'province' => $request->province,
+            'address' => $request->address,
             'is_registered' => $request->is_registered,
-            'business_id' => $businessId, 
+            'business_id' => $businessId,
         ]);
 
         session()->flash('success', 'Customer created successfully.');
@@ -268,20 +270,20 @@ class CustomerController extends Controller
     }
 
     public function selectCustomer($id)
-{
-    // Example: store selected customer in session
-    $customerData = Customer::findOrFail($id);
-    $isRegistered = $customerData->is_registered;
+    {
+        // Example: store selected customer in session
+        $customerData = Customer::findOrFail($id);
+        $isRegistered = $customerData->is_registered;
 
-    return response()->json([
-        'success' => true,
-        'message' => 'Customer selected successfully',
-        'customer' => $customerData,
-        'isRegistered' => $isRegistered,
-    ]);
-}
+        return response()->json([
+            'success' => true,
+            'message' => 'Customer selected successfully',
+            'customer' => $customerData,
+            'isRegistered' => $isRegistered,
+        ]);
+    }
 
-public function search(Request $request)
+    public function search(Request $request)
     {
         $query = $request->get('term');
         $businessId = session('business_id');
@@ -289,8 +291,8 @@ public function search(Request $request)
         $customers = Customer::where('business_id', $businessId)
             ->where(function ($q) use ($query) {
                 $q->where('name', 'LIKE', '%' . $query . '%')
-                  ->orWhere('phone', 'LIKE', '%' . $query . '%')
-                  ->orWhere('address', 'LIKE', '%' . $query . '%');
+                    ->orWhere('phone', 'LIKE', '%' . $query . '%')
+                    ->orWhere('address', 'LIKE', '%' . $query . '%');
             })
             ->latest()
             ->limit(20)
@@ -299,4 +301,35 @@ public function search(Request $request)
         return response()->json($customers);
     }
 
+    public function isRegisteredCustomer($cnic)
+    {
+
+        try {
+
+            $token = FbrTokenService::getToken();
+           
+            $response = Http::withHeaders([
+                 'Authorization' => "Bearer $token",
+                    'Content-Type' => 'application/json',
+                    'Accept-Encoding' => 'gzip, deflate, br',
+                    'Accept' => '*/*'
+            ])->get('https://gw.fbr.gov.pk/dist/v1/Get_Reg_Type', [
+                        'Registration_No' => $cnic
+                    ]);
+
+            $data = $response->json();
+            // check response
+            if (isset($data['REGISTRATION_TYPE'])) {
+
+                return response()->json([
+                    'registered' => $data['REGISTRATION_TYPE'] === 'Registered'
+                ]);
+            }
+
+            return response()->json(['registered' => false]);
+
+        } catch (\Exception $e) {
+            return response()->json(['registered' => false]);
+        }
+    }
 }

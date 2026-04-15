@@ -109,7 +109,9 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::get('products/sro-Items-details/{sro_schedule_id}', [ProductController::class, 'getSroItemDetail'])->name('products.sro-Items-details');
     Route::post('products/update-stock-setting', [ProductController::class, 'updateStockSetting'])->name('products.update-stock-setting');
 
-    
+    // Get Customer is register or unregister
+    Route::post('customers/is-registered/{cnic}', [CustomerController::class, 'isRegisteredCustomer'])->name('customers.is-registered');
+
     Route::resource('units', UnitController::class);
     // Route::resource('currencies', CurrencyController::class);
     Route::match(['get', 'post'], 'import/products', [ProductController::class,'import'])->name('products.import');
