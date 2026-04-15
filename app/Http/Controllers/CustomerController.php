@@ -305,8 +305,24 @@ class CustomerController extends Controller
     {
 
         try {
+             
+          $businessType = getBusinessType();
 
-            $token = FbrTokenService::getToken();
+            if ($businessType === 'both') {
+
+                $settings = FbrTokenService::getSettings();
+
+                $env = $settings->environment == 1 ? 'production' : 'sandbox';
+
+                $digitalToken = $settings->{"digital_{$env}_token"};
+                $posToken     = $settings->{"pos_{$env}_token"};
+
+                // pehle digital, agar empty ho to pos
+                $token = !empty($digitalToken) ? $digitalToken : $posToken;
+
+            } else {
+                $token = FbrTokenService::getToken();
+            }
            
             $response = Http::withHeaders([
                  'Authorization' => "Bearer $token",

@@ -194,3 +194,12 @@ if (!function_exists('currentRegistrationStatus')) {
             : 'unregistered';
     }
 }
+
+function getBusinessType()
+{
+    $business_Id = session('business_id');
+    $business = Business::find($business_Id);
+    $businessType = $business->business_type;
+    return $businessType ? $businessType : null;
+    
+}
