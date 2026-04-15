@@ -18,7 +18,8 @@ class RoleController extends Controller
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('role_view'), 403);
 
     //    abort_if(!auth()->user()->can('role_view'), 403);
-        $roles = Role::all();
+        // $roles = Role::all();
+        $roles = Role::where('name', '!=', 'super_admin')->get();
         $permissions = Permission::all();
         return view('backend.settings.role.index', compact('roles', 'permissions'));
     }
@@ -26,10 +27,12 @@ class RoleController extends Controller
     // create new role
     public function store(Request $request)
     {
-         $currentBusiness = currentUserBusiness();
+        $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('role_create'), 403);
 
-        // abort_if(!auth()->user()->can('role_create'), 403);
+        if (strtolower($request->name) === 'super_admin') {
+            return back()->with('error', 'This role cannot be created manually.');
+        }
         
         $request->validate([
             'name' => 'required|unique:roles'
@@ -46,8 +49,12 @@ class RoleController extends Controller
     public function update(Request $request, $id)
     {
     //    abort_if(!auth()->user()->can('currency_update'), 403);
-     $currentBusiness = currentUserBusiness();
+        $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('currency_update'), 403);
+
+        if (strtolower($request->name) === 'super_admin') {
+            return back()->with('error', 'This role cannot be updated manually.');
+        }
 
         $request->validate([
             'name' => "required|unique:roles,name," . $id
@@ -95,8 +102,8 @@ class RoleController extends Controller
         // Reset cached roles and permissions
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
         if ($role = Role::findOrFail($id)) {
-            // admin role has everything
-            if ($role->name === 'Admin') {
+            // Admin & Super Admin always have all permissions
+            if (in_array($role->name, ['Admin', 'super_admin'])) {
                 $role->syncPermissions(Permission::all());
                 return to_route('backend.admin.roles')->with('warning', 'Admin role has all permissions');
             }

@@ -1,6 +1,7 @@
 <?php
     $countries = countries('en'); // rinvex helper, returns all countries
-    $businesses = auth()->user()->businesses;
+    $businesses = auth()->user()->hasRole('super_admin') ? App\Models\Business::all() : auth()->user()->businesses;
+    // $businesses = auth()->user()->businesses;
 ?>
 <!DOCTYPE html>
 <html lang="en">

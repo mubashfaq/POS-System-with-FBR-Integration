@@ -68,5 +68,8 @@ class Kernel extends HttpKernel
         'current.business' => \App\Http\Middleware\SetCurrentBusiness::class,
         'business.type' => \App\Http\Middleware\CheckBusinessType::class,
         'ensure.business' => \App\Http\Middleware\EnsureBusinessSelected::class,
+        'role' => \Spatie\Permission\Middlewares\RoleMiddleware::class,
+        'permission' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
+        'role_or_permission' => \Spatie\Permission\Middlewares\RoleOrPermissionMiddleware::class,
     ];
 }

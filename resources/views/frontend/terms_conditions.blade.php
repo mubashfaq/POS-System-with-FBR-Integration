@@ -1,4 +1,8 @@
-@include('frontend.layouts.header', ['pageTitle' => 'Terms and Conditions'])
+@include('frontend.layouts.header', [
+    'pageTitle' => 'Terms and Conditions',
+    'metaDescription' => 'Read the terms and conditions for using our digital invoicing system and services.',
+    'metaKeywords' => 'terms and conditions, legal policy, user agreement'
+])
 
     <style>
         body {
