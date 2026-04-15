@@ -1,4 +1,8 @@
-@include('frontend.layouts.header', ['pageTitle' => 'Pricing'])
+@include('frontend.layouts.header', [
+    'pageTitle' => 'Pricing Plans',
+    'metaDescription' => 'Explore affordable pricing plans for our digital invoicing and POS system. Choose the best plan for your business.',
+    'metaKeywords' => 'pricing plans, POS pricing, invoicing software cost, subscription plans'
+])
 
 <style>
     body {
@@ -133,7 +137,7 @@
             </div>
 
             <div class="col-lg-6 text-center">
-                <img src="https://cdn-icons-png.flaticon.com/512/3135/3135706.png" width="360" class="img-fluid">
+                <img src="https://cdn-icons-png.flaticon.com/512/3135/3135706.png" alt="Professional user avatar representing business owner in POS and invoicing system" width="360" class="img-fluid">
             </div>
 
         </div>

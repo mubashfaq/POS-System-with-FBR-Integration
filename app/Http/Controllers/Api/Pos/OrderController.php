@@ -120,9 +120,16 @@ class OrderController extends Controller
 public function store(Request $request)
 {
     $request->validate([
-        'customer_id' => ['required', 'exists:customers,id', 'integer'],
+        'customer_id'    => ['required', 'exists:customers,id', 'integer'],
         'order_discount' => ['nullable', 'numeric', 'min:0'],
-        'paid' => ['nullable', 'numeric', 'min:0'],
+        'paid'           => ['nullable', 'numeric', 'min:0'],
+    
+        // NEW
+        'items'                       => ['required', 'array', 'min:1'],
+        'items.*.product_id'          => ['required', 'exists:products,id', 'integer'],
+        'items.*.quantity'            => ['required', 'numeric', 'min:0.01'],
+        'items.*.purchase_item_id'    => ['nullable', 'exists:purchase_items,id', 'integer'],
+        'items.*.price_override'      => ['nullable', 'numeric', 'min:0'],
     ]);
 
     $businessId = $request->attributes->get('business')->id;
@@ -134,13 +141,32 @@ public function store(Request $request)
     $customer = Customer::find($request->customer_id);
 
 
-    $carts = PosCart::with(['product', 'purchaseItem'])
-        ->where('user_id', auth()->id())
-        ->lockForUpdate()
-        ->get();
+    //  Request items ko cart jaisi collection mein convert karo
+    $itemsInput = collect($request->items);
 
-    if ($carts->isEmpty()) {
-        return response()->json(['error' => 'Cart is empty'], 422);
+    $productIds = $itemsInput->pluck('product_id')->toArray();
+    $purchaseItemIds = $itemsInput->pluck('purchase_item_id')->filter()->toArray();
+
+    // Eager load - N+1 avoid karne ke liye
+    $products = Product::whereIn('id', $productIds)->get()->keyBy('id');
+    $purchaseItems = PurchaseItem::whereIn('id', $purchaseItemIds)->get()->keyBy('id');
+
+    // Cart jaisi collection banao
+    $carts = $itemsInput->map(function ($item) use ($products, $purchaseItems) {
+        $obj = new \stdClass();
+        $obj->product         = $products[$item['product_id']] ?? null;
+        $obj->quantity        = $item['quantity'];
+        $obj->purchase_item_id = $item['purchase_item_id'] ?? null;
+        $obj->purchaseItem    = isset($item['purchase_item_id']) 
+                                ? ($purchaseItems[$item['purchase_item_id']] ?? null) 
+                                : null;
+        $obj->price_override  = $item['price_override'] ?? null;
+        return $obj;
+    });
+
+    // Validate products exist
+    if ($carts->contains(fn($c) => is_null($c->product))) {
+        return response()->json(['error' => 'One or more products not found'], 422);
     }
 
     /* ================= DUPLICATE CHECK ================= */
@@ -179,52 +205,77 @@ public function store(Request $request)
 
 
     foreach ($carts as $cart) {
-    $product = $cart->product;
+        $product = $cart->product;
 
-    // Use price_override if exists
-    $unitPrice = $cart->price_override ?? $product->discounted_price;
-    $qty = $cart->quantity;
-    $lineTotal = round($unitPrice * $qty, 2);
-    $subTotal  = round($product->price * $qty, 2);
-    $discount  = round(($product->price - $unitPrice) * $qty, 2);
+        // Use price_override if exists
+        $unitPrice = $cart->price_override ?? $product->discounted_price;
+        $qty = $cart->quantity;
+        $lineTotal = round($unitPrice * $qty, 2);
+        $subTotal  = round($product->price * $qty, 2);
+        $discount  = round(($product->price - $unitPrice) * $qty, 2);
 
-   // Sale TAX (NEW)
-   $rateText = trim($product->pos_sale_tax);
+        // Sale TAX (NEW)
+        $rateText = trim($product->pos_sale_tax);
 
-   $saleTax = 0;
+        $saleTax = 0;
 
-           if (str_ends_with($rateText, '%')) {
-               $rate = floatval(str_replace('%', '', $rateText));
-       $saleTax = round($lineTotal * ($rate / 100), 2);
-   } else {
-       $saleTax = floatval($rateText) ?: 0;
-           }
+        if (str_ends_with($rateText, '%')) {
+            $rate = floatval(str_replace('%', '', $rateText));
+            $saleTax = round($lineTotal * ($rate / 100), 2);
+        } else {
+            $saleTax = floatval($rateText) ?: 0;
+        }
 
-   // âœ… FINAL TOTAL = line total + further tax
-   $finalTotal = round($lineTotal + $saleTax, 2);
+        // âœ… FINAL TOTAL = line total + further tax
+        $finalTotal = round($lineTotal + $saleTax, 2);
 
-    $totalAmountOrder += $finalTotal;
+        $totalAmountOrder += $finalTotal;
 
-    $order->products()->create([
-        'quantity'       => $cart->quantity,
-        'price'          => $unitPrice,
-        'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
-        'sub_total'      => $subTotal,
-        'discount'       => $discount,
-        'total'          => $finalTotal,
-        'product_id'     => $product->id,
-        'purchase_item_id' => $cart->purchase_item_id,
-    ]);
+        $order->products()->create([
+            'quantity'       => $cart->quantity,
+            'price'          => $unitPrice,
+            'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
+            'sub_total'      => $subTotal,
+            'discount'       => $discount,
+            'total'          => $finalTotal,
+            'product_id'     => $product->id,
+            'purchase_item_id' => $cart->purchase_item_id,
+        ]);
 
-    // Decrement product stock
-    $product->quantity -= $cart->quantity;
-    $product->save();
+        // ── BATCH: frontend ne purchase_item_id diya ──
+        if ($cart->purchase_item_id && $cart->purchaseItem) {
+            $cart->purchaseItem->decrement('remaining_qty', $qty);
 
-    // Decrement batch remaining_qty if batch is linked
-    if ($cart->purchase_item_id && $cart->purchaseItem) {
-        $cart->purchaseItem->decrement('remaining_qty', $cart->quantity);
+        // ── FIFO: purchase_item_id null hai, oldest batches se consume karo ──
+        } else {
+            $qtyToConsume = $qty; // ✅ alag variable FIFO ke liye
+        
+            $purchaseItems = PurchaseItem::where('product_id', $product->id)
+                ->where('remaining_qty', '>', 0)
+                ->orderBy('created_at', 'asc')
+                ->lockForUpdate()
+                ->get();
+        
+            foreach ($purchaseItems as $pi) {
+                if ($qtyToConsume <= 0) break;
+        
+                $consume = min($pi->remaining_qty, $qtyToConsume);
+                $pi->decrement('remaining_qty', $consume);
+                $qtyToConsume -= $consume;
+            }
+        
+            if ($qtyToConsume > 0) {
+                DB::rollBack();
+                return response()->json([
+                    'error' => "Insufficient stock for product: {$product->name}"
+                ], 422);
+            }
+        }
+
+        // Product total qty decrement (dono cases mein)
+        $product->decrement('quantity', $qty);
+        $product->save();
     }
-}
 
     $total = $totalAmountOrder - $orderDiscount;
     $due   = $total - ($request->paid ?? 0);
@@ -252,33 +303,32 @@ public function store(Request $request)
         $lineTotal = round($unitPrice * $qty, 2);
 
         $rateText = trim($product->pos_sale_tax); // 18%
-            $taxRate  = (float) str_replace('%', '', $rateText); // 18
+        $taxRate  = (float) str_replace('%', '', $rateText); // 18
         $salesTax = 0;
         $valueExTax = $lineTotal; // already ex-tax
-            if (str_ends_with($rateText, '%')) {
-                $rate = floatval(str_replace('%', '', $rateText));
-        
+        if (str_ends_with($rateText, '%')) {
+            $rate = floatval(str_replace('%', '', $rateText));
             $salesTax = round($valueExTax * ($rate / 100), 2);
-            } else {
-                $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
-            }
+        } else {
+            $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+        }
 
 
        
-            $fbrItems[] = [
+        $fbrItems[] = [
 
-                "ItemCode" => $product->sku,
-                "ItemName" => $product->name,
-                "quantity" => $qty,
-                "PCTCode" => $product->PCTCode,
-                "TaxRate" => $taxRate,
-                "SaleValue" => $valueExTax,
-                "TotalAmount" => $lineTotal + $salesTax ,//+ $furtherTax,
-                "TaxCharged" => $salesTax,
-                "discount" => 0,
-                "InvoiceType" => 1,
+            "ItemCode" => $product->sku,
+            "ItemName" => $product->name,
+            "quantity" => $qty,
+            "PCTCode" => $product->PCTCode,
+            "TaxRate" => $taxRate,
+            "SaleValue" => $valueExTax,
+            "TotalAmount" => $lineTotal + $salesTax ,//+ $furtherTax,
+            "TaxCharged" => $salesTax,
+            "discount" => 0,
+            "InvoiceType" => 1,
 
-            ];
+        ];
     }
 
     $customer = Customer::find($request->customer_id);
@@ -301,8 +351,6 @@ public function store(Request $request)
         "InvoiceType" => 1
     ];
     
-    // dd($fbrPayload);
-
     if (!FbrTokenService::isIntegrationEnabled()) {
 
         DB::commit();
@@ -310,8 +358,6 @@ public function store(Request $request)
         Order::where('id', $order->id)->update([
             'type' => 'pos_invoice',
         ]);
-
-        PosCart::where('user_id', auth()->id())->delete();
 
         return response()->json([
             'message' => 'Order completed successfully (FBR Not Integrated)',
@@ -348,7 +394,7 @@ public function store(Request $request)
                 'Accept-Encoding' => 'gzip, deflate, br',
                 'Accept' => 'application/json'
              ])->withBody(json_encode($fbrPayload), 'application/json')
-->post("https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData");
+                ->post("https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData");
             //  ->post("https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData", $fbrPayload);
     //         ])->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb", $fbrPayload);
     
@@ -360,8 +406,6 @@ public function store(Request $request)
 
 
         $postResponseJson = $post_api_response->json();
-
-        // dd($postResponseJson['Response']);
          
         
         $fbr_invoice_number = data_get($postResponseJson, 'InvoiceNumber');
@@ -388,22 +432,6 @@ public function store(Request $request)
                 'fbr_api_response' => $postResponseJson,
             ]);
         }
-        
-            /* ================= SAVE API STATUS & LOGS (NO ROLLBACK) ================= */
-            // Order::where('id', $order->id)->update([
-            //     'fbr_invoice_no'    => $fbr_invoice_number,
-            // ]);
-
-
-             // Order::where('id', $order->id)->update([
-    //     'api_status'    => $response->status(),
-    //     'error_code'    => $errorCode,
-    //     'error_message' => $errorMessage,
-    //     'api_message'   => $response->ok(),
-    // ]);
-    
-
-    PosCart::where('user_id', auth()->id())->delete();
 
     return response()->json([
         'message' => 'Order completed successfully!',
@@ -418,9 +446,16 @@ public function store(Request $request)
 public function storeDigital(Request $request)
 {
     $request->validate([
-        'customer_id' => ['required', 'exists:customers,id', 'integer'],
+        'customer_id'    => ['required', 'exists:customers,id', 'integer'],
         'order_discount' => ['nullable', 'numeric', 'min:0'],
-        'paid' => ['nullable', 'numeric', 'min:0'],
+        'paid'           => ['nullable', 'numeric', 'min:0'],
+    
+        // NEW
+        'items'                       => ['required', 'array', 'min:1'],
+        'items.*.product_id'          => ['required', 'exists:products,id', 'integer'],
+        'items.*.quantity'            => ['required', 'numeric', 'min:0.01'],
+        'items.*.purchase_item_id'    => ['nullable', 'exists:purchase_items,id', 'integer'],
+        'items.*.price_override'      => ['nullable', 'numeric', 'min:0'],
     ]);
 
     $businessId = $request->attributes->get('business')->id;
@@ -432,13 +467,32 @@ public function storeDigital(Request $request)
     $customer = Customer::find($request->customer_id);
 
 
-    $carts = PosCart::with(['product', 'purchaseItem'])
-        ->where('user_id', auth()->id())
-        ->lockForUpdate()
-        ->get();
+    //  Request items ko cart jaisi collection mein convert karo
+    $itemsInput = collect($request->items);
 
-    if ($carts->isEmpty()) {
-        return response()->json(['error' => 'Cart is empty'], 422);
+    $productIds = $itemsInput->pluck('product_id')->toArray();
+    $purchaseItemIds = $itemsInput->pluck('purchase_item_id')->filter()->toArray();
+
+    // Eager load - N+1 avoid karne ke liye
+    $products = Product::whereIn('id', $productIds)->get()->keyBy('id');
+    $purchaseItems = PurchaseItem::whereIn('id', $purchaseItemIds)->get()->keyBy('id');
+
+    // Cart jaisi collection banao
+    $carts = $itemsInput->map(function ($item) use ($products, $purchaseItems) {
+        $obj = new \stdClass();
+        $obj->product         = $products[$item['product_id']] ?? null;
+        $obj->quantity        = $item['quantity'];
+        $obj->purchase_item_id = $item['purchase_item_id'] ?? null;
+        $obj->purchaseItem    = isset($item['purchase_item_id']) 
+                                ? ($purchaseItems[$item['purchase_item_id']] ?? null) 
+                                : null;
+        $obj->price_override  = $item['price_override'] ?? null;
+        return $obj;
+    });
+
+    // Validate products exist
+    if ($carts->contains(fn($c) => is_null($c->product))) {
+        return response()->json(['error' => 'One or more products not found'], 422);
     }
 
     /* ================= DUPLICATE CHECK ================= */
@@ -477,67 +531,92 @@ public function storeDigital(Request $request)
 
 
     foreach ($carts as $cart) {
-    $product = $cart->product;
+        $product = $cart->product;
 
-    // Use price_override if exists
-    $unitPrice = $cart->price_override ?? $product->discounted_price;
-    $qty = $cart->quantity;
-    $lineTotal = round($unitPrice * $qty, 2);
-    $subTotal  = round($unitPrice * $qty, 2);
-    $discount  = round(($product->price - $unitPrice) * $qty, 2);
+        // Use price_override if exists
+        $unitPrice = $cart->price_override ?? $product->discounted_price;
+        $qty = $cart->quantity;
+        $lineTotal = round($unitPrice * $qty, 2);
+        $subTotal  = round($unitPrice * $qty, 2);
+        $discount  = round(($product->price - $unitPrice) * $qty, 2);
 
-   // FURTHER TAX (NEW)
-   $rateText = trim($product->rate_of_tax);
-   $furtherTax = 0;
+        // FURTHER TAX (NEW)
+        $rateText = trim($product->rate_of_tax);
+        $furtherTax = 0;
 
-   if (str_ends_with($rateText, '%')) {
-       $rate = floatval(str_replace('%', '', $rateText));
-       //  $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
-       $valueExTax = round($lineTotal, 2);
-       $salesTax  = round($valueExTax * ($rate / 100), 2);
+        if (str_ends_with($rateText, '%')) {
+            $rate = floatval(str_replace('%', '', $rateText));
+            //  $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
+            $valueExTax = round($lineTotal, 2);
+            $salesTax  = round($valueExTax * ($rate / 100), 2);
 
-       if ($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods') {
-           $furtherTax = round($valueExTax * (4 / 100), 2);
-       } else {
-           $furtherTax = 0;
-       }
-   } else {
-       $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
-       // $valueExTax = round($lineTotal - $salesTax, 2);
-       $valueExTax = round($lineTotal, 2);
+            if ($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods') {
+                $furtherTax = round($valueExTax * (4 / 100), 2);
+            } else {
+                $furtherTax = 0;
+            }
+        } else {
+            $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+            // $valueExTax = round($lineTotal - $salesTax, 2);
+            $valueExTax = round($lineTotal, 2);
 
-       if ($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods') {
-           $furtherTax = round($valueExTax * (4 / 100), 2);
-       } else {
-           $furtherTax = 0;
-       }
-   }
+            if ($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods') {
+                $furtherTax = round($valueExTax * (4 / 100), 2);
+            } else {
+                $furtherTax = 0;
+            }
+        }
 
         //  FINAL TOTAL = line total + further tax
         $finalTotal = round($lineTotal + $salesTax + $furtherTax, 2);
 
-    $totalAmountOrder += $finalTotal;
+        $totalAmountOrder += $finalTotal;
 
-    $order->products()->create([
-        'quantity'       => $cart->quantity,
-        'price'          => $unitPrice,
-        'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
-        'sub_total'      => $subTotal,
-        'discount'       => $discount,
-        'total'          => $finalTotal,
-        'product_id'     => $product->id,
-        'purchase_item_id' => $cart->purchase_item_id,
-    ]);
+        $order->products()->create([
+            'quantity'       => $cart->quantity,
+            'price'          => $unitPrice,
+            'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
+            'sub_total'      => $subTotal,
+            'discount'       => $discount,
+            'total'          => $finalTotal,
+            'product_id'     => $product->id,
+            'purchase_item_id' => $cart->purchase_item_id,
+        ]);
 
-    // Decrement product stock
-    $product->quantity -= $cart->quantity;
-    $product->save();
+        // ── BATCH: frontend ne purchase_item_id diya ──
+        if ($cart->purchase_item_id && $cart->purchaseItem) {
+            $cart->purchaseItem->decrement('remaining_qty', $qty);
 
-    // Decrement batch remaining_qty if batch is linked
-    if ($cart->purchase_item_id && $cart->purchaseItem) {
-        $cart->purchaseItem->decrement('remaining_qty', $cart->quantity);
+        // ── FIFO: purchase_item_id null hai, oldest batches se consume karo ──
+        } else {
+            $qtyToConsume = $qty; // ✅ alag variable FIFO ke liye
+        
+            $purchaseItems = PurchaseItem::where('product_id', $product->id)
+                ->where('remaining_qty', '>', 0)
+                ->orderBy('created_at', 'asc')
+                ->lockForUpdate()
+                ->get();
+        
+            foreach ($purchaseItems as $pi) {
+                if ($qtyToConsume <= 0) break;
+        
+                $consume = min($pi->remaining_qty, $qtyToConsume);
+                $pi->decrement('remaining_qty', $consume);
+                $qtyToConsume -= $consume;
+            }
+        
+            if ($qtyToConsume > 0) {
+                DB::rollBack();
+                return response()->json([
+                    'error' => "Insufficient stock for product: {$product->name}"
+                ], 422);
+            }
+        }
+
+        // Product total qty decrement (dono cases mein)
+        $product->decrement('quantity', $qty);
+        $product->save();
     }
-}
 
     $total = $totalAmountOrder - $orderDiscount;
     $due   = $total - ($request->paid ?? 0);
@@ -702,8 +781,6 @@ public function storeDigital(Request $request)
 
         DB::commit();
 
-        PosCart::where('user_id', auth()->id())->delete();
-
         return response()->json([
             'message' => 'Order completed successfully (FBR Not Integrated)',
             'order'   => $order,
@@ -825,7 +902,7 @@ public function storeDigital(Request $request)
 
     
 
-    PosCart::where('user_id', auth()->id())->delete();
+    // PosCart::where('user_id', auth()->id())->delete();
     
     return response()->json([
         'message' => 'Order completed successfully!',

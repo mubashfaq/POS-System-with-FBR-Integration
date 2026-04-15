@@ -349,33 +349,35 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                     </p>
                 </a>
                 <ul class="nav nav-treeview">
-                    {{-- @if ($currentBusiness->hasAnyPermission([
-                    'website_settings',
-                    'contact_settings',
-                    'socials_settings',
-                    'style_settings',
-                    'custom_settings',
-                    'notification_settings',
-                    'website_status_settings',
-                    'invoice_settings',
-                    ]))
-                    <li class="nav-item">
-                        <a href="{{ route('backend.admin.settings.website.general') }}?active-tab=website-info"
-                            class="nav-link {{ $route === 'backend.admin.settings.website.general' ? 'active' : '' }}">
-                            <i class="fas fa-circle nav-icon"></i>
-                            <p>General Settings</p>
-                        </a>
-                    </li>
-                    @endif  --}}
-                     {{-- @if ($currentBusiness->hasAnyPermission(['currency_create','currency_view','currency_update','currency_delete']))
-                    <li class="nav-item">
-                        <a href="{{ route('backend.admin.currencies.index') }}"
-                            class="nav-link {{ request()->routeIs([ 'backend.admin.currencies.index', 'backend.admin.currencies.create', 'backend.admin.currencies.edit']) ? 'active' : '' }}">
-                            <i class="fas fa-coins nav-icon"></i>
-                            <p>Currency</p>
-                        </a>
-                    </li>
-                    @endif  --}}
+                    @hasrole('super_admin')
+                        @if ($currentBusiness->hasAnyPermission([
+                        'website_settings',
+                        'contact_settings',
+                        'socials_settings',
+                        'style_settings',
+                        'custom_settings',
+                        'notification_settings',
+                        'website_status_settings',
+                        'invoice_settings',
+                        ]))
+                            <li class="nav-item">
+                                <a href="{{ route('backend.admin.settings.website.general') }}?active-tab=website-info"
+                                    class="nav-link {{ $route === 'backend.admin.settings.website.general' ? 'active' : '' }}">
+                                    <i class="fas fa-circle nav-icon"></i>
+                                    <p>General Settings</p>
+                                </a>
+                            </li>
+                        @endif 
+                        @if ($currentBusiness->hasAnyPermission(['currency_create','currency_view','currency_update','currency_delete']))
+                            <li class="nav-item">
+                                <a href="{{ route('backend.admin.currencies.index') }}"
+                                    class="nav-link {{ request()->routeIs([ 'backend.admin.currencies.index', 'backend.admin.currencies.create', 'backend.admin.currencies.edit']) ? 'active' : '' }}">
+                                    <i class="fas fa-coins nav-icon"></i>
+                                    <p>Currency</p>
+                                </a>
+                            </li>
+                        @endif 
+                    @endhasrole
                     @if ($currentBusiness->hasAnyPermission([
                     'role_create',
                     'role_view',

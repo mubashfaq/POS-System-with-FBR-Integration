@@ -54,7 +54,10 @@ use Illuminate\Support\Facades\DB;
                 {{ optional(\App\Models\Business::find(session('business_id')))->business_name ?? 'Select Business' }}
             </a>
             <div class="dropdown-menu dropdown-menu-right" aria-labelledby="businessDropdown">
-                @foreach(auth()->user()->businesses as $business)
+                @php
+                    $businesses = auth()->user()->hasRole('super_admin') ? \App\Models\Business::all() : auth()->user()->businesses;
+                @endphp
+                @foreach($businesses as $business)
                     <a href="#" 
                     class="dropdown-item business-item {{ session('business_id') == $business->id ? 'current-business' : '' }}"
                     data-business-id="{{ $business->id }}"
