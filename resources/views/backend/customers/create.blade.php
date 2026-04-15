@@ -62,7 +62,7 @@
                             <span class="text-danger">*</span>
 
                         </label>
-                        <select name="is_registered" id="is_registered" class="form-control" required disabled>
+                        <select name="is_registered" id="is_registered" class="form-control" required >
                             <option value="">Select Status</option>
                             <option value="Registered">
                                 Registered</option>

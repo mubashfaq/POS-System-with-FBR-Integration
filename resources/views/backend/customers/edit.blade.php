@@ -61,7 +61,7 @@
               Status
               <span class="text-danger">*</span>
             </label>
-            <select name="is_registered" id="is_registered" class="form-control" required disabled>
+            <select name="is_registered" id="is_registered" class="form-control" required >
               <option value="">Select Status</option>
               <option value="Registered" {{ $customer->is_registered == 'Registered' ? 'selected' : '' }}>Registered</option>
               <option value="Unregistered" {{ $customer->is_registered == 'Unregistered' ? 'selected' : '' }}>Unregistered</option>
