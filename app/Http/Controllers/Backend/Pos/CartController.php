@@ -350,7 +350,7 @@ public function updateQuantity(Request $request, CartService $cartService)
 {
     $request->validate([
         'id' => 'required|exists:pos_carts,id',
-        'quantity' => 'required|integer|min:1',
+        'quantity' => 'required',
     ]);
 
     try {
