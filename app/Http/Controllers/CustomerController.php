@@ -155,7 +155,7 @@ class CustomerController extends Controller
             ],
             'ntn_cnic' => [
                 'required',
-                'integer',
+                'string',
                 Rule::unique('customers')->where(function ($query) use ($businessId) {
                     return $query->where('business_id', $businessId);
                 }),

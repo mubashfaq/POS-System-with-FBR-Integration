@@ -717,6 +717,7 @@ class OrderController extends Controller
             "scenarioId" => $SN,
             "items" => $fbrItems
         ];
+            
 
         // Check if FBR integration is disabled
         if (!FbrTokenService::isIntegrationEnabled()) {
@@ -747,7 +748,6 @@ class OrderController extends Controller
             }
 
             $tokenUrlEnd = FbrTokenService::getTokenUrl();
-
 
 
             try {

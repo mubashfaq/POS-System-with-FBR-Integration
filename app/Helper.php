@@ -120,13 +120,32 @@ if (!function_exists('currentUserBusiness')) {
             return null;
         }
 
+        $user = Auth::user();
+
+        // ✅ Super Admin → always allow
+        if ($user->hasRole('super_admin')) {
+            return new class {
+                public function hasAnyPermission($permissions) {
+                    return true;
+                }
+
+                public function hasPermissionTo($permission) {
+                    return true;
+                }
+
+                public function __get($key) {
+                    return null;
+                }
+            };
+        }
+
         $businessId = session('business_id');
         if (!$businessId) {
             return null;
         }
 
         return UserBusiness::with('roles.permissions')
-            ->where('user_id', Auth::id())
+            ->where('user_id', $user->id)
             ->where('business_id', $businessId)
             ->first();
     }
