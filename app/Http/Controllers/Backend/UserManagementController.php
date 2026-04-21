@@ -28,7 +28,7 @@ class UserManagementController extends Controller
         // abort_if(!auth()->user()->can('user_view'), 403);
         if ($request->ajax()) {
             $users = User::whereHas('userBusinesses', function ($query) use ($currentBusiness) {
-                $query->where('business_id', $currentBusiness->business_id);
+                $query->where('business_id', $currentBusiness->getBusinessId());
             })
             ->with('roles')
             ->latest()
