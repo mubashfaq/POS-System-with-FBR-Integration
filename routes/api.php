@@ -31,7 +31,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::middleware('ensure.business')->group(function () {
 
-
         Route::get('/dashboard', [DashboardController::class, 'index']);
 
         // Route::get('/get/products', [CartController::class, 'getProducts'])->name('getProducts');
@@ -44,25 +43,22 @@ Route::middleware('auth:sanctum')->group(function () {
         //     ->middleware(['auth', 'business.type:digital'])
         //     ->name('cart.digitalInvoice');
 
+        Route::controller(CartController::class)->group(function () {
+            Route::post('cart', 'store');
+            Route::post('cart/increment/{id}', 'increment');
+            Route::post('cart/decrement/{id}', 'decrement');
+            Route::post('cart/update-quantity', 'updateQuantity');
+            Route::post('cart/update-price', 'updatePrice');
+            Route::delete('cart/{id}', 'destroy');
+            Route::delete('cart', 'empty');
+        });
+        Route::controller(OrderController::class)->group(function () {
+            Route::get('/orders', 'index');
+            Route::post('/order/create', 'store')->middleware(['business.type:pos,both']);
+            Route::post('/order/createDigital', 'storeDigital')->middleware(['business.type:digital,both']);
+        });
 
-
-        Route::post('cart', [CartController::class, 'store']);
-        Route::post('cart/increment/{id}', [CartController::class, 'increment']);
-        Route::post('cart/decrement/{id}', [CartController::class, 'decrement']);
-        Route::post('cart/update-quantity', [CartController::class, 'updateQuantity']);
-        Route::post('cart/update-price', [CartController::class, 'updatePrice']);
-        Route::delete('cart/{id}', [CartController::class, 'destroy']);
-        Route::delete('cart', [CartController::class, 'empty']);
-        Route::post('/order/create', [OrderController::class, 'store'])
-            ->middleware(['business.type:pos,both']);
-        Route::post('/order/createDigital', [OrderController::class, 'storeDigital'])
-            ->middleware(['business.type:digital,both']);
-            
         Route::apiResource('products', \App\Http\Controllers\Api\ProductController::class);
         Route::apiResource('customers', \App\Http\Controllers\Api\CustomerController::class);
     });
 });
-
-// Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-//     return $request->user();
-// });

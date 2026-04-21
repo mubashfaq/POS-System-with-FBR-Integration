@@ -17,6 +17,7 @@ class RenewSubscriptions extends Command
 
         if ($due->isEmpty()) {
             $this->info('No subscriptions due for renewal.');
+            Log::channel('subscription')->info('Subscription Schedule Running');
             return;
         }
 
@@ -35,7 +36,7 @@ class RenewSubscriptions extends Command
 
                 $this->line("✓ Renewed: Business #{$subscription->business_id} — Plan: {$subscription->plan->name}");
 
-                Log::info('Subscription renewed', [
+                Log::channel('subscription')->info('Subscription renewed', [
                     'business_id' => $subscription->business_id,
                     'plan'        => $subscription->plan->name,
                     'period'      => "{$now} → {$now->copy()->addMonth()}",
@@ -43,7 +44,7 @@ class RenewSubscriptions extends Command
 
             } catch (\Exception $e) {
                 $this->error("✗ Failed to renew subscription #{$subscription->id}: {$e->getMessage()}");
-                Log::error('Subscription renewal failed', [
+                Log::channel('subscription')->error('Subscription renewal failed', [
                     'subscription_id' => $subscription->id,
                     'error'           => $e->getMessage(),
                 ]);

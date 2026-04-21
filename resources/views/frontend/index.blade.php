@@ -51,7 +51,7 @@
                 </div>
             </div>
             <div class="showcase-card">
-                <img src="{{ asset('assets/images/invoice-02.jpeg') }}" alt="Inventory Management" loading="lazy"
+                <img src="{{ asset('assets/images/invoice-02.webp') }}" alt="Inventory Management" loading="lazy"
                     class="showcase-image">
                 <div class="showcase-content">
                     <h4>Smart Inventory Control</h4>
