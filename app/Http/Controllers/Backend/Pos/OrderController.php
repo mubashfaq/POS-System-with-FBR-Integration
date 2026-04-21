@@ -47,7 +47,6 @@ class OrderController extends Controller
             $purchase_id = PurchaseItem::select('purchase_id')->whereIn('product_id', $orderProductsIds)->get();
 
             $purchaseIds = $purchase_id->pluck('purchase_id');
-            $business_type = Business::where('id', $businessId)->value('business_type');
 
 
 
@@ -937,8 +936,9 @@ class OrderController extends Controller
         $order = Order::with(['customer', 'products.product'])->findOrFail($id);
         $businessId = session('business_id');
         $business = Business::where('id', $businessId)->first();
+        $fbrIntegration = DB::table('fbr_tokens')->where('business_id', $businessId)->value('fbr_integration');
 
-        return view('backend.orders.print-invoice', compact('order', 'business'));
+        return view('backend.orders.print-invoice', compact('order', 'business', 'fbrIntegration'));
     }
     public function collection(Request $request, $id)
     {
@@ -1009,7 +1009,9 @@ class OrderController extends Controller
 
         $maxWidth = $invoiceSettings->post_invoice_width ?? '300px';
 
-        return view('backend.orders.pos-invoice', compact('order', 'maxWidth', 'invoiceSettings', 'business'));
+        $fbrIntegration = DB::table('fbr_tokens')->where('business_id', $businessId)->value('fbr_integration');
+
+        return view('backend.orders.pos-invoice', compact('order', 'maxWidth', 'invoiceSettings', 'business', 'fbrIntegration'));
     }
 
 
@@ -1029,7 +1031,9 @@ class OrderController extends Controller
 
         $maxWidth = $invoiceSettings->post_invoice_width ?? '300px';
 
-        return view('backend.orders.pos-invoice-digital', compact('order', 'maxWidth', 'invoiceSettings', 'business'));
+        $fbrIntegration = DB::table('fbr_tokens')->where('business_id', $businessId)->value('fbr_integration');
+
+        return view('backend.orders.pos-invoice-digital', compact('order', 'maxWidth', 'invoiceSettings', 'business', 'fbrIntegration'));
     }
 
     public function fbrStatus($id)

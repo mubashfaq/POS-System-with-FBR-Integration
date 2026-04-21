@@ -29,91 +29,86 @@ class OrderController extends Controller
 
     public function index(Request $request)
     {
-       
-        if ($request->ajax()) {
-            $businessId = session('business_id');
-            if (!$businessId) {
-                return response()->json(['error' => 'No business selected'], 422);
-            }
-            $orders = Order::with('customer')
-                ->where('business_id', $businessId)
-                ->get();
-                $orderIds = $orders->pluck('id');
-
-
-            $orderProducts = OrderProduct::select('product_id')->whereIn('order_id', $orderIds)->get();
-
-            $orderProductsIds = $orderProducts->pluck('product_id');
-            $purchase_id = PurchaseItem::select('purchase_id')->whereIn('product_id', $orderProductsIds)->get();
-           
-            $purchaseIds = $purchase_id->pluck('purchase_id');
-            $business_type = Business::where('id', $businessId)->value('business_type');
-
-
-
-           
-            return DataTables::of($orders)
-                ->addIndexColumn()
-                ->addColumn('saleId', fn($data) => "#" . $data->id)
-                ->addColumn('customer', fn($data) => $data->customer->name ?? '-')
-                ->addColumn('item', fn($data) => $data->total_item)
-                ->addColumn('sub_total', fn($data) => number_format($data->sub_total, 2, '.', ','))
-                ->addColumn('discount', fn($data) => number_format($data->discount, 2, '.', ','))
-                ->addColumn('total', fn($data) => number_format($data->total, 2, '.', ','))
-                ->addColumn('paid', fn($data) => number_format($data->paid, 2, '.', ','))
-                ->addColumn('due', fn($data) => number_format($data->due, 2, '.', ','))
-                // ->addColumn('stock_total', fn($data) => number_format($stockTotal->sum('grand_total'), 2, '.', ','))
-                ->addColumn('status', fn($data) => $data->status
-                    ? '<span class="badge bg-primary">Paid</span>'
-                    : '<span class="badge bg-danger">Due</span>')
-                
-                ->addColumn('fbr_status', function ($d) {
-                    if ($d->api_status == 200 && (empty($d->error_code) || $d->error_code == null)) {
-                        return "<button data-id=$d->id class='fbr-status btn btn-md bg-white' title='Data Submitted'><i class='fas fa-check-circle text-success'></i></button>";
-                    }
-                    if ($d->api_status == 200 && (!empty($d->error_code) || $d->error_code != null) ) {
-                        return "<button data-id=$d->id class='fbr-status btn btn-md bg-white' title='Data Not Correct For FBR'><i class='fas fa-times-circle text-danger'></i></button>";
-                    }
-                    if ($d->api_status != 200) {
-                        return "<button data-id=$d->id class='fbr-status btn btn-md bg-white' title='Api Faild' ><i class='fas fa-exclamation-triangle text-warning'></i></button>";
-                    }
-                })
-                ->addColumn('action', function ($data) use ($business_type) {
-                    $buttons = '';
-
-                    $buttons .= '<a class="btn btn-success btn-sm" href="' . route('backend.admin.orders.invoice', $data->id) . '"><i class="fas fa-file-invoice"></i> Invoice</a>';
-                    if($business_type == "pos"){
-                    $buttons .= '<a class="btn btn-secondary btn-sm" href="' . route('backend.admin.orders.pos-invoice', $data->id) . '"><i class="fas fa-file-invoice"></i> Pos Invoice</a>';
-                    }else{
-                    $buttons .= '<a class="btn btn-secondary btn-sm" href="' . route('backend.admin.orders.pos-invoice-digital', $data->id) . '"><i class="fas fa-file-invoice"></i> Digital Invoice</a>';
-                    }
-                    if (!$data->status) {
-                        $buttons .= '<a class="btn btn-warning btn-sm" href="' . route('backend.admin.due.collection', $data->id) . '"><i class="fas fa-receipt"></i> Due Collection</a>';
-                    }
-                    $buttons .= '<a class="btn btn-primary btn-sm" href="' . route('backend.admin.orders.transactions', $data->id) . '"><i class="fas fa-exchange-alt"></i> Transactions</a>';
-                    return $buttons;
-                })
-                ->rawColumns(['saleId', 'customer', 'item', 'sub_total', 'discount', 'total', 'paid', 'due', 'status', 'fbr_status' , 'action'])
-                ->toJson();
+        $businessId = $request->attributes->get('business')->id;
+    
+        if (!$businessId) {
+        return response()->json([
+            'status' => false,
+            'message' => 'No business selected'
+        ], 422);
         }
-        return view('backend.orders.index');
+
+        $perPage = $request->get('per_page', 10);
+    
+        $orders = Order::with('customer')
+            ->where('business_id', $businessId)
+            ->latest()
+            ->paginate($perPage); // important for mobile
+
+            $fbrIntegration = DB::table('fbr_tokens')
+            ->where('business_id', $businessId)
+            ->value('fbr_integration');
+    
+        $data = $orders->getCollection()->map(function ($order) use ($fbrIntegration) {
+            return [
+                'id' => $order->id,
+                'sale_id' => "#" . $order->id,
+                'customer' => $order->customer->name ?? '-',
+                'items' => $order->total_item,
+                'sub_total' => (float) $order->sub_total,
+                'discount' => (float) $order->discount,
+                'total' => (float) $order->total,
+                'paid' => (float) $order->paid,
+                'due' => (float) $order->due,
+    
+                'type' => $order->type,
+                'type_label' => $order->type == 'pos_invoice' ? 'POS' : 'Digital',
+    
+                'payment_status' => $order->status ? 'paid' : 'due',
+    
+                'fbr_status' => $this->getFbrStatus($order, $fbrIntegration),
+    
+                'date' => $order->created_at->format('Y-m-d'),
+            ];
+        });
+    
+        return response()->json([
+            'status' => true,
+            'message' => 'Orders fetched successfully',
+            'data' => $data,
+            'pagination' => [
+                'current_page' => $orders->currentPage(),
+                'last_page' => $orders->lastPage(),
+                'per_page' => $orders->perPage(),
+                'total' => $orders->total(),
+            ]
+        ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    private function getFbrStatus($order, $integration)
     {
-        //
+        if (!$integration) {
+            return 'not_integrated';
+        }
+
+        // 🚫 Disabled
+        if ($integration == 'disabled') {
+            return 'disabled';
+        }
+
+        // ✅ Submitted
+        if ($order->api_status == 200 && empty($order->error_code)) {
+            return 'submitted';
+        }
+
+        // ❌ Invalid
+        if ($order->api_status == 200 && !empty($order->error_code)) {
+            return 'invalid_data';
+        }
+
+        // ⚠️ Failed
+        return 'failed';
     }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-
-
-//     
-
 
 // <<<<<<<<<<<<<<<<<<<<< first sennd fbi ten save in  >>>>>>>>>>>>>>>>>>>>>
 

@@ -222,25 +222,27 @@
                 </div>
             </div>
             <div class="row">
+                @if (($fbrIntegration ?? null) == 'enabled')
 
+                    <div class="col-md-1 mt-2">
+                        <!-- <h3>FBR Dig</h3> -->
+                        <div id="qrcode"></div>
+                        
+                    </div>
 
-              <div class="col-md-1 mt-2">
-                  <!-- <h3>FBR Dig</h3> -->
-                  <div id="qrcode"></div>
-                   
-              </div>
-
-              <div class="col-md-1">
-                 <div class="img">
-                    @if($order->type == 'pos_invoice')
-                      <img src="{{ asset('assets/images/fbr_pos_invoice_system.png') }}" style="width: 100%;" alt="">
-                    @else
-                       
-                      <img src="{{ asset('assets/images/fbr_logo-icon.png') }}" style="width: 100%;" alt="">
-                    @endif
-                </div>
-              </div>
-
+                    <div class="col-md-1">
+                        <div class="img">
+                            @if($order->type == 'pos_invoice')
+                            <img src="{{ asset('assets/images/fbr_pos_invoice_system.png') }}" style="width: 100%;" alt="">
+                            @else
+                            
+                            <img src="{{ asset('assets/images/fbr_logo-icon.png') }}" style="width: 100%;" alt="">
+                            @endif
+                        </div>
+                    </div>
+                @else
+                    <div class="col-md-2"></div>
+                @endif
               <div class="col-md-8"></div>
 
               <div class="col-md-2">
