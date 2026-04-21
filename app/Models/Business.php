@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Business extends Model
 {
@@ -27,5 +28,21 @@ class Business extends Model
     {
         return $this->belongsToMany(User::class, 'user_business', 'business_id', 'user_id')
                     ->withTimestamps();
+    }
+
+    public function subscription(): HasOne
+    {
+        return $this->hasOne(Subscription::class)
+                    ->where('status', 'active')
+                    ->with('plan')
+                    ->latestOfMany();
+    }
+
+    /**
+     * Shortcut: get the active plan directly from the business.
+     */
+    public function activePlan(): ?Plan
+    {
+        return $this->subscription?->plan;
     }
 }

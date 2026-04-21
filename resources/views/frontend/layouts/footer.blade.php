@@ -11,7 +11,7 @@
             <div class="footer-links">
                 <a href="{{ route('frontend.home') }}">Home</a>
                 <a href="{{ route('frontend.terms-conditions') }}">Terms & Conditions</a>
-                <a href="{{ route('frontend.pricing') }}">Pricing</a>
+                <a href="{{ route('plans.index') }}">Pricing</a>
             </div>
 
             <span>

@@ -16,8 +16,14 @@ class Kernel extends ConsoleKernel
     /**
      * Define the application's command schedule.
      */
+
+     protected $commands = [
+                \App\Console\Commands\RenewSubscriptions::class,
+            ];
+
    protected function schedule(Schedule $schedule): void
     {
+        $schedule->command('subscriptions:renew')->dailyAt('00:05')->withoutOverlapping();
         $schedule->call(function () {
             // Log scheduler start
             Log::channel('schedule')->info('SCHEDULER RUNNING');

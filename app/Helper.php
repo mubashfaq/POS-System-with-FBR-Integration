@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use App\Models\Business;
+use App\Helpers\UserBusinessWrapper;
 
 // ---------------------- Image & Document Helpers ----------------------
 if (!function_exists('imageRecover')) {
@@ -120,15 +121,27 @@ if (!function_exists('currentUserBusiness')) {
             return null;
         }
 
+        $user = Auth::user();
         $businessId = session('business_id');
+
         if (!$businessId) {
             return null;
         }
 
-        return UserBusiness::with('roles.permissions')
-            ->where('user_id', Auth::id())
+        $business = Business::find($businessId); // ✅ Fixed
+
+        // ✅ SUPER ADMIN
+        if ($user->hasRole('super_admin')) {
+            return new UserBusinessWrapper(null, $user, true, $business); // ✅ Fixed
+        }
+
+        // ✅ NORMAL USER
+        $userBusiness = UserBusiness::with('roles.permissions')
+            ->where('user_id', $user->id)
             ->where('business_id', $businessId)
             ->first();
+
+        return new UserBusinessWrapper($userBusiness, $user);
     }
 }
 
@@ -194,12 +207,12 @@ if (!function_exists('currentRegistrationStatus')) {
             : 'unregistered';
     }
 }
-
-function getBusinessType()
-{
-    $business_Id = session('business_id');
-    $business = Business::find($business_Id);
-    $businessType = $business->business_type;
-    return $businessType ? $businessType : null;
-    
+if (!function_exists('getBusinessType')) {
+    function getBusinessType()
+    {
+        $business_Id = session('business_id');
+        $business = Business::find($business_Id);
+        $businessType = $business->business_type;
+        return $businessType ? $businessType : null;
+    }
 }

@@ -103,6 +103,12 @@ class RolePermissionSeeder extends Seeder
             'website_status_settings',
             'invoice_settings',
 
+            // business
+            'business_update',
+
+            // plans, subscription
+            'plan_view',
+            'subscription_view'
         ];
         $admin = Role::where('name', 'Admin')->first();
         for ($i = 0; $i < count($permissions); $i++) {
@@ -110,6 +116,15 @@ class RolePermissionSeeder extends Seeder
             $admin->givePermissionTo($permission);
             $permission->assignRole($admin);
         }
+
+        // assign all permission to super_admin
+        $super_admin = Role::where('name', 'super_admin')->first();
+
+        $permissionModels = collect($permissions)->map(function ($perm) {
+            return Permission::firstOrCreate(['name' => $perm]);
+        });
+
+        $super_admin->syncPermissions($permissionModels);
 
         // Create users and assign roles
         $cashierUser = User::create([

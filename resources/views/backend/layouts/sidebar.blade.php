@@ -379,6 +379,40 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                         @endif 
                     @endhasrole
                     @if ($currentBusiness->hasAnyPermission([
+                        'plan_view',
+                        'subscription_view',
+                        ]))
+                        <li class="nav-item">
+                            <a href="#" class="nav-link d-flex justify-content-between align-items-center">
+                                <span>
+                                    <i class="fas fa-chevron-circle-right nav-icon"></i>
+                                    Plans & Subscription
+                                </span>
+                                <span class="d-flex justify-content-between align-items-center">
+                                    <i class="fas fa-angle-left right"></i>
+                                </span>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="{{ route('backend.admin.plans') }}"
+                                        class="nav-link {{ $route === 'backend.admin.plans' ? 'active' : '' }}">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>Plans</p>
+                                    </a>
+                                </li>
+    
+                                <li class="nav-item">
+                                    <a href="{{ route('backend.admin.subscription.index') }}"
+                                        class="nav-link {{ $route === 'backend.admin.subscription.index' ? 'active' : '' }}">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>My Subscription</p>
+                                    </a>
+                                </li>
+    
+                            </ul>
+                        </li>
+                        @endif 
+                    @if ($currentBusiness->hasAnyPermission([
                     'role_create',
                     'role_view',
                     'role_update',
