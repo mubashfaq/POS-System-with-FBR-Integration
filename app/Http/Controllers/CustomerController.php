@@ -143,8 +143,6 @@ class CustomerController extends Controller
         }
         $request->validate([
             'name' => 'required|string|max:255',
-            // 'phone' => 'required|string|max:20|unique:customers,phone',
-            // 'ntn_cnic' => 'required|integer|unique:customers,ntn_cnic',
             'phone' => [
                 'required',
                 'string',
@@ -155,7 +153,8 @@ class CustomerController extends Controller
             ],
             'ntn_cnic' => [
                 'required',
-                'integer',
+                'string',
+                'regex:/^[0-9]+$/',
                 Rule::unique('customers')->where(function ($query) use ($businessId) {
                     return $query->where('business_id', $businessId);
                 }),
