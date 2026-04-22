@@ -15,68 +15,98 @@ class ReportController extends Controller
 
     public function saleReport(Request $request)
     {
-
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('reports_sales'), 403);
-
-        // abort_if(!auth()->user()->can(abilities: 'reports_sales'), 403);
-        // Get user input or set default values
 
         $businessId = session('business_id');
 
         $start_date_input = $request->input('start_date', Carbon::today()->subDays(29)->format('Y-m-d'));
-        $end_date_input = $request->input('end_date', Carbon::today()->format('Y-m-d'));
-        $customerId = $request->input('customer_id');
+        $end_date_input   = $request->input('end_date', Carbon::today()->format('Y-m-d'));
+        $customerId       = $request->input('customer_id');
 
-        // Parse and set start date
-        $start_date = Carbon::createFromFormat('Y-m-d', $start_date_input) ?: Carbon::today()->subDays(29)->startOfDay();
-        $start_date = $start_date->startOfDay();
+        $start_date = Carbon::createFromFormat('Y-m-d', $start_date_input)->startOfDay();
+        $end_date   = Carbon::createFromFormat('Y-m-d', $end_date_input)->endOfDay();
 
-        // Parse and set end date
-        $end_date = Carbon::createFromFormat('Y-m-d', $end_date_input) ?: Carbon::today()->endOfDay();
-        $end_date = $end_date->endOfDay();
-        // Retrieve orders within the date range with products for profit calculation
+        // ── Fetch business once (avoids repeated DB hits for business_type) ──
+        $business = \App\Models\Business::select('id', 'business_type')
+                        ->find($businessId);
+
+        // ── Single optimized query — no N+1 ─────────────────────────────────
+        // 'products'         → OrderProduct (pivot/intermediate model)
+        // 'products.product' → the actual Product model via OrderProduct
         $orders = Order::where('business_id', $businessId)
-        ->whereBetween('created_at', [$start_date, $end_date])
-        ->when($customerId, function ($query) use ($customerId) {
-            return $query->where('customer_id', $customerId);
-        })
-        ->with(['customer', 'products'])
-        ->get();
+            ->whereBetween('created_at', [$start_date, $end_date])
+            ->when($customerId, fn($q) => $q->where('customer_id', $customerId))
+            ->with([
+                'customer:id,name,is_registered',      // only needed columns
+                'products',                             // order items
+                'products.product:id,name,purchase_price,rate_of_tax,pos_sale_tax,sale_type', // product columns
+            ])
+            ->get();
 
-        // Calculate profit/loss per order
         $orders->each(function ($order) {
-            $order->order_purchase_price = $order->products->sum('purchase_price');
-            $order->order_cost = $order->products->sum(function ($product) {
-                return $product->purchase_price * $product->quantity;
-            });
-            $orderProfit = $order->total - $order->order_cost;
+
+            // ── Cost / profit ────────────────────────────────────────────────
+            $order->order_cost = $order->products->sum(
+                fn($item) => $item->product->purchase_price * $item->quantity
+            );
+            $orderProfit         = $order->total - $order->order_cost;
             $order->order_profit = $orderProfit > 0 ? $orderProfit : 0;
-            $order->order_loss = $orderProfit < 0 ? abs($orderProfit) : 0;
+            $order->order_loss   = $orderProfit < 0 ? abs($orderProfit) : 0;
+
+            // ── Tax calculation ──────────────────────────────────────────────
+            $orderSalesTax   = 0;
+            $orderFurtherTax = 0;
+            $customer        = $order->customer;
+            $isPosInvoice    = $order->type === 'pos_invoice';
+
+            foreach ($order->products as $item) {
+                $taxRate   = $isPosInvoice
+                                ? $item->product->pos_sale_tax
+                                : $item->product->rate_of_tax;
+                $taxRate   = floatval(str_replace('%', '', $taxRate));
+                $exclTax   = $item->sub_total;
+                $taxAmount = round($exclTax * ($taxRate / 100), 2);
+
+                $furtherTax = 0;
+                if (
+                    !$isPosInvoice &&
+                    $customer &&
+                    strtolower($customer->is_registered ?? '') === 'unregistered' &&
+                    $item->product->sale_type !== '3rd Schedule Goods'
+                ) {
+                    $furtherTax = round($exclTax * 0.04, 2);
+                }
+
+                $orderSalesTax   += $taxAmount;
+                $orderFurtherTax += $furtherTax;
+            }
+
+            $order->order_sales_tax   = round($orderSalesTax, 2);
+            $order->order_further_tax = round($orderFurtherTax, 2);
         });
 
-        // Aggregate totals
-        $total_profit = $orders->sum('order_profit');
-        $total_loss = $orders->sum('order_loss');
-
-        // Calculate totals
         $data = [
-            'orders' => $orders,
-            'sub_total' => $orders->sum('sub_total'),
-            'discount' => $orders->sum('discount'),
-            'paid' => $orders->sum('paid'),
-            'due' => $orders->sum('due'),
-            'total' => $orders->sum('total'),
-            'start_date' => $start_date->format('M d, Y'),
-            'end_date' => $end_date->format('M d, Y'),
-            'profit' => $total_profit,
-            'loss' => $total_loss,
-            'total_cost' => $orders->sum('order_cost'), 
-            'customer' => $customerId ? \App\Models\Customer::find($customerId) : null,
+            'orders'        => $orders,
+            'business'      => $business,   
+            'sub_total'     => $orders->sum('sub_total'),
+            'discount'      => $orders->sum('discount'),
+            'paid'          => $orders->sum('paid'),
+            'due'           => $orders->sum('due'),
+            'total'         => $orders->sum('total'),
+            'sales_tax'     => round($orders->sum('order_sales_tax'), 2),
+            'further_tax'   => round($orders->sum('order_further_tax'), 2),
+            'start_date'    => $start_date->format('M d, Y'),
+            'end_date'      => $end_date->format('M d, Y'),
+            'profit'        => $orders->sum('order_profit'),
+            'loss'          => $orders->sum('order_loss'),
+            'total_cost'    => $orders->sum('order_cost'),
+            'customer'      => $customerId ? \App\Models\Customer::select('id','name','address','phone')->find($customerId) : null,
         ];
 
         return view('backend.reports.sale-report', $data);
     }
+
     public function saleSummery(Request $request)
     {
         $currentBusiness = currentUserBusiness();
