@@ -22,7 +22,7 @@
 
                 <div class="mb-2">
                     <a href="{{ route('login') }}" class="btn-primary-custom">Login to Dashboard</a>
-                    <a href="{{ route('frontend.pricing') }}" class="btn-secondary-custom">View Prices</a>
+                    <a href="{{ route('plans.index') }}" class="btn-secondary-custom">View Prices</a>
                 </div>
 
                 <!-- Pricing Hint -->
@@ -51,7 +51,7 @@
                 </div>
             </div>
             <div class="showcase-card">
-                <img src="{{ asset('assets/images/invoice-02.jpeg') }}" alt="Inventory Management" loading="lazy"
+                <img src="{{ asset('assets/images/invoice-02.webp') }}" alt="Inventory Management" loading="lazy"
                     class="showcase-image">
                 <div class="showcase-content">
                     <h4>Smart Inventory Control</h4>
@@ -275,7 +275,7 @@
         <p>Start managing your sales, inventory, and invoices with ease.</p>
 
         <a href="{{ route('login') }}" class="btn-primary-custom">Start Free Trial</a>
-        <a href="{{ route('frontend.pricing') }}" class="btn-secondary-custom">View Pricing</a>
+        <a href="{{ route('plans.index') }}" class="btn-secondary-custom">View Pricing</a>
     </div>
 </section>
 

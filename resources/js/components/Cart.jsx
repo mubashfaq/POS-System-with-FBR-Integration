@@ -82,7 +82,7 @@ export default function Cart({
                 quantity: newQuantity,
             })
             .then((res) => {
-                setCartUpdated(!cartUpdated);
+                setCartUpdated((prev) => !prev);
                 playSound(SuccessSound);
                 toast.success(res?.data?.message);
             })
@@ -131,7 +131,7 @@ export default function Cart({
                 axios
                     .put("/admin/cart/delete", { id })
                     .then((res) => {
-                        setCartUpdated(!cartUpdated);
+                        setCartUpdated((prev) => !prev);
                         playSound(SuccessSound);
                         toast.success(res?.data?.message);
                     })

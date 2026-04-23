@@ -139,6 +139,12 @@ return [
         'level' => 'info',
         ],
 
+        'subscription' => [
+        'driver' => 'single',
+        'path' => storage_path('logs/subscription.log'),
+        'level' => 'info',
+        ],
+
 
     ],
 

@@ -72,4 +72,10 @@ class Kernel extends HttpKernel
         'permission' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
         'role_or_permission' => \Spatie\Permission\Middlewares\RoleOrPermissionMiddleware::class,
     ];
+
+    protected $routeMiddleware = [
+        'plan.limit' => \App\Http\Middleware\CheckPlanLimit::class,
+        'feature'    => \App\Http\Middleware\RequireFeature::class,
+        'subscription.status' => \App\Http\Middleware\CheckSubscriptionStatus::class,
+    ];
 }

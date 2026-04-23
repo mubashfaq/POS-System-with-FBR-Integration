@@ -89,6 +89,9 @@ class BusinessController extends Controller
     if ($request->hasFile('logo')) {
         $logoPath = $request->file('logo')->store('logos', 'public');
         $validated['logo'] = $logoPath; // yaha sahi path add kar rahe ho
+    } else {
+        // Assign default logo
+        $validated['logo'] = 'logos/default-business.png';
     }
 
     // Ab $validated use karo instead of $request->all()
@@ -163,6 +166,9 @@ class BusinessController extends Controller
         if ($request->hasFile('logo')) {
             $logoPath = $request->file('logo')->store('logos', 'public');
             $validated['logo'] = $logoPath;
+        } else {
+            // Assign default logo
+            $validated['logo'] = 'logos/default-business.png';
         }
 
         
