@@ -350,7 +350,7 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                 </a>
                 <ul class="nav nav-treeview">
                     @hasrole('super_admin')
-                        @if ($currentBusiness->hasAnyPermission([
+                        @if ($currentBusiness && $currentBusiness->hasAnyPermission([
                         'website_settings',
                         'contact_settings',
                         'socials_settings',

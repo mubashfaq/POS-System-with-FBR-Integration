@@ -19,7 +19,7 @@
 }
 
 .dashboard-card .inner h3 {
-    font-size: 3.3rem !important;  /* Bigger numbers */
+    font-size: 2rem !important;  /* Bigger numbers */
     font-weight: 700;
     margin: 0;
 }
@@ -36,7 +36,7 @@
 }
 
 .dashboard-card-second .inner h3 {
-    font-size: 3.3rem !important;  /* Bigger numbers */
+    font-size: 2rem !important;  /* Bigger numbers */
     font-weight: 700;
     margin: 0;
 }
@@ -53,7 +53,7 @@
 }
 
 .dashboard-card-third .inner h3 {
-    font-size: 3.3rem !important;  /* Bigger numbers */
+    font-size: 2rem !important;  /* Bigger numbers */
     font-weight: 700;
     margin: 0;
 }
@@ -70,7 +70,7 @@
 }
 
 .dashboard-card-forth .inner h3 {
-    font-size: 3.3rem !important;  /* Bigger numbers */
+    font-size: 2rem !important;  /* Bigger numbers */
     font-weight: 700;
     margin: 0;
 }
