@@ -83,6 +83,7 @@ class BusinessController extends Controller
             'youtube_link'    => 'nullable|url|max:255',
             'instagram_link'  => 'nullable|url|max:255',
             'enable_batch'    => 'nullable|boolean',
+            'address'         => 'required|string',
         ]);
     // File Upload
     if ($request->hasFile('logo')) {
@@ -155,7 +156,7 @@ class BusinessController extends Controller
             'whatsapp_link'   => 'nullable|url|max:255',
             'youtube_link'    => 'nullable|url|max:255',
             'instagram_link'  => 'nullable|url|max:255',
-            'address'         => 'nullable',
+            'address'         => 'required|string',
             'cnic'         => 'required|numeric|digits:13',
             'state'         => 'required|string|max:255',
             'enable_batch'    => 'nullable|boolean',
