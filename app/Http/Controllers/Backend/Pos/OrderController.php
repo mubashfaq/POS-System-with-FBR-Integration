@@ -56,7 +56,7 @@ class OrderController extends Controller
                 ->addIndexColumn()
                 ->addColumn('saleId', fn($data) => "#" . $data->id)
                 ->addColumn('customer', fn($data) => $data->customer->name ?? '-')
-                ->addColumn('item', fn($data) => $data->total_item)
+                ->addColumn('item', fn($data) => number_format($data->total_item, 2, '.', ','))
                 ->addColumn('sub_total', fn($data) => number_format($data->sub_total, 2, '.', ','))
                 ->addColumn('discount', fn($data) => number_format($data->discount, 2, '.', ','))
                 ->addColumn('total', fn($data) => number_format($data->total, 2, '.', ','))
@@ -351,7 +351,7 @@ class OrderController extends Controller
                     'Authorization' => "Bearer $token",
                     'Content-Type' => 'application/json',
                     'Accept-Encoding' => 'gzip, deflate, br',
-                    'Accept' => 'application/json'
+                    'Accept' => '*/*'
                 ])->withBody(json_encode($fbrPayload), 'application/json')
                     ->post("https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData");
                 //  ->post("https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData", $fbrPayload);
@@ -363,6 +363,7 @@ class OrderController extends Controller
             }
 
             $postResponseJson = $post_api_response->json();
+            // dd($postResponseJson);
 
             /* ================= FBR API CALL ================= */
             Log::info('FBR Payload', [
@@ -372,7 +373,6 @@ class OrderController extends Controller
             ]);
 
 
-            // dd($postResponseJson['Response']);
 
 
             $fbr_invoice_number = data_get($postResponseJson, 'InvoiceNumber');
@@ -1029,7 +1029,8 @@ class OrderController extends Controller
 
         $maxWidth = $invoiceSettings->post_invoice_width ?? '300px';
 
-        return view('backend.orders.pos-invoice-digital', compact('order', 'maxWidth', 'invoiceSettings', 'business'));
+        // return view('backend.orders.pos-invoice-digital', compact('order', 'maxWidth', 'invoiceSettings', 'business'));
+        return view('backend.orders.print-invoice', compact('order', 'maxWidth', 'invoiceSettings', 'business'));
     }
 
     public function fbrStatus($id)

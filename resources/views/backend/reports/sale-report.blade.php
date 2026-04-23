@@ -85,7 +85,7 @@
                       <td>#{{$order->id}}</td>
                       <td>{{ $order->customer->name ?? '-' }}</td>
                       <td>{{ $order->created_at->format('d-m-Y') }}</td>
-                      <td>{{$order->total_item}}</td>
+                      <td>{{number_format($order->total_item,2,'.',',')}}</td>
                       <td>{{number_format($order->order_purchase_price,2,'.',',')}}</td>
                       <td>{{number_format($order->order_cost,2,'.',',')}}</td>
                       <td>{{number_format($order->sub_total,2,'.',',')}}</td>
