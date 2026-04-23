@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 import Cart from "./Cart";
@@ -21,6 +21,7 @@ export default function Pos() {
     const [total, setTotal] = useState(0);
     const [updateTotal, setUpdateTotal] = useState(0);
     const [customerId, setCustomerId] = useState();
+    const customerIdRef = useRef(); // keeps a non-stale ref for use in callbacks
     const [isRegistered, setIsRegistered] = useState("Registered"); 
     const [cartUpdated, setCartUpdated] = useState(false);
     const [productUpdated, setProductUpdated] = useState(false);
@@ -75,12 +76,17 @@ export default function Pos() {
 
     
 
-    // POS.jsx ke andar, CustomerSelect ke pass karne ke liye
+    // Sync customerId into ref whenever it changes (fixes stale closure in callbacks)
+    useEffect(() => {
+        customerIdRef.current = customerId;
+    }, [customerId]);
+
+    // Called by CustomerSelect when customer changes
 const emptyCartOnCustomerChange = async () => {
     try {
         await axios.put("/admin/cart/empty"); // backend empty cart
         setCarts([]); // frontend cart clear
-        setCartUpdated(prev => !prev); // Cart component ko update karne ke liye
+        setCartUpdated(prev => !prev);
         playSound(SuccessSound);
         toast.success("Cart emptied due to customer change");
     } catch (err) {
@@ -209,7 +215,9 @@ const emptyCartOnCustomerChange = async () => {
     }, [currentPage, totalPages]);
 
     function addProductToCart(id, customerId, purchaseItemId = null) {
-        if (!customerId) {
+        // Use ref as fallback so this works immediately after customer selection
+        const resolvedCustomerId = customerId || customerIdRef.current;
+        if (!resolvedCustomerId) {
             toast.error("Please Select Customer");
             return;
         }
@@ -224,7 +232,7 @@ const emptyCartOnCustomerChange = async () => {
                         name: res.data.product_name,
                     };
 
-                    if (batches.length < 0) {
+                    if (batches.length <= 0) {
                         toast.error("Insufficient stock or no batches found.");
                         return;
                     }
@@ -254,20 +262,50 @@ const emptyCartOnCustomerChange = async () => {
     }
 
     function submitToCart(productId, purchaseItemId) {
+        // Optimistic update: find an existing cart item for this product
+        // and temporarily increment its quantity so the UI updates instantly
+        setCarts((prev) => {
+            const existing = prev.find(
+                (c) => c.product?.id === productId && c.purchase_item_id === purchaseItemId
+            );
+            if (existing) {
+                // increment quantity optimistically
+                return prev.map((c) =>
+                    c.product?.id === productId && c.purchase_item_id === purchaseItemId
+                        ? { ...c, quantity: c.quantity + 1 }
+                        : c
+                );
+            }
+            // New item — add a thin placeholder so something appears immediately
+            return [
+                ...prev,
+                {
+                    id: `optimistic-${productId}-${Date.now()}`,
+                    product: { id: productId, name: "...", discounted_price: 0, price: 0, rate_of_tax: "0", sale_type: "" },
+                    quantity: 1,
+                    purchase_item_id: purchaseItemId,
+                    unit_price: null,
+                },
+            ];
+        });
+
         axios
             .post("/admin/cart", {
                 id: productId,
                 purchase_item_id: purchaseItemId,
             })
             .then((res) => {
-                setCartUpdated(!cartUpdated);
+                // Replace optimistic state with real server data
+                setCartUpdated((prev) => !prev);
                 playSound(SuccessSound);
                 toast.success(res?.data?.message);
                 setShowBatchModal(false);
             })
             .catch((err) => {
+                // Rollback optimistic update on error
+                setCartUpdated((prev) => !prev);
                 playSound(WarningSound);
-                toast.error(err.response.data.message);
+                toast.error(err.response?.data?.message || "Failed to add product");
             });
     }
     function cartEmpty() {
@@ -290,13 +328,13 @@ const emptyCartOnCustomerChange = async () => {
                 axios
                     .put("/admin/cart/empty")
                     .then((res) => {
-                        setCartUpdated(!cartUpdated);
+                        setCartUpdated((prev) => !prev);
                         playSound(SuccessSound);
                         toast.success(res?.data?.message);
                     })
                     .catch((err) => {
                         playSound(WarningSound);
-                        toast.error(err.response.data.message);
+                        toast.error(err.response?.data?.message || "Something went wrong");
                     });
             } else if (result.isDenied) {
                 return;
@@ -375,13 +413,13 @@ const handleCartTotals = (subTotalCalc, saleTaxCalc, furtherTaxCalc, grandTotalC
 
 
 function createOrder(redirect = false) {
-    const cartForOrder = carts.map(item => ({
-        id: item.id,
-        product_id: item.product.id,
-        quantity: item.quantity,
-        further_tax: item.further_tax,
-        price: item.product.discounted_price, // ✅ frontend updated price
-    }));
+    // const cartForOrder = carts.map(item => ({
+    //     id: item.id,
+    //     product_id: item.product.id,
+    //     quantity: item.quantity,
+    //     further_tax: item.further_tax,
+    //     price: item.product.discounted_price, // ✅ frontend updated price
+    // }));
     axios.put(
         "/admin/order/createDigital",
         {
@@ -791,10 +829,10 @@ function createOrder(redirect = false) {
     );
 }
 
-const emptyCartOnCustomerChange = async () => {
-    await axios.put("/admin/cart/empty");
-    setCartUpdated(prev => !prev);
-};
+// const emptyCartOnCustomerChange = async () => {
+//     await axios.put("/admin/cart/empty");
+//     setCartUpdated(prev => !prev);
+// };
 
 
 

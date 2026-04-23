@@ -14,73 +14,53 @@ class CartService
 
     public function addToCart($productId, $businessId, $registrationStatus, $purchaseItemId = null)
     {
-        $businessId = session('business_id') ? session('business_id') : $businessId;
+        $businessId = session('business_id') ?: $businessId;
 
 
-        $quantityVal = quantity_validation::where('business_id' , $businessId)->first();
-        
-        if($quantityVal->product_quantity_validation == "disabled"){
+        $quantityVal = quantity_validation::where('business_id', $businessId)->firstOrFail();
+        $isValidationDisabled = $quantityVal->product_quantity_validation === 'disabled';
 
-            $product = Product::where('id', $productId)
-                ->where('business_id', $businessId)
-                ->firstOrFail();
-            if ($product->quantity === 0) {
-            
+        // ✅ Single product query — was duplicated in both if/else branches
+        $product = Product::where('id', $productId)
+            ->where('business_id', $businessId)
+            ->firstOrFail();
 
-                throw new \Exception('Insufficient stock');
+        if ($isValidationDisabled && $product->quantity === 0) {
+            throw new \Exception('Insufficient stock');
+        }
+
+        // If a specific purchase batch is selected, validate it
+        $purchaseItem = null;
+        if ($purchaseItemId) {
+            $query = PurchaseItem::where('id', $purchaseItemId)
+                ->where('product_id', $productId);
+
+            if ($isValidationDisabled) {
+                $query->where('remaining_qty', '>', 0);
             }
 
-            // If a specific purchase batch is selected, validate it
-            $purchaseItem = null;
-            if ($purchaseItemId) {
-                $purchaseItem = PurchaseItem::where('id', $purchaseItemId)
-                    ->where('product_id', $productId)
-                    ->where('remaining_qty', '>', 0)
-                    ->firstOrFail();
-            }
-        }else{
-                $product = Product::where('id', $productId)
-                ->where('business_id', $businessId)
-                ->firstOrFail();
-            // if ($product->quantity < 0) {
-            
-            //     throw new \Exception('Insufficient stock');
-            // }
-
-            // If a specific purchase batch is selected, validate it
-            $purchaseItem = null;
-            if ($purchaseItemId) {
-                $purchaseItem = PurchaseItem::where('id', $purchaseItemId)
-                    ->where('product_id', $productId)
-                    ->firstOrFail();
-            }
+            $purchaseItem = $query->firstOrFail();
         }
 
         // Check if the same product+batch combo is already in cart
         $cartQuery = PosCart::where('user_id', Auth::id())
             ->where('product_id', $product->id);
 
-        if ($purchaseItemId) {
-            $cartQuery->where('purchase_item_id', $purchaseItemId);
-        } else {
-            $cartQuery->whereNull('purchase_item_id');
-        }
+        $purchaseItemId
+        ? $cartQuery->where('purchase_item_id', $purchaseItemId)
+        : $cartQuery->whereNull('purchase_item_id');
 
         $cartItem = $cartQuery->first();
         $newQuantity = $cartItem ? $cartItem->quantity + 1 : 1;
 
-        // Stock check: if batch selected, check batch stock; otherwise check product stock
-        $quantityVal = quantity_validation::where('business_id' , $businessId)->first();
-
-        if($quantityVal->product_quantity_validation == "disabled"){
-            if ($purchaseItem) {
-                if ($newQuantity > $purchaseItem->remaining_qty) {
-                    throw new \Exception('Cannot add more, batch stock limit reached (Available: ' . $purchaseItem->remaining_qty . ')');
-                }
-            } else {
-                if ($newQuantity > $product->quantity) {
-                    throw new \Exception('Cannot add more, stock limit reached');
-                }
+         // Stock limit check (only when validation is disabled)
+        if ($isValidationDisabled) {
+            if ($purchaseItem && $newQuantity > $purchaseItem->remaining_qty) {
+                throw new \Exception(
+                    'Cannot add more, batch stock limit reached (Available: ' . $purchaseItem->remaining_qty . ')'
+                );
+            } elseif (!$purchaseItem && $newQuantity > $product->quantity) {
+                throw new \Exception('Cannot add more, stock limit reached');
             }
         }
 

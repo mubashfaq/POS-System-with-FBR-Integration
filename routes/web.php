@@ -23,6 +23,8 @@ use App\Http\Controllers\Backend\RolePermission\RoleController;
 use App\Http\Controllers\Backend\Product\UnitController;
 use App\Http\Controllers\Backend\UserManagementController;
 use App\Http\Controllers\Backend\WebsiteSettingController;
+use App\Http\Controllers\PlanController;
+use App\Http\Controllers\SubscriptionController;
 use App\Models\Supplier;
 
 /*
@@ -49,9 +51,7 @@ Route::get('terms-conditions', function () {
     return view('frontend.terms_conditions');
 })->name('frontend.terms-conditions');
 
-Route::get('pricing', function () {
-    return view('frontend.price');
-})->name('frontend.pricing');
+Route::get('/plans', [PlanController::class, 'indexFront'])->name('plans.index');
 
 
 //authentication
@@ -94,7 +94,20 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::resource('business', BusinessController::class)
     ->middleware('current.business');
 
-
+    //  Subscription management
+    Route::prefix('subscription')->name('subscription.')->group(function () {
+    
+        Route::get('/',             [SubscriptionController::class, 'index'])->name('index');
+        Route::post('/',            [SubscriptionController::class, 'store'])->name('store');
+        Route::middleware('subscription.status')->group(function () {
+            Route::post('/change-plan', [SubscriptionController::class, 'changePlan'])->name('change-plan.update');
+            Route::patch('/status', [SubscriptionController::class, 'updateStatus'])->name('update-status');
+            Route::post('/cancel',      [SubscriptionController::class, 'cancel'])->name('cancel');
+            Route::get('/cancelled',    [SubscriptionController::class, 'cancelled'])->name('cancelled');
+            Route::get('/expired',      [SubscriptionController::class, 'expired'])->name('expired');
+        });
+    });
+    Route::get('/plans', [PlanController::class, 'index'])->name('plans');
     Route::resource('orders', OrderController::class);
     Route::resource('purchase', PurchaseController::class);
     Route::resource('suppliers', SupplierController::class);
@@ -157,8 +170,8 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
         Route::put('/cart/decrement', [CartController::class, 'decrement']);
         Route::put('/cart/delete', [CartController::class, 'delete']);
         Route::put('/cart/empty', [CartController::class, 'empty']);
-        Route::put('/order/create', [OrderController::class, 'store']);
-        Route::put('/order/createDigital', [OrderController::class, 'storeDigital']);
+        Route::put('/order/create', [OrderController::class, 'store'])->middleware('plan.limit:invoice');
+        Route::put('/order/createDigital', [OrderController::class, 'storeDigital'])->middleware('plan.limit:invoice');
         Route::get('orders/fbr-status/{id}', [OrderController::class, 'fbrStatus'])->name('orders.fbr-status');
 
         Route::get('/get/customers',[CustomerController::class,'getCustomers']);
@@ -173,7 +186,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::prefix('users')->group(function () {
         Route::get('/', [UserManagementController::class, 'index'])->name('users');
         Route::get('suspend/{id}/{status}', [UserManagementController::class, 'suspend'])->name('user.suspend');
-        Route::match(['get', 'post'], 'create', [UserManagementController::class, 'create'])->name('user.create');
+        Route::match(['get', 'post'], 'create', [UserManagementController::class, 'create'])->name('user.create')->middleware('plan.limit:user');
         Route::match(['get', 'post'], 'edit/{id}', [UserManagementController::class, 'edit'])->name('user.edit');
         Route::get('delete/{id}', [UserManagementController::class, 'delete'])->name('user.delete');
     });

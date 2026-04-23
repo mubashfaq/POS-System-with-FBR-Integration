@@ -256,8 +256,8 @@ body {
 
 .showcase-image {
     width: 100%;
-    height: 250px;
-    object-fit: cover;
+    height: 200px;
+    display: block;
 }
 
 .showcase-content {
@@ -431,7 +431,7 @@ body {
 /* CTA */
 .cta {
     padding: 5rem 0;
-    background: linear-gradient(135deg, #fd7e14 0%, #fd6802 100%);
+    background: #fd7e14;
     color: white;
     text-align: center;
 }
