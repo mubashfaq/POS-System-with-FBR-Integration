@@ -85,7 +85,7 @@ export default function Cart({
                 
             })
             .then((res) => {
-                setCartUpdated(!cartUpdated);
+                setCartUpdated((prev) => !prev);
                 playSound(SuccessSound);
                 toast.success(res?.data?.message);
             })
@@ -145,7 +145,7 @@ export default function Cart({
                         id: id,
                     })
                     .then((res) => {
-                        setCartUpdated(!cartUpdated);
+                        setCartUpdated((prev) => !prev);
                         playSound(SuccessSound);
                         toast.success(res?.data?.message);
                     })
