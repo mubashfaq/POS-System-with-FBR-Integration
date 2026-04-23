@@ -22,9 +22,8 @@ const CustomerSelect = ({ setCustomerId ,setIsRegistered, emptyCart }) => {
             setCustomers(customerOptions);
         });
     }, []);
-  useEffect(() => {
-    setCustomerId(selectedCustomer?.value);
-  }, [selectedCustomer]);
+  // customerId is now set directly in handleChange / handleModalCreated
+  // (removed useEffect so it is never one render cycle late)
 
     // ✅ Instead of creating directly, open the modal with the typed name
     const handleCreateCustomer = (inputValue) => {
@@ -47,16 +46,15 @@ const CustomerSelect = ({ setCustomerId ,setIsRegistered, emptyCart }) => {
 const handleChange = async (newValue) => {
     if (!newValue || !newValue.value) return;
 
-    // 1️⃣ Set selected customer immediately
+    // Set both UI state and parent ID immediately (no deferred useEffect)
     setSelectedCustomer(newValue);
-    await emptyCart(); 
+    setCustomerId(newValue.value); // ✅ immediate — parent knows customer before product click
+    await emptyCart();
 
     try {
-        // 2️⃣ Select customer first
         const res = await axios.post(`/admin/select-customer/${newValue.value}`);
         if (!res.data.customer) throw new Error("Customer not found");
         setIsRegistered(res.data.customer.is_registered);
-
     } catch (err) {
         console.error(err);
         toast.error("Failed to change customer");
