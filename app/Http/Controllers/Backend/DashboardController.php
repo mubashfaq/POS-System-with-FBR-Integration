@@ -49,7 +49,8 @@ class DashboardController extends Controller
             'total_customer' => $customers->count(),
             'total_order' => $orders->count(),
             'total_product' => $products->count(),
-            'total_sale_item' => $orderProducts->sum('quantity'),
+            // 'total_sale_item' => $orderProducts->sum('quantity'),
+            'total_sale_item' => number_format($orderProducts->sum('quantity'), 2),
         ];
 
         // Debugging ke liye
