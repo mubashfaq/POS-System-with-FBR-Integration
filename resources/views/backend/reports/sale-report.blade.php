@@ -97,7 +97,48 @@
                         <td>{{number_format($order->order_sales_tax,2,'.',',')}}</td>
                         @if ($showFurtherTax)                        
                           <td>{{number_format($order->order_further_tax,2,'.',',')}}</td>
-                
+                <table id="datatables" class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th data-orderable="false">#</th>
+                      <th>SaleId</th>
+                      <th>Customer</th>
+                      <th>Date</th>
+                      <th>Item</th>
+                      <th>Purchase Price {{currency()->symbol??''}}</th>
+                      <th>Cost {{currency()->symbol??''}}</th>
+                      <th>Sub Total {{currency()->symbol??''}}</th>
+                      <th>Discount {{currency()->symbol??''}}</th>
+                      <th>Total {{currency()->symbol??''}}</th>
+                      <th>Paid {{currency()->symbol??''}}</th>
+                      <th>Due {{currency()->symbol??''}}</th>
+                      <th>Profit {{currency()->symbol??''}}</th>
+                      <th>Loss {{currency()->symbol??''}}</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @forelse($orders as $index => $order)
+                    <tr>
+                      <td>{{ $index + 1 }}</td>
+                      <td>#{{$order->id}}</td>
+                      <td>{{ $order->customer->name ?? '-' }}</td>
+                      <td>{{ $order->created_at->format('d-m-Y') }}</td>
+                      <td>{{number_format($order->total_item,2,'.',',')}}</td>
+                      <td>{{number_format($order->order_purchase_price,2,'.',',')}}</td>
+                      <td>{{number_format($order->order_cost,2,'.',',')}}</td>
+                      <td>{{number_format($order->sub_total,2,'.',',')}}</td>
+                      <td>{{number_format($order->discount,2,'.',',')}}</td>
+                      <td>{{number_format($order->total,2,'.',',')}}</td>
+                      <td>{{number_format($order->paid,2,'.',',')}}</td>
+                      <td>{{number_format($order->due,2,'.',',')}}</td>
+                      <td>{{number_format($order->order_profit,2,'.',',')}}</td>
+                      <td>{{number_format($order->order_loss,2,'.',',')}}</td>
+                      <td>
+                        @if ($order->status)
+                        Paid
+                        @else
+                        Due
                         @endif
                         <td>{{number_format($order->discount,2,'.',',')}}</td>
                         <td>{{number_format($order->total,2,'.',',')}}</td>
