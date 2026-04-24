@@ -7,8 +7,12 @@
     <div class="receipt-container mt-0" id="printable-section"
       style="max-width: {{ $maxWidth}}; font-size: 12px; font-family: 'Courier New', Courier, monospace;">
       <div class="text-center">
-        @if(!empty($invoiceSettings->logo) && $invoiceSettings->logo == 1 && !empty($business->logo))
-          <img src="{{ asset('storage/' . $business->logo) }}" height="30" width="70" alt="Logo"><br>
+        @if(!empty($invoiceSettings->logo) && $invoiceSettings->logo == 1)
+          @if ( !empty($business->logo))
+            <img src="{{ asset('storage/' . $business->logo) }}" height="30" width="70" alt="Logo"><br>
+          @else
+            <img src="{{ asset('storage/logos/default-business.png') }}" height="50" width="70" alt="Logo"><br>
+          @endif 
         @endif
 
         @if(!empty($invoiceSettings->site_name) && $invoiceSettings->site_name == 1)
