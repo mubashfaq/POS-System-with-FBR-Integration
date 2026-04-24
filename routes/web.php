@@ -133,8 +133,9 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::post('select-customer/{id}', [CustomerController::class, 'selectCustomer'])->name('select-customer');
     Route::get('purchase/products/{id}', [PurchaseController::class, 'purchaseProducts'])->name('purchase.products');
     Route::get('orders/invoice/{id}', [OrderController::class,'invoice'])->name('orders.invoice');
+    Route::get('orders/pos-invoice-digital/{id}', [OrderController::class,'invoice'])->name('orders.pos-invoice-digital');
     Route::get('orders/pos-invoice/{id}', [OrderController::class, 'posInvoice'])->name('orders.pos-invoice');
-    Route::get('orders/pos-invoice-digital/{id}', [OrderController::class, 'posInvoiceDigital'])->name('orders.pos-invoice-digital');
+    Route::get('orders/pos-receipt-digital/{id}', [OrderController::class, 'posInvoiceDigital'])->name('orders.pos-receipt-digital');
     Route::get('orders/transactions/{id}', [OrderController::class, 'transactions'])->name('orders.transactions');
     Route::match(['get', 'post'], 'orders/due/collection/{id}', [OrderController::class, 'collection'])->name('due.collection');
     Route::get('collection/invoice/{id}', [OrderController::class, 'collectionInvoice'])->name('collectionInvoice');

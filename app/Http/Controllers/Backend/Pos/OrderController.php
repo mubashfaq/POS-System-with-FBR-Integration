@@ -85,10 +85,12 @@ class OrderController extends Controller
                 ->addColumn('action', function ($data) {
                     $buttons = '';
 
-                    $buttons .= '<a class="btn btn-success btn-sm" href="' . route('backend.admin.orders.invoice', $data->id) . '"><i class="fas fa-file-invoice"></i> Invoice</a>';
+                    
                     if ($data->type == "pos_invoice") {
+                        $buttons .= '<a class="btn btn-success btn-sm" href="' . route('backend.admin.orders.invoice', $data->id) . '"><i class="fas fa-file-invoice"></i> Invoice</a>';
                         $buttons .= '<a class="btn btn-secondary btn-sm" href="' . route('backend.admin.orders.pos-invoice', $data->id) . '"><i class="fas fa-file-invoice"></i> Pos Invoice</a>';
                     } else {
+                        $buttons .= '<a class="btn btn-success btn-sm" href="' . route('backend.admin.orders.pos-receipt-digital', $data->id) . '"><i class="fas fa-file-invoice"></i> Receipt</a>';
                         $buttons .= '<a class="btn btn-secondary btn-sm" href="' . route('backend.admin.orders.pos-invoice-digital', $data->id) . '"><i class="fas fa-file-invoice"></i> Digital Invoice</a>';
                     }
                     if (!$data->status) {
@@ -1033,9 +1035,9 @@ class OrderController extends Controller
 
         $fbrIntegration = DB::table('fbr_tokens')->where('business_id', $businessId)->value('fbr_integration');
 
-//         return view('backend.orders.pos-invoice-digital', compact('order', 'maxWidth', 'invoiceSettings', 'business', 'fbrIntegration'));
+        return view('backend.orders.pos-invoice-digital', compact('order', 'maxWidth', 'invoiceSettings', 'business', 'fbrIntegration'));
         // return view('backend.orders.pos-invoice-digital', compact('order', 'maxWidth', 'invoiceSettings', 'business'));
-        return view('backend.orders.print-invoice', compact('order', 'maxWidth', 'invoiceSettings', 'business' , 'fbrIntegration'));
+        // return view('backend.orders.print-invoice', compact('order', 'maxWidth', 'invoiceSettings', 'business' , 'fbrIntegration'));
     }
 
     public function fbrStatus($id)
