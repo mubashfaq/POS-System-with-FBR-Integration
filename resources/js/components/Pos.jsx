@@ -345,7 +345,8 @@ function orderCreate() {
     })
     .catch((err) => {
         console.error(err);
-        toast.error("Something went wrong while checking order.");
+        const message = err?.response?.data?.message || "Something went wrong while checking order.";
+        toast.error(message);
         setIsSubmitting(false);
     });
 }

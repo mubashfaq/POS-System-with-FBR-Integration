@@ -10,8 +10,13 @@
                 <div class="col-4">
                     <h2 class="page-header">
                         @if(readConfig('is_show_logo_invoice'))
-                        <img src="{{asset('storage/'.$business->logo)}}" height="40" width="40" alt="Logo"
-                            class="brand-image img-circle elevation-3" style="opacity: .8">
+                            @if ( !empty($business->logo))
+                                <img src="{{asset('storage/'.$business->logo)}}" height="40" width="40" alt="Logo"
+                                class="brand-image img-circle elevation-3" style="opacity: .8">
+                            @else
+                                <img src="{{ asset('storage/logos/default-business.png') }}" height="40" width="40" alt="Logo"
+                                class="brand-image img-circle elevation-3" style="opacity: .8">
+                            @endif
                         @endif
                         @if(readConfig('is_show_site_invoice')){{ $business->business_name }} @endif
                     </h2>

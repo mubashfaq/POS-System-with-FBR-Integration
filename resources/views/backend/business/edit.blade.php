@@ -99,13 +99,15 @@
               <input type="file" class="form-control" name="logo" accept="image/*">
               @if($business->logo)
                   <img src="{{ asset('storage/'.$business->logo) }}" alt="Logo" width="80" class="mt-2">
-                  <div class="form-check mt-2">
-                      <input class="form-check-input" type="checkbox" name="remove_logo" id="remove_logo" value="1">
-                      <label class="form-check-label" for="remove_logo">
-                          Remove logo
-                      </label>
-                  </div>
+                @else
+                  <img src="{{ asset('storage/logos/default-business.png') }}" alt="Logo" width="80" class="mt-2">
               @endif
+              <div class="form-check mt-2">
+                <input class="form-check-input" type="checkbox" name="remove_logo" id="remove_logo" value="1">
+                <label class="form-check-label" for="remove_logo">
+                    Remove logo
+                </label>
+            </div>
           </div>
 
             <div class="mb-3 col-md-6">
