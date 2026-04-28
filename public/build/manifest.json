@@ -11,11 +11,7 @@
     "css": [
       "assets/app-567829f8.css"
     ],
-<<<<<<< HEAD
-    "file": "assets/app-561e2d6b.js",
-=======
     "file": "assets/app-d625446d.js",
->>>>>>> 2d98b27de99573e879945db1796902f2794fd60c
     "isEntry": true,
     "src": "resources/js/app.jsx"
   },
