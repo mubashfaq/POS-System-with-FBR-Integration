@@ -12,7 +12,8 @@ class Plan extends Model
         'name',
         'slug',
         'price',
-        'max_invoices',
+        'max_pos_invoices',
+        'max_digital_invoices',
         'max_users',
         // 'max_products',
         'features',
@@ -24,39 +25,65 @@ class Plan extends Model
         'features'     => 'array',
         'price'        => 'decimal:2',
         'is_active'    => 'boolean',
-        'max_invoices' => 'integer',
+        'max_pos_invoices'     => 'integer',
+        'max_digital_invoices' => 'integer',
         'max_users'    => 'integer',
         // 'max_products' => 'integer',
     ];
  
-    // ─── Relationships ───────────────────────────────────────────────────────
  
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
     }
+
+     /**
+     * Total invoice limit based on business_type:
+     *
+     *   pos     → max_pos_invoices only
+     *   digital → max_digital_invoices only
+     *   both    → max_pos_invoices + max_digital_invoices
+     *             (if either is -1, combined = -1 / unlimited)
+     */
+    public function maxInvoicesFor(string $businessType): int
+    {
+        return match ($businessType) {
+            'pos'     => $this->max_pos_invoices,
+            'digital' => $this->max_digital_invoices,
+            'both'    => $this->combinedInvoiceLimit(),
+        };
+    }
  
-    // ─── Helpers ─────────────────────────────────────────────────────────────
+    /**
+     * Combined limit for 'both' type businesses.
+     * If either side is -1 (unlimited), combined is also unlimited.
+     */
+    public function combinedInvoiceLimit(): int
+    {
+        if ($this->max_pos_invoices === -1 || $this->max_digital_invoices === -1) {
+            return -1;
+        }
+ 
+        return $this->max_pos_invoices + $this->max_digital_invoices;
+    }
+ 
  
     public function hasFeature(string $feature): bool
     {
         return in_array($feature, $this->features ?? []);
     }
  
-    public function isUnlimited(string $field): bool
-    {
-        return $this->{$field} === -1;
-    }
- 
-    /**
-     * Human-readable limit: returns "Unlimited" or the number.
-     */
     public function limitLabel(string $field): string
     {
         return $this->{$field} === -1 ? 'Unlimited' : (string) $this->{$field};
     }
  
-    // ─── Scopes ──────────────────────────────────────────────────────────────
+    public function invoiceLimitLabel(string $businessType): string
+    {
+        $limit = $this->maxInvoicesFor($businessType);
+        return $limit === -1 ? 'Unlimited' : (string) $limit;
+    }
+ 
  
     public function scopeActive($query)
     {

@@ -1002,6 +1002,12 @@ class ProductController extends Controller
         ['product_quantity_validation' => $request->status] // values to insert/update
     );
 
-    return response()->json(['success' => true]);
+    return response()->json([
+        'success' => true,
+        'status' => $request->status,
+        'message' => $request->status === 'enabled'
+            ? 'Stock validation disabled successfully.'
+            : 'Stock validation enabled successfully.'
+    ]);
 }
 }

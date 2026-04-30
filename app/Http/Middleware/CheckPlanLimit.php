@@ -11,7 +11,7 @@ class CheckPlanLimit
     public function __construct(private PlanService $planService) {}
 
     // Middleware - add the subscription check before the limit check
-    public function handle(Request $request, Closure $next, string $resource): mixed
+    public function handle(Request $request, Closure $next, string $resource, string $invoiceType = 'pos_invoice'): mixed
     {
         $businessId = session('business_id');
 
@@ -23,23 +23,24 @@ class CheckPlanLimit
                 return response()->json([
                     'success'     => false,
                     'message'     => $message,
-                    'upgrade_url' => route('backend.admin.plans'),
+                    'upgrade_url' => route('backend.admin.plans.choose'),
                 ], 403);
             }
 
-            return redirect()->route('backend.admin.plans')->with('error', $message);
+            return redirect()->route('backend.admin.plans.choose')->with('error', $message);
         }
 
         // Check 2: Have they hit their limit?
         $allowed = match ($resource) {
-            'invoice' => $this->planService->canCreateInvoice($businessId),
+            'invoice' => $this->planService->canCreateInvoice($invoiceType ,$businessId),
             'user'    => $this->planService->canAddUser($businessId),
             default   => true,
         };
 
         if (!$allowed) {
+            $businessType = $this->planService->businessType();
             $messages = [
-                'invoice' => 'You have reached your monthly invoice limit. Please upgrade your plan.',
+                'invoice' => $this->invoiceLimitMessage($businessType, $invoiceType),
                 'user'    => 'You have reached your user limit. Please upgrade your plan.',
             ];
 
@@ -49,7 +50,7 @@ class CheckPlanLimit
                 return response()->json([
                     'success'     => false,
                     'message'     => $message,
-                    'upgrade_url' => route('backend.admin.plans'),
+                    'upgrade_url' => route('backend.admin.plans.choose'),
                 ], 403);
             }
 
@@ -57,5 +58,18 @@ class CheckPlanLimit
         }
 
         return $next($request);
+    }
+
+    private function invoiceLimitMessage(string $businessType, string $invoiceType): string
+    {
+        if ($businessType !== 'both') {
+            return 'You have reached your monthly invoice limit. Please upgrade your plan to create more invoices.';
+        }
+ 
+        return match ($invoiceType) {
+            'pos_invoice'     => 'You have reached your monthly POS invoice limit. Please upgrade your plan.',
+            'digital_invoice' => 'You have reached your monthly Digital invoice limit. Please upgrade your plan.',
+            default   => 'You have reached your invoice limit.',
+        };
     }
 }
