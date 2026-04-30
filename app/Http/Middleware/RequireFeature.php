@@ -22,7 +22,7 @@ class RequireFeature
     {
         $businessId = session('business_id');
 
-        if (!$this->planService->hasFeature($businessId, $feature)) {
+        if (!$this->planService->hasFeature($feature, $businessId)) {
             $planName = $this->planService->getSubscription($businessId)->plan->name;
 
             $message = "The '{$feature}' feature is not available on the {$planName} plan. Please upgrade to access this feature.";
@@ -31,11 +31,11 @@ class RequireFeature
                 return response()->json([
                     'success'     => false,
                     'message'     => $message,
-                    'upgrade_url' => route('backend.admin.plans'),
+                    'upgrade_url' => route('backend.admin.plans.choose'),
                 ], 403);
             }
 
-            return redirect()->route('backend.admin.plans')->with('feature_error', $message);
+            return redirect()->route('backend.admin.plans.choose')->with('error', $message);
         }
 
         return $next($request);

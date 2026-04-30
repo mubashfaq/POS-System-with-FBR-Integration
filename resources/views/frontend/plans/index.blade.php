@@ -286,36 +286,52 @@
     </div>
 
     @if($usage)
-        <div class="row justify-content-center mt-5">
-            <div class="col-md-8">
-                <div class="card border-0 bg-light">
-                    <div class="card-body">
-                        <h6 class="fw-bold mb-3">Your Current Usage This Month</h6>
-                        <div class="row text-center">
-                            <div class="col-6">
-                                <div class="fs-4 fw-bold text-primary">{{ $usage['invoices']['used'] }}</div>
-                                <small class="text-muted">
-                                    of {{ $usage['invoices']['unlimited'] ? '∞' : $usage['invoices']['limit'] }} invoices
-                                </small>
+            <div class="row justify-content-center mt-5">
+                <div class="col-md-8">
+                    <div class="card border-0 bg-light">
+                        <div class="card-body">
+                            <h6 class="fw-bold mb-3">Your Current Usage This Month</h6>
+                            <div class="row text-center">
+                                @if ($businessType == 'both')
+                                    <div class="col-4">
+                                        <div class="fs-4 fw-bold text-primary">{{ $usage['invoices']['pos']['used'] }}</div>
+                                        <small class="text-muted">
+                                            of {{ $usage['invoices']['pos']['unlimited'] ? '∞' : $usage['invoices']['pos']['limit'] }} POS invoices
+                                        </small>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="fs-4 fw-bold text-primary">{{ $usage['invoices']['digital']['used'] }}</div>
+                                        <small class="text-muted">
+                                            of {{ $usage['invoices']['digital']['unlimited'] ? '∞' : $usage['invoices']['digital']['limit'] }} Digital invoices
+                                        </small>
+                                    </div> 
+                                @else
+                                    <div class="col-6">
+                                        <div class="fs-4 fw-bold text-primary">{{ $usage['invoices']['used'] }}</div>
+                                        <small class="text-muted">
+                                            of {{ $usage['invoices']['unlimited'] ? '∞' : $usage['invoices']['limit'] }} invoices
+                                        </small>
+                                    </div>
+                                @endif
+                                
+                                <div class="col-4">
+                                    <div class="fs-4 fw-bold text-primary">{{ $usage['users']['used'] }}</div>
+                                    <small class="text-muted">
+                                        of {{ $usage['users']['unlimited'] ? '∞' : $usage['users']['limit'] }} users
+                                    </small>
+                                </div>
+                                {{-- <div class="col-4">
+                                    <div class="fs-4 fw-bold text-primary">{{ $usage['products']['used'] }}</div>
+                                    <small class="text-muted">
+                                        of {{ $usage['products']['unlimited'] ? '∞' : $usage['products']['limit'] }} products
+                                    </small>
+                                </div> --}}
                             </div>
-                            <div class="col-6">
-                                <div class="fs-4 fw-bold text-primary">{{ $usage['users']['used'] }}</div>
-                                <small class="text-muted">
-                                    of {{ $usage['users']['unlimited'] ? '∞' : $usage['users']['limit'] }} users
-                                </small>
-                            </div>
-                            {{-- <div class="col-4">
-                                <div class="fs-4 fw-bold text-primary">{{ $usage['products']['used'] }}</div>
-                                <small class="text-muted">
-                                    of {{ $usage['products']['unlimited'] ? '∞' : $usage['products']['limit'] }} products
-                                </small>
-                            </div> --}}
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    @endif
+        @endif
 
     <div class="text-center mt-4">
         <small class="pricing-note">

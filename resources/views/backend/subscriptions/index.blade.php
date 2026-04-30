@@ -39,7 +39,7 @@
             </form>
             @if ($subscription->status == 'active')
 
-                <a href="{{ route('backend.admin.plans') }}" class="btn action-button ml-2">
+                <a href="{{ route('backend.admin.plans.choose') }}" class="btn action-button ml-2">
                     ⬆ Upgrade Plan
                 </a>
             @endif
@@ -55,7 +55,7 @@
                 <p class="text-muted small mb-3">
                     You are not subscribed to any plan. Choose a plan to start using features.
                 </p>
-                <a href="{{ route('backend.admin.plans') }}" class="btn btn-sm action-button">
+                <a href="{{ route('backend.admin.plans.choose') }}" class="btn btn-sm action-button">
                     Subscribe Now
                 </a>
             </div>
@@ -80,7 +80,7 @@
 
                             <div class="mb-2 d-flex justify-content-between">
                                 <span class="text-muted small">Status</span>
-                                <span class="badge bg-success">Active</span>
+                                <span class="badge bg-primary">Active</span>
                             </div>
                             <div class="mb-2 d-flex justify-content-between">
                                 <span class="text-muted small">Period Start</span>
@@ -104,7 +104,7 @@
                             <hr>
 
                             {{-- Features --}}
-                            {{-- <div class="mb-2 text-muted small fw-semibold text-uppercase">Features</div>
+                            <div class="mb-2 text-muted small fw-semibold text-uppercase">Features</div>
                             @php
                             $allFeatures = ['reports' => 'Reports', 'exports' => 'Exports', 'barcode' => 'Barcode Scanner'];
                             @endphp
@@ -119,10 +119,10 @@
                                     {{ $label }}
                                 </span>
                             </div>
-                            @endforeach --}}
+                            @endforeach
 
                             <div class="mt-4 d-grid gap-2">
-                                <a href="{{ route('backend.admin.plans') }}" class="btn btn-outline-primary btn-sm">
+                                <a href="{{ route('backend.admin.plans.choose') }}" class="btn btn-outline-primary btn-sm">
                                     Change Plan
                                 </a>
                                 <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal"
@@ -139,74 +139,159 @@
                     <div class="row g-3">
 
                         {{-- Invoices Card --}}
-                        <div class="col-12">
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-body p-4">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <div>
-                                            <h6 class="fw-bold mb-0">Invoices This Month</h6>
-                                            <small class="text-muted">Shared limit across POS & Digital</small>
+                        @if ($businessType == 'both')
+                            <div class="col-12">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-body p-4">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <div>
+                                                <h6 class="fw-bold mb-0">POS Invoices</h6>
+                                            </div>
+                                            <div class="text-end">
+                                                @if($usage['invoices']['pos']['unlimited'])
+                                                    <span class="fs-4 fw-bold text-primary">{{ $usage['invoices']['pos']['used'] }}</span>
+                                                    <span class="text-muted"> / ∞</span>
+                                                @else
+                                                    <span class="fs-4 fw-bold text-primary">{{ $usage['invoices']['pos']['used'] }}</span>
+                                                    <span class="text-muted"> / {{ $usage['invoices']['pos']['limit'] }}</span>
+                                                @endif
+                                            </div>
                                         </div>
-                                        <div class="text-end">
-                                            @if($usage['invoices']['unlimited'])
-                                                <span class="fs-4 fw-bold text-primary">{{ $usage['invoices']['used'] }}</span>
-                                                <span class="text-muted"> / ∞</span>
-                                            @else
-                                                <span class="fs-4 fw-bold text-primary">{{ $usage['invoices']['used'] }}</span>
-                                                <span class="text-muted"> / {{ $usage['invoices']['limit'] }}</span>
+
+                                        {{-- Progress Bar --}}
+                                        @unless($usage['invoices']['pos']['unlimited'])
+                                            @php
+                                                $pct = $usage['invoices']['pos']['limit'] > 0
+                                                    ? min(100, round(($usage['invoices']['pos']['used'] / $usage['invoices']['pos']['limit']) * 100))
+                                                    : 0;
+                                                $barColor = $pct >= 90 ? 'bg-danger' : ($pct >= 70 ? 'bg-warning' : 'bg-success');
+                                            @endphp
+                                            <div class="progress mb-2" style="height: 10px; border-radius: 6px;">
+                                                <div class="progress-bar {{ $barColor }}" style="width: {{ $pct }}%"></div>
+                                            </div>
+                                            <div class="text-muted small mb-3">
+                                                {{ $usage['invoices']['pos']['remaining'] }} POS invoice(s) remaining this month
+                                            </div>
+                                        @endunless
+
+                                        {{-- Warning if near limit --}}
+                                        @if(!$usage['invoices']['pos']['unlimited'] && $usage['invoices']['pos']['remaining'] !== null)
+                                            @if($usage['invoices']['pos']['remaining'] === 0)
+                                                <div class="alert alert-danger py-2 mb-0 mt-3 small">
+                                                    ⛔ You've reached your POS invoice limit.
+                                                    <a href="{{ route('backend.admin.plans.choose') }}" class="alert-link">Upgrade now</a>
+                                                    to create more invoices.
+                                                </div>
+                                            @elseif($usage['invoices']['pos']['remaining'] <= 2)
+                                                <div class="alert alert-warning py-2 mb-0 mt-3 small">
+                                                    ⚠️ Only {{ $usage['invoices']['pos']['remaining'] }} POS invoice(s) left this month.
+                                                </div>
                                             @endif
-                                        </div>
-                                    </div>
-
-                                    {{-- Progress Bar --}}
-                                    @unless($usage['invoices']['unlimited'])
-                                        @php
-                                            $pct = $usage['invoices']['limit'] > 0
-                                                ? min(100, round(($usage['invoices']['used'] / $usage['invoices']['limit']) * 100))
-                                                : 0;
-                                            $barColor = $pct >= 90 ? 'bg-danger' : ($pct >= 70 ? 'bg-warning' : 'bg-success');
-                                        @endphp
-                                        <div class="progress mb-2" style="height: 10px; border-radius: 6px;">
-                                            <div class="progress-bar {{ $barColor }}" style="width: {{ $pct }}%"></div>
-                                        </div>
-                                        <div class="text-muted small mb-3">
-                                            {{ $usage['invoices']['remaining'] }} invoice(s) remaining this month
-                                        </div>
-                                    @endunless
-
-                                    {{-- Per-type breakdown --}}
-                                    <div class="row g-2">
-                                        <div class="col-6">
-                                            <div class="bg-light rounded-3 p-3 text-center">
-                                                <div class="fs-5 fw-bold">{{ $usage['invoices']['breakdown']['pos'] }}</div>
-                                                <small class="text-muted">POS</small>
-                                            </div>
-                                        </div>
-                                        <div class="col-6">
-                                            <div class="bg-light rounded-3 p-3 text-center">
-                                                <div class="fs-5 fw-bold">{{ $usage['invoices']['breakdown']['digital'] }}</div>
-                                                <small class="text-muted">Digital</small>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {{-- Warning if near limit --}}
-                                    @if(!$usage['invoices']['unlimited'] && $usage['invoices']['remaining'] !== null)
-                                        @if($usage['invoices']['remaining'] === 0)
-                                            <div class="alert alert-danger py-2 mb-0 mt-3 small">
-                                                ⛔ You've reached your invoice limit.
-                                                <a href="{{ route('backend.admin.plans') }}" class="alert-link">Upgrade now</a>
-                                                to create more invoices.
-                                            </div>
-                                        @elseif($usage['invoices']['remaining'] <= 2)
-                                            <div class="alert alert-warning py-2 mb-0 mt-3 small">
-                                                ⚠️ Only {{ $usage['invoices']['remaining'] }} invoice(s) left this month.
-                                            </div>
                                         @endif
-                                    @endif
+                                    </div>
+                                    <div class="card-body p-4">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <div>
+                                                <h6 class="fw-bold mb-0">Digital Invoices</h6>
+                                            </div>
+                                            <div class="text-end">
+                                                @if($usage['invoices']['digital']['unlimited'])
+                                                    <span class="fs-4 fw-bold text-primary">{{ $usage['invoices']['digital']['used'] }}</span>
+                                                    <span class="text-muted"> / ∞</span>
+                                                @else
+                                                    <span class="fs-4 fw-bold text-primary">{{ $usage['invoices']['digital']['used'] }}</span>
+                                                    <span class="text-muted"> / {{ $usage['invoices']['digital']['limit'] }}</span>
+                                                @endif
+                                            </div>
+                                        </div>
+
+                                        {{-- Progress Bar --}}
+                                        @unless($usage['invoices']['digital']['unlimited'])
+                                            @php
+                                                $pct = $usage['invoices']['digital']['limit'] > 0
+                                                    ? min(100, round(($usage['invoices']['digital']['used'] / $usage['invoices']['digital']['limit']) * 100))
+                                                    : 0;
+                                                $barColor = $pct >= 90 ? 'bg-danger' : ($pct >= 70 ? 'bg-warning' : 'bg-success');
+                                            @endphp
+                                            <div class="progress mb-2" style="height: 10px; border-radius: 6px;">
+                                                <div class="progress-bar {{ $barColor }}" style="width: {{ $pct }}%"></div>
+                                            </div>
+                                            <div class="text-muted small mb-3">
+                                                {{ $usage['invoices']['digital']['remaining'] }} Digital invoice(s) remaining this month
+                                            </div>
+                                        @endunless
+
+                                        {{-- Warning if near limit --}}
+                                        @if(!$usage['invoices']['digital']['unlimited'] && $usage['invoices']['digital']['remaining'] !== null)
+                                            @if($usage['invoices']['digital']['remaining'] === 0)
+                                                <div class="alert alert-danger py-2 mb-0 mt-3 small">
+                                                    ⛔ You've reached your Digital invoice limit.
+                                                    <a href="{{ route('backend.admin.plans.choose') }}" class="alert-link">Upgrade now</a>
+                                                    to create more invoices.
+                                                </div>
+                                            @elseif($usage['invoices']['digital']['remaining'] <= 2)
+                                                <div class="alert alert-warning py-2 mb-0 mt-3 small">
+                                                    ⚠️ Only {{ $usage['invoices']['digital']['remaining'] }} Digital invoice(s) left this month.
+                                                </div>
+                                            @endif
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        @else
+                            <div class="col-12">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-body p-4">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <div>
+                                                <h6 class="fw-bold mb-0">Invoices This Month</h6>
+                                            </div>
+                                            <div class="text-end">
+                                                @if($usage['invoices']['unlimited'])
+                                                    <span class="fs-4 fw-bold text-primary">{{ $usage['invoices']['used'] }}</span>
+                                                    <span class="text-muted"> / ∞</span>
+                                                @else
+                                                    <span class="fs-4 fw-bold text-primary">{{ $usage['invoices']['used'] }}</span>
+                                                    <span class="text-muted"> / {{ $usage['invoices']['limit'] }}</span>
+                                                @endif
+                                            </div>
+                                        </div>
+
+                                        {{-- Progress Bar --}}
+                                        @unless($usage['invoices']['unlimited'])
+                                            @php
+                                                $pct = $usage['invoices']['limit'] > 0
+                                                    ? min(100, round(($usage['invoices']['used'] / $usage['invoices']['limit']) * 100))
+                                                    : 0;
+                                                $barColor = $pct >= 90 ? 'bg-danger' : ($pct >= 70 ? 'bg-warning' : 'bg-success');
+                                            @endphp
+                                            <div class="progress mb-2" style="height: 10px; border-radius: 6px;">
+                                                <div class="progress-bar {{ $barColor }}" style="width: {{ $pct }}%"></div>
+                                            </div>
+                                            <div class="text-muted small mb-3">
+                                                {{ $usage['invoices']['remaining'] }} invoice(s) remaining this month
+                                            </div>
+                                        @endunless
+
+                                        {{-- Warning if near limit --}}
+                                        @if(!$usage['invoices']['unlimited'] && $usage['invoices']['remaining'] !== null)
+                                            @if($usage['invoices']['remaining'] === 0)
+                                                <div class="alert alert-danger py-2 mb-0 mt-3 small">
+                                                    ⛔ You've reached your invoice limit.
+                                                    <a href="{{ route('backend.admin.plans.choose') }}" class="alert-link">Upgrade now</a>
+                                                    to create more invoices.
+                                                </div>
+                                            @elseif($usage['invoices']['remaining'] <= 2)
+                                                <div class="alert alert-warning py-2 mb-0 mt-3 small">
+                                                    ⚠️ Only {{ $usage['invoices']['remaining'] }} invoice(s) left this month.
+                                                </div>
+                                            @endif
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+                        
 
                         {{-- Users Card --}}
                         <div class="col-md-6">

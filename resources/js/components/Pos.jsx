@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 import Cart1 from "./Cart1";
@@ -20,6 +20,7 @@ export default function Pos() {
     const [total, setTotal] = useState(0);
     const [updateTotal, setUpdateTotal] = useState(0);
     const [customerId, setCustomerId] = useState();
+    const customerIdRef = useRef(undefined); // ✅ always reflects latest customerId (fixes stale closure)
     const [isRegistered, setIsRegistered] = useState("Registered"); 
     const [cartUpdated, setCartUpdated] = useState(false);
     const [productUpdated, setProductUpdated] = useState(false);
@@ -249,7 +250,7 @@ console.log("CART FROM API", data?.carts);
                 purchase_item_id: purchaseItemId,
             })
             .then((res) => {
-                setCartUpdated(!cartUpdated);
+                setCartUpdated(prev => !prev); // ✅ functional updater — avoids stale boolean
                 playSound(SuccessSound);
                 toast.success(res?.data?.message);
                 setShowBatchModal(false);
@@ -279,7 +280,7 @@ console.log("CART FROM API", data?.carts);
                 axios
                     .put("/admin/cart/empty")
                     .then((res) => {
-                        setCartUpdated(!cartUpdated);
+                        setCartUpdated(prev => !prev); // ✅ functional updater
                         playSound(SuccessSound);
                         toast.success(res?.data?.message);
                     })
@@ -384,7 +385,7 @@ function createOrder(redirect = false) {
     )
     .then((res) => {
         console.log("Order Creation Response:", res);
-        setCartUpdated(!cartUpdated);
+        setCartUpdated(prev => !prev); // ✅ functional updater
         setProductUpdated(!productUpdated);
         const fbr = res?.data?.fbr_api_response;
 
@@ -468,7 +469,7 @@ function createOrder(redirect = false) {
                             <div className="row mb-2">
                                 <div className="col-12">
                                     <CustomerSelect
-                                        setCustomerId={setCustomerId}
+                                        setCustomerId={(id) => { setCustomerId(id); customerIdRef.current = id; }} // ✅ keep ref in sync
                                         setIsRegistered={setIsRegistered}
                                         emptyCart={emptyCartOnCustomerChange}
                                     />
@@ -658,7 +659,7 @@ function createOrder(redirect = false) {
                                     products.map((product, index) => (
                                         <div
                                             onClick={() =>
-                                                addProductToCart(product.id , customerId)
+                                                addProductToCart(product.id, customerIdRef.current) // ✅ use ref — never stale
                                             }
                                             className="col-6 col-md-4 col-lg-3 mb-3"
                                             key={index}
