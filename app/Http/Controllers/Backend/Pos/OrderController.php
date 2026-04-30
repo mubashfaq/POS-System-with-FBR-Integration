@@ -874,12 +874,14 @@ class OrderController extends Controller
                 'fbr_invoice_number' => $fbr_invoice_number,
             ]);
 
+            dd($postResponseJson);
+
             OrderLog::create([
                 'order_id'       => $order->id,
                 'user_id'        => $userId,
                 'business_id'    => $businessId,
-                'request_payload' => $fbrPayload,
-                'response'       => $responseJson,
+                'request_payload' => "POST API Response",
+                'response'       => $postResponseJson,
                 'status_code'    => $response->status(),
                 'error_code'     => $errorCode,
                 'error_message'  => $errorMessage,
