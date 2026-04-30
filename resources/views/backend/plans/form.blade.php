@@ -129,7 +129,7 @@
 
 
     <!-- ✅ Features Column -->
-    <div class="col-md-6">
+    {{-- <div class="col-md-6">
         <label class="form-label fw-semibold">Features</label>
 
         <div class="row">
@@ -155,7 +155,7 @@
                 </div>
             @endforeach
         </div>
-    </div>
+    </div> --}}
 
     <!-- ✅ Status Column -->
     <div class="col-md-6">

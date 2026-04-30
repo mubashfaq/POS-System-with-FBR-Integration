@@ -27,7 +27,7 @@
                                     <th>Total Invoices</th>
                                     <th>Users</th>
                                     {{-- <th>Products</th> --}}
-                                    <th>Features</th>
+                                    {{-- <th>Features</th> --}}
                                     <th>Subscribers</th>
                                     <th>Status</th>
                                     <th>Action</th>
@@ -60,7 +60,7 @@
                     { data: 'total_invoices', name: 'total_invoices' },
                     { data: 'users', name: 'max_users' },
                     // { data: 'products', name: 'max_products' },
-                    { data: 'features', name: 'features', orderable: false, searchable: false },
+                    // { data: 'features', name: 'features', orderable: false, searchable: false },
                     { data: 'subscribers', name: 'active_subscribers', orderable: false, searchable: false },
                     { data: 'status', name: 'is_active' },
                     { data: 'action', name: 'action', orderable: false, searchable: false },
