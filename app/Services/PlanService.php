@@ -11,7 +11,6 @@ use App\Models\UserBusiness;
 
 class PlanService
 {
-    // ─── Get Subscription ────────────────────────────────────────────────────
 
     public function getSubscription(?int $businessId = null): ?Subscription
     {
@@ -30,26 +29,71 @@ class PlanService
         return $this->getSubscription($businessId) !== null;
     }
 
-    // ─── Invoice Limits ──────────────────────────────────────────────────────
-
-    public function canCreateInvoice(?int $businessId = null): bool
+    public function businessType(): string
     {
-        $businessId = $businessId ?? session('business_id');
+        $businessId = session('business_id');
 
-        $sub = $this->getSubscription($businessId);
+        return Business::where('id', $businessId)
+            ->value('business_type') ?? 'both';
+    }
+
+    public function canCreateInvoice(string $invoiceType = 'pos_invoice', ?int $businessId = null): bool
+    {
+        $businessId   = $businessId ?? session('business_id');
+        $sub          = $this->getSubscription($businessId);
 
         if (!$sub) {
             return false;
         }
 
-        if ($sub->plan->max_invoices === -1) {
-            return true;
+        $plan         = $sub->plan;
+        $businessType = $this->businessType();
+
+        // pos or digital business → single shared pool, no per-type cap
+        if ($businessType !== 'both') {
+            $limit = $plan->combinedInvoiceLimit();
+            if ($limit === -1) return true;
+
+            $used = $this->totalInvoicesUsed($sub, $businessId);
+            return $used < $limit;
         }
 
-        return $this->invoicesUsedCount($sub) < $sub->plan->max_invoices;
+        // both business → each invoice type has its own separate cap
+        return match ($invoiceType) {
+            'pos_invoice' => $this->canCreatePosInvoice($sub, $plan, $businessId),
+            default       => $this->canCreateDigitalInvoice($sub, $plan, $businessId),
+        };
     }
 
-    public function invoicesUsedCount(?Subscription $sub = null, ?int $businessId = null): int
+    private function canCreatePosInvoice(Subscription $sub, Plan $plan, int $businessId): bool
+    {
+        if ($plan->max_pos_invoices === -1) return true;
+
+        $used = Order::where('business_id', $businessId)
+            ->where('type', 'pos_invoice')
+            ->where('created_at', '>=', $sub->countFrom())
+            ->count();
+
+        return $used < $plan->max_pos_invoices;
+    }
+
+    private function canCreateDigitalInvoice(Subscription $sub, Plan $plan, int $businessId): bool
+    {
+        if ($plan->max_digital_invoices === -1) return true;
+
+        $used = Order::where('business_id', $businessId)
+            ->where('type', '!=', 'pos_invoice')
+            ->where('created_at', '>=', $sub->countFrom())
+            ->count();
+
+        return $used < $plan->max_digital_invoices;
+    }
+
+    /**
+     * Total invoices used regardless of type.
+     * Used for pos/digital businesses (single shared pool).
+     */
+    public function totalInvoicesUsed(?Subscription $sub = null, ?int $businessId = null): int
     {
         $businessId = $businessId ?? session('business_id');
         $sub        ??= $this->getSubscription($businessId);
@@ -63,24 +107,42 @@ class PlanService
             ->count();
     }
 
-    public function invoicesRemaining(?int $businessId = null): ?int
+    /**
+     * POS invoices used this period (for 'both' businesses).
+     */
+    public function posInvoicesUsed(?Subscription $sub = null, ?int $businessId = null): int
     {
         $businessId = $businessId ?? session('business_id');
-
-        $sub = $this->getSubscription($businessId);
+        $sub        ??= $this->getSubscription($businessId);
 
         if (!$sub) {
             return 0;
         }
 
-        if ($sub->plan->max_invoices === -1) {
-            return null; // unlimited
-        }
-
-        return max(0, $sub->plan->max_invoices - $this->invoicesUsedCount($sub, $businessId));
+        return Order::where('business_id', $businessId)
+            ->where('type', 'pos_invoice')
+            ->where('created_at', '>=', $sub->countFrom())
+            ->count();
     }
 
-    // ─── User Limits ─────────────────────────────────────────────────────────
+    /**
+     * Digital invoices used this period (for 'both' businesses).
+     */
+    public function digitalInvoicesUsed(?Subscription $sub = null, ?int $businessId = null): int
+    {
+        $businessId = $businessId ?? session('business_id');
+        $sub        ??= $this->getSubscription($businessId);
+
+        if (!$sub) {
+            return 0;
+        }
+
+        return Order::where('business_id', $businessId)
+            ->where('type', '!=', 'pos_invoice')
+            ->where('created_at', '>=', $sub->countFrom())
+            ->count();
+    }
+
 
     public function canAddUser(?int $businessId = null): bool
     {
@@ -100,7 +162,6 @@ class PlanService
         return $used < $sub->plan->max_users;
     }
 
-    // ─── Feature Checks ──────────────────────────────────────────────────────
 
     public function hasFeature(string $feature, ?int $businessId = null): bool
     {
@@ -115,25 +176,25 @@ class PlanService
         return $sub->plan->hasFeature($feature);
     }
 
-    // ─── Full Usage Summary ──────────────────────────────────────────────────
-
     public function usageFor(?int $businessId = null): array
     {
-        $businessId = $businessId ?? session('business_id');
-        $sub        = $this->getSubscription($businessId);
+        $businessId   = $businessId ?? session('business_id');
+        $sub          = $this->getSubscription($businessId);
 
         if (!$sub) {
             return [
-                'plan'     => null,
-                'period'   => null,
-                'invoices' => [
+                'plan'          => null,
+                'period'        => null,
+                'business_type' => $this->businessType(),
+                'invoices'      => [
+                    'mode'      => 'shared',
                     'used'      => 0,
                     'limit'     => 0,
                     'remaining' => 0,
                     'unlimited' => false,
                     'breakdown' => ['pos' => 0, 'digital' => 0],
                 ],
-                'users'    => [
+                'users' => [
                     'used'      => UserBusiness::where('business_id', $businessId)->count(),
                     'limit'     => 0,
                     'remaining' => 0,
@@ -142,40 +203,63 @@ class PlanService
             ];
         }
 
-        $plan      = $sub->plan;
-        $countFrom = $sub->countFrom();
-
-        $invoiceBase  = Order::where('business_id', $businessId)
-            ->where('created_at', '>=', $countFrom);
-
-        $invoicesUsed = (clone $invoiceBase)->count();
-        $posUsed      = (clone $invoiceBase)->where('type', 'pos_invoice')->count();
-        $digitalUsed  = (clone $invoiceBase)->where('type', '!=', 'pos_invoice')->count();
+        $plan         = $sub->plan;
+        $businessType = $this->businessType();
+        $countFrom    = $sub->countFrom();
         $usersUsed    = UserBusiness::where('business_id', $businessId)->count();
 
+        // ── Invoice usage 
+        if ($businessType !== 'both') {
+            // Single shared pool — all invoices count together
+            $totalUsed     = $this->totalInvoicesUsed($sub, $businessId);
+            $combinedLimit = $plan->combinedInvoiceLimit();
+
+            $invoices = [
+                'mode'      => 'shared',
+                'used'      => $totalUsed,
+                'limit'     => $combinedLimit,
+                'remaining' => $combinedLimit === -1 ? null : max(0, $combinedLimit - $totalUsed),
+                'unlimited' => $combinedLimit === -1,
+            ];
+        } else {
+            // Separate buckets — POS and Digital tracked independently
+            $posUsed     = $this->posInvoicesUsed($sub, $businessId);
+            $digitalUsed = $this->digitalInvoicesUsed($sub, $businessId);
+
+            $invoices = [
+                'mode'    => 'split',
+                'pos'     => [
+                    'used'      => $posUsed,
+                    'limit'     => $plan->max_pos_invoices,
+                    'remaining' => $plan->max_pos_invoices === -1 ? null : max(0, $plan->max_pos_invoices - $posUsed),
+                    'unlimited' => $plan->max_pos_invoices === -1,
+                ],
+                'digital' => [
+                    'used'      => $digitalUsed,
+                    'limit'     => $plan->max_digital_invoices,
+                    'remaining' => $plan->max_digital_invoices === -1 ? null : max(0, $plan->max_digital_invoices - $digitalUsed),
+                    'unlimited' => $plan->max_digital_invoices === -1,
+                ],
+                'total_used'  => $posUsed + $digitalUsed,
+                'total_limit' => $plan->combinedInvoiceLimit(),
+            ];
+        }
+
         return [
-            'plan'     => [
+            'plan' => [
                 'name'     => $plan->name,
                 'slug'     => $plan->slug,
                 'features' => $plan->features ?? [],
             ],
-            'period'   => [
+            'period' => [
                 'start'          => $sub->current_period_start,
                 'end'            => $sub->current_period_end,
                 'days_remaining' => $sub->daysRemaining(),
                 'count_from'     => $countFrom,
             ],
-            'invoices' => [
-                'used'      => $invoicesUsed,
-                'limit'     => $plan->max_invoices,
-                'remaining' => $plan->max_invoices === -1 ? null : max(0, $plan->max_invoices - $invoicesUsed),
-                'unlimited' => $plan->max_invoices === -1,
-                'breakdown' => [
-                    'pos'     => $posUsed,
-                    'digital' => $digitalUsed,
-                ],
-            ],
-            'users'    => [
+            'business_type' => $businessType,
+            'invoices'      => $invoices,
+            'users' => [
                 'used'      => $usersUsed,
                 'limit'     => $plan->max_users,
                 'remaining' => $plan->max_users === -1 ? null : max(0, $plan->max_users - $usersUsed),
@@ -184,12 +268,11 @@ class PlanService
         ];
     }
 
-    // ─── Upgrade / Downgrade ─────────────────────────────────────────────────
 
     public function changePlan(Plan $newPlan, ?int $businessId = null): array
     {
-        $businessId = $businessId ?? session('business_id');
-        $sub = $this->getSubscription($businessId);
+        $businessId   = $businessId ?? session('business_id');
+        $sub          = $this->getSubscription($businessId);
 
         if (!$sub) {
             return [
@@ -199,12 +282,29 @@ class PlanService
             ];
         }
 
-        $warning = null;
-        if (
-            $newPlan->max_invoices !== -1 &&
-            $this->invoicesUsedCount($sub, $businessId) >= $newPlan->max_invoices
-        ) {
-            $warning = "You have already reached or exceeded the {$newPlan->name} plan invoice limit for this month. You will not be able to create invoices until next renewal.";
+        $businessType = $this->businessType();
+        $warning      = null;
+
+        if ($businessType !== 'both') {
+            $newLimit = $newPlan->combinedInvoiceLimit();
+            if ($newLimit !== -1 && $this->totalInvoicesUsed($sub, $businessId) >= $newLimit) {
+                $warning = "You have already reached or exceeded the {$newPlan->name} plan invoice limit. You will not be able to create invoices until next renewal.";
+            }
+        } else {
+            $posUsed     = $this->posInvoicesUsed($sub, $businessId);
+            $digitalUsed = $this->digitalInvoicesUsed($sub, $businessId);
+            $warnings    = [];
+
+            if ($newPlan->max_pos_invoices !== -1 && $posUsed >= $newPlan->max_pos_invoices) {
+                $warnings[] = "POS invoice limit ({$newPlan->max_pos_invoices})";
+            }
+            if ($newPlan->max_digital_invoices !== -1 && $digitalUsed >= $newPlan->max_digital_invoices) {
+                $warnings[] = "Digital invoice limit ({$newPlan->max_digital_invoices})";
+            }
+
+            if (!empty($warnings)) {
+                $warning = "You have already reached: " . implode(' and ', $warnings) . " on the new plan. Those invoice types will be blocked until next renewal.";
+            }
         }
 
         $sub->update([

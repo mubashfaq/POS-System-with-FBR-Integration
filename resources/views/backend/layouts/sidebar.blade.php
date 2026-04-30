@@ -394,13 +394,29 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                             </a>
                             <ul class="nav nav-treeview">
                                 <li class="nav-item">
-                                    <a href="{{ route('backend.admin.plans') }}"
-                                        class="nav-link {{ $route === 'backend.admin.plans' ? 'active' : '' }}">
+                                    <a href="{{ route('backend.admin.plans.choose') }}"
+                                        class="nav-link {{ $route === 'backend.admin.plans.choose' ? 'active' : '' }}">
                                         <i class="far fa-circle nav-icon"></i>
-                                        <p>Plans</p>
+                                        <p>Choose Plans</p>
                                     </a>
                                 </li>
-    
+                                @hasrole('super_admin')
+                                    <li class="nav-item">
+                                        <a href="{{ route('backend.admin.plans.index') }}"
+                                            class="nav-link {{ $route === 'backend.admin.plans.index' ? 'active' : '' }}">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Plans List</p>
+                                        </a>
+                                    </li>
+        
+                                    <li class="nav-item">
+                                        <a href="{{ route('backend.admin.plans.create') }}"
+                                            class="nav-link {{ $route === 'backend.admin.plans.create' ? 'active' : '' }}">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Plans Create</p>
+                                        </a>
+                                    </li>
+                                @endhasrole
                                 <li class="nav-item">
                                     <a href="{{ route('backend.admin.subscription.index') }}"
                                         class="nav-link {{ $route === 'backend.admin.subscription.index' ? 'active' : '' }}">

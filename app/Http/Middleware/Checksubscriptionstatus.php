@@ -17,7 +17,7 @@ class CheckSubscriptionStatus
     // Routes that are always accessible regardless of subscription status
     private array $exempt = [
         // 'backend.admin.subscription.*',
-        'backend.admin.plans',
+        'backend.admin.plans.choose',
         'logout',
     ];
 
@@ -60,7 +60,7 @@ class CheckSubscriptionStatus
 
         // No subscription
         if (!$subscription) {
-            return redirect()->route('backend.admin.plans')
+            return redirect()->route('backend.admin.plans.choose')
                 ->with('warning', 'Please activate a plan to continue.');
         }
 

@@ -19,11 +19,12 @@ class SubscriptionController extends Controller
 
         try {
             $usage = $this->planService->usageFor($businessId);
+            $businessType = $this->planService->businessType();
         } catch (\Exception $e) {
-            return redirect()->route('backend.admin.plans')
+            return redirect()->route('backend.admin.plans.choose')
                 ->with('info', 'Please select a plan to get started.');
         }
-        return view('backend.subscriptions.index', compact('usage', 'subscription'));
+        return view('backend.subscriptions.index', compact('usage', 'subscription', 'businessType'));
     }
 
     public function store(Request $request)

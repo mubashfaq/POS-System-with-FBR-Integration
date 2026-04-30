@@ -776,6 +776,37 @@ function updateCheckboxValue(checkbox) {
 }
 
 $(document).ready(function(){
+    function showToast(message, type = 'success') {
+
+        let bgClass = 'bg-success';
+
+        if (type === 'error') bgClass = 'bg-danger';
+        if (type === 'warning') bgClass = 'bg-warning';
+
+        let toastHTML = `
+            <div style="position: fixed; top: 1rem; right: 1rem; z-index: 9999;">
+                <div class="toast align-items-center ${bgClass} border-0 text-white" role="alert" data-delay="2000">
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        let wrapper = document.createElement('div');
+        wrapper.innerHTML = toastHTML;
+
+        document.body.appendChild(wrapper);
+
+        let toastEl = wrapper.querySelector('.toast');
+        let toast = new bootstrap.Toast(toastEl);
+
+        toast.show();
+
+        toastEl.addEventListener('hidden.bs.toast', function () {
+            wrapper.remove();
+        });
+    }
 
     $('#customSwitch1').on('change', function() {
 
@@ -789,10 +820,14 @@ $(document).ready(function(){
                 status: status
             },
             success: function(response) {
-                console.log(response);
+                if (response.success) {
+                    showToast(response.message, 'success');
+                } else {
+                    showToast('Something went wrong', 'error');
+                }
             },
-            error: function(error) {
-                console.log(error);
+            error: function() {
+                showToast('Server error', 'error');
             }
         });
 

@@ -33,7 +33,7 @@
             </div>
 
             <div class="d-flex justify-content-center">
-                <a href="{{ route('backend.admin.plans') }}" class="btn action-button px-4 mr-2">
+                <a href="{{ route('backend.admin.plans.choose') }}" class="btn action-button px-4 mr-2">
                     Reactivate Subscription
                 </a>
                 <a href="{{ route('backend.admin.dashboard') }}" class="btn btn-outline-secondary px-4">
