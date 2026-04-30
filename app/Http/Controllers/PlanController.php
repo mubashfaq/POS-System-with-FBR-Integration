@@ -149,19 +149,19 @@ class PlanController extends Controller
                 //     $data->limitLabel('max_products')
                 // )
 
-                ->addColumn('features', function ($data) {
-                    if (empty($data->features)) {
-                        return '<span>None</span>';
-                    }
+                // ->addColumn('features', function ($data) {
+                //     if (empty($data->features)) {
+                //         return '<span>None</span>';
+                //     }
 
-                    $badges = '';
-                    foreach ($data->features as $feature) {
-                        $badges .= '<span class="badge bg-primary text-primary small ml-1">'
-                            . $feature . '</span>';
-                    }
+                //     $badges = '';
+                //     foreach ($data->features as $feature) {
+                //         $badges .= '<span class="badge bg-primary text-primary small ml-1">'
+                //             . $feature . '</span>';
+                //     }
 
-                    return $badges;
-                })
+                //     return $badges;
+                // })
 
                 ->addColumn('subscribers', function ($data) {
                     $count = $data->active_subscribers;
@@ -215,7 +215,7 @@ class PlanController extends Controller
                     'plan',
                     'price',
                     'total_invoices',
-                    'features',
+                    // 'features',
                     'subscribers',
                     'status',
                     'action'
@@ -232,10 +232,10 @@ class PlanController extends Controller
         if (!auth()->user()->hasRole('super_admin')) {
             abort(403);
         };
-        $features   = self::FEATURES;
+        // $features   = self::FEATURES;
         $sortOrder  = Plan::max('sort_order') + 1; // next sort order
 
-        return view('backend.plans.create', compact('features', 'sortOrder'));
+        return view('backend.plans.create', compact('sortOrder'));
     }
 
     public function store(Request $request)
@@ -256,9 +256,9 @@ class PlanController extends Controller
         if (!auth()->user()->hasRole('super_admin')) {
             abort(403);
         };
-        $features = self::FEATURES;
+        // $features = self::FEATURES;
 
-        return view('backend.plans.edit', compact('plan', 'features'));
+        return view('backend.plans.edit', compact('plan'));
     }
 
     public function update(Request $request, Plan $plan)

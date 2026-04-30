@@ -17,7 +17,7 @@
                             <strong>{{ $activeCount }} business{{ $activeCount !== 1 ? 'es are' : ' is' }} currently on this
                                 plan.</strong>
                             <div class="small mt-1">
-                                Changes to limits and features take effect immediately for all subscribers.
+                                Changes to limits take effect immediately for all subscribers.
                                 Reducing limits will not remove existing data — it only restricts new creation.
                             </div>
                         </div>
