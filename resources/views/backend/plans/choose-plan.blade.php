@@ -137,7 +137,7 @@
                         $isPopular = $plan->slug === 'standard';
                     @endphp
 
-                    <div class="col-lg-4">
+                    <div class="col-lg-4 mb-3">
 
                         <div class="pricing-card text-center  {{ ($isPopular || $isCurrent) ? 'position-relative' : '' }} {{ $isPopular ? 'popular' : '' }}">
 

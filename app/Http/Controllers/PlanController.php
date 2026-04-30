@@ -17,6 +17,7 @@ class PlanController extends Controller
         $user        = auth()->user();
         $currentPlan = null;
         $usage       = null;
+        $businessType = null;
 
         if ($user) {
             try {
@@ -56,8 +57,8 @@ class PlanController extends Controller
     // Add more here as your POS grows
     public const FEATURES = [
         'reports' => 'Reports',
-        'exports' => 'Exports',
-        'barcode' => 'Barcode Scanner',
+        // 'exports' => 'Exports',
+        // 'barcode' => 'Barcode Scanner',
     ];
 
     public function index(Request $request)
