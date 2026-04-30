@@ -37,6 +37,7 @@ class PlanController extends Controller
         $user        = auth()->user();
         $currentPlan = null;
         $usage       = null;
+        $businessType = null;
 
         if ($user) {
             try {
@@ -290,7 +291,7 @@ class PlanController extends Controller
         $name = $plan->name;
         $plan->delete();
 
-        return redirect()->route('backed.admin.plans.index')
+        return redirect()->route('backend.admin.plans.index')
             ->with('success', "Plan \"{$name}\" deleted.");
     }
 
