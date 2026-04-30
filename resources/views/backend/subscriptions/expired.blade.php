@@ -30,7 +30,7 @@
                 </div>
             </div>
 
-            <a href="{{ route('backend.admin.plans') }}" class="btn action-button px-5">
+            <a href="{{ route('backend.admin.plans.choose') }}" class="btn action-button px-5">
                 Renew Subscription →
             </a>
 

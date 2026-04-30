@@ -107,7 +107,12 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
             Route::get('/expired',      [SubscriptionController::class, 'expired'])->name('expired');
         });
     });
-    Route::get('/plans', [PlanController::class, 'index'])->name('plans');
+    // Plan CRUD
+    Route::get('/plans/choose', [PlanController::class, 'choosePlan'])->name('plans.choose'); 
+    Route::resource('plans', PlanController::class)->middleware('role:super_admin');
+    // Extra actions (not covered by resource)
+    Route::post('plans/{plan}/toggle',  [PlanController::class, 'toggle'])->name('plans.toggle')->middleware('role:super_admin');
+    Route::post('plans/reorder',        [PlanController::class, 'reorder'])->name('plans.reorder')->middleware('role:super_admin');
     Route::resource('orders', OrderController::class);
     Route::resource('purchase', PurchaseController::class);
     Route::resource('suppliers', SupplierController::class);
@@ -143,7 +148,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     //start report
 
     Route::get('/sale/summery', [ReportController::class, 'saleSummery'])->name('sale.summery');
-    Route::get('/sale/report', [ReportController::class, 'saleReport'])->name('sale.report');
+    Route::get('/sale/report', [ReportController::class, 'saleReport'])->name('sale.report')->middleware('feature:reports');
     Route::get('/inventory/report', [ReportController::class, 'inventoryReport'])->name('inventory.report');
     //end report
     
@@ -171,8 +176,8 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
         Route::put('/cart/decrement', [CartController::class, 'decrement']);
         Route::put('/cart/delete', [CartController::class, 'delete']);
         Route::put('/cart/empty', [CartController::class, 'empty']);
-        Route::put('/order/create', [OrderController::class, 'store'])->middleware('plan.limit:invoice');
-        Route::put('/order/createDigital', [OrderController::class, 'storeDigital'])->middleware('plan.limit:invoice');
+        Route::put('/order/create', [OrderController::class, 'store'])->middleware('plan.limit:invoice,pos_invoice');
+        Route::put('/order/createDigital', [OrderController::class, 'storeDigital'])->middleware('plan.limit:invoice,digital_invoice');
         Route::get('orders/fbr-status/{id}', [OrderController::class, 'fbrStatus'])->name('orders.fbr-status');
 
         Route::get('/get/customers',[CustomerController::class,'getCustomers']);
