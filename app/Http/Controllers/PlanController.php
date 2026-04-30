@@ -38,6 +38,7 @@ class PlanController extends Controller
         $user        = auth()->user();
         $currentPlan = null;
         $usage       = null;
+        $businessType = null;
 
         if ($user) {
             try {
