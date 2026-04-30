@@ -170,11 +170,11 @@
                                 </li>
                                 {{-- <li>✔ Email Support</li> --}}
 
-                                @foreach($plan->features as $label)
+                                {{-- @foreach($plan->features as $label)
                                 <li>
                                     ✔ <span>{{ $label }}</span>
                                 </li>
-                                @endforeach
+                                @endforeach --}}
                             </ul>
 
                             @hasrole('super_admin')

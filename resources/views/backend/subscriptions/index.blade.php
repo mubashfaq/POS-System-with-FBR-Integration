@@ -104,7 +104,7 @@
                             <hr>
 
                             {{-- Features --}}
-                            <div class="mb-2 text-muted small fw-semibold text-uppercase">Features</div>
+                            {{-- <div class="mb-2 text-muted small fw-semibold text-uppercase">Features</div>
                             @php
                             $allFeatures = ['reports' => 'Reports', 'exports' => 'Exports', 'barcode' => 'Barcode Scanner'];
                             @endphp
@@ -119,7 +119,7 @@
                                     {{ $label }}
                                 </span>
                             </div>
-                            @endforeach
+                            @endforeach --}}
 
                             <div class="mt-4 d-grid gap-2">
                                 <a href="{{ route('backend.admin.plans.choose') }}" class="btn btn-outline-primary btn-sm">
