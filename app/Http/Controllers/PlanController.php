@@ -58,8 +58,8 @@ class PlanController extends Controller
     // Add more here as your POS grows
     public const FEATURES = [
         'reports' => 'Reports',
-        // 'exports' => 'Exports',
-        // 'barcode' => 'Barcode Scanner',
+        'exports' => 'Exports',
+        'barcode' => 'Barcode Scanner',
     ];
 
     public function index(Request $request)

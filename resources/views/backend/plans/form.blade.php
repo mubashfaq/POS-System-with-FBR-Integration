@@ -162,6 +162,9 @@
         <label class="form-label fw-semibold">Status</label>
         <input type="hidden" name="is_active" value="0">
         <div class="form-check form-switch mt-2">
+
+           <input type="hidden" name="is_active" value="0">
+        <div class="form-check form-switch mt-2">
             <input
                 class="form-check-input"
                 type="checkbox"

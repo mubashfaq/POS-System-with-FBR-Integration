@@ -145,7 +145,6 @@
       type: 'GET',
       dataType: 'json',
       success: function(response) {
-        console.log("fbr api response:", response);
 
         // Set the message returned by your Laravel controller
         $('#fbrStatusMessage').html(response.message);
