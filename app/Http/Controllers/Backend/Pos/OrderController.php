@@ -72,13 +72,13 @@ class OrderController extends Controller
                     : '<span class="badge bg-danger">Due</span>')
                 ->addColumn('date', fn($data) => $data->created_at->format('Y-m-d'))
                 ->addColumn('fbr_status', function ($d) {
-                    if ($d->api_status == 200 && (empty($d->error_code) || $d->error_code == null)) {
+                    if ($d->api_status == 200 && (empty($d->error_code) || $d->error_code == null) && $d->fbr_invoice_no != null ||$d->fbr_invoice_no != "") {
                         return "<button data-id=$d->id class='fbr-status btn btn-md bg-white' title='Data Submitted'><i class='fas fa-check-circle text-success'></i></button>";
                     }
-                    if ($d->api_status == 200 && (!empty($d->error_code) || $d->error_code != null)) {
+                    if ($d->api_status == 200 && (!empty($d->error_code) || $d->error_code != null) && $d->fbr_invoice_no == null ||$d->fbr_invoice_no == "") {
                         return "<button data-id=$d->id class='fbr-status btn btn-md bg-white' title='Data Not Correct For FBR'><i class='fas fa-times-circle text-danger'></i></button>";
                     }
-                    if ($d->api_status != 200) {
+                    if ($d->api_status != 200 && $d->fbr_invoice_no == null ||$d->fbr_invoice_no != "") {
                         return "<button data-id=$d->id class='fbr-status btn btn-md bg-white' title='Api Faild' ><i class='fas fa-exclamation-triangle text-warning'></i></button>";
                     }
                 })
@@ -899,8 +899,8 @@ class OrderController extends Controller
                 'order_id'       => $order->id,
                 'user_id'        => $userId,
                 'business_id'    => $businessId,
-                'request_payload' => $fbrPayload,
-                'response'       => $responseJson,
+                'request_payload' => "POST API Response",
+                'response'       => $postResponseJson,
                 'status_code'    => $response->status(),
                 'error_code'     => $errorCode,
                 'error_message'  => $errorMessage,
@@ -1071,12 +1071,12 @@ class OrderController extends Controller
             ]);
         }
 
-        if ($data->api_status != 200) {
+        if ($data->api_status != 200 ) {
             $message = "API Not Run Due to Some Issue From FBR";
-        } elseif (empty($data->error_code)) {
+        } elseif ($data->api_status == 200 && empty($data->error_code) && ($data->fbr_invoice_no != null )) {
             $message = "Successfully Sent to FBR.";
         } else {
-            $message = "Failed with Error Code: " . $data->error_code;
+            $message = "Failed to send to FBR " . $data->error_code;
             if (!empty($data->error_message)) {
                 $message .= " - " . $data->error_message;
             }
