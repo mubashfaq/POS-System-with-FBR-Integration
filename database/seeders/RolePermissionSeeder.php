@@ -108,7 +108,10 @@ class RolePermissionSeeder extends Seeder
 
             // plans, subscription
             'plan_view',
-            'subscription_view'
+            'subscription_view',
+
+            // logs
+            'order_logs_view'
         ];
         $admin = Role::where('name', 'Admin')->first();
         for ($i = 0; $i < count($permissions); $i++) {

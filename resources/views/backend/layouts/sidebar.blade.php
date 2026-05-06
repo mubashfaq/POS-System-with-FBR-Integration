@@ -308,6 +308,18 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                 </ul>
             </li>
             @endif
+            {{-- Order Log --}}
+            @if (currentUserBusiness() && currentUserBusiness()->hasPermission(['order_log_view']))
+            <li class="nav-item">
+                <a href="{{ route('backend.admin.order-logs.index') }}"
+                    class="nav-link {{ $route === 'backend.admin.order-logs.index' ? 'active' : '' }}">
+                    <i class="nav-icon fas fa-file-alt"></i>
+                    <p>
+                        Order Logs
+                    </p>
+                </a>
+            </li>
+            @endif
             {{-- settings --}}
             @if ($currentBusiness->hasAnyPermission([
             //currency

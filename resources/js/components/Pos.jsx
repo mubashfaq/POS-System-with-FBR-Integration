@@ -37,6 +37,9 @@ export default function Pos() {
     const [availableBatches, setAvailableBatches] = useState([]);
     const [targetProduct, setTargetProduct] = useState(null);
 
+    // ✅ Opt-4: Double-click guard — tracks product IDs currently being added
+    const [addingProducts, setAddingProducts] = useState(new Set());
+
 
     const handlePriceChange = (cartId, newPrice) => {
     const price = parseFloat(newPrice);
@@ -94,7 +97,7 @@ const emptyCartOnCustomerChange = async () => {
                 const productsData = res.data;
                 setProducts((prev) => [...prev, ...productsData.data]); // Append new products
                 if (productsData.data.length === 1 && barcode != "") {
-                    addProductToCart(productsData.data[0].id , customerId);
+                    addProductToCart(productsData.data[0].id, customerIdRef.current); // ✅ use ref for barcode scan
                     getCarts();
                 }
                 setTotalPages(productsData.meta.last_page); // Get total pages
@@ -162,12 +165,15 @@ console.log("CART FROM API", data?.carts);
         setDue(dueAmount.toFixed(2));
     
     }, [orderDiscount, paid, total, saleTaxTotal, furtherTaxTotal]); // ✅ No updateTotal dependency
+    // ✅ Opt-2: Debounce product name search — wait 300ms after last keystroke
     useEffect(() => {
-        if (searchQuery) {
+        setSearchBarcode("");
+        if (!searchQuery) return;
+        const timer = setTimeout(() => {
             setProducts([]);
             getProducts(searchQuery, currentPage, "");
-        }
-        setSearchBarcode("");
+        }, 300);
+        return () => clearTimeout(timer); // cleanup on next keystroke
     }, [currentPage, searchQuery]);
 
     useEffect(() => {
@@ -197,11 +203,18 @@ console.log("CART FROM API", data?.carts);
         };
     }, [currentPage, totalPages]);
 
-    function addProductToCart(id, customerId, purchaseItemId = null) {
-        if (!customerId) {
+    // ✅ Opt-3: useCallback so the function reference is stable across renders
+    //           Uses customerIdRef so barcode-scan path also gets the latest customer
+    const addProductToCart = useCallback((id, _customerIdArg, purchaseItemId = null) => {
+        const cid = customerIdRef.current; // always fresh — no stale closure
+        if (!cid) {
             toast.error("Please Select Customer");
             return;
         }
+
+        // ✅ Opt-4: Block duplicate clicks for the same product
+        if (addingProducts.has(id)) return;
+        setAddingProducts(prev => new Set(prev).add(id));
 
         if (!purchaseItemId) {
             axios
@@ -215,49 +228,71 @@ console.log("CART FROM API", data?.carts);
 
                     if (batches.length === 0) {
                         toast.error("Insufficient stock or no batches found.");
+                        setAddingProducts(prev => { const s = new Set(prev); s.delete(id); return s; });
                         return;
                     }
 
                     if (batches.length === 1) {
-                        // Only one batch? Add directly
                         submitToCart(id, batches[0].id);
                     } else {
-                        // Multi-batch? Check if batch selection is enabled
                         if (res.data.is_batch_enabled != true || res.data.is_batch_enabled == 0) {
                             // FIFO: Auto-select oldest batch
                             submitToCart(id, batches[batches.length - 1].id);
-
                         } else {
-                            // Show selection modal
+                            // Show batch selection modal — release lock so user can retry
+                            setAddingProducts(prev => { const s = new Set(prev); s.delete(id); return s; });
                             setTargetProduct(product);
                             setAvailableBatches(batches);
                             setShowBatchModal(true);
                         }
                     }
                 })
-                .catch((err) => {
+                .catch(() => {
+                    setAddingProducts(prev => { const s = new Set(prev); s.delete(id); return s; });
                     toast.error("Failed to fetch product batches.");
                 });
         } else {
             submitToCart(id, purchaseItemId);
         }
-    }
+    }, [addingProducts]); // addingProducts in deps so guard reads latest Set
 
     function submitToCart(productId, purchaseItemId) {
+        // ✅ Opt-1: Optimistic UI — push a temporary placeholder into the cart immediately
+        const tempId = `temp-${Date.now()}`;
+        setCarts(prev => [
+            ...prev,
+            {
+                id: tempId,
+                _isOptimistic: true,
+                product: { id: productId, name: 'Adding...', discounted_price: 0 },
+                quantity: 1,
+                unit_price: 0,
+                further_tax: 0,
+            }
+        ]);
+
         axios
             .post("/admin/cart", {
                 id: productId,
                 purchase_item_id: purchaseItemId,
             })
             .then((res) => {
-                setCartUpdated(prev => !prev); // ✅ functional updater — avoids stale boolean
+                // Remove optimistic placeholder, then pull real cart from server
+                setCarts(prev => prev.filter(c => c.id !== tempId));
+                setCartUpdated(prev => !prev); // triggers getCarts() to refresh with real data
                 playSound(SuccessSound);
                 toast.success(res?.data?.message);
                 setShowBatchModal(false);
             })
             .catch((err) => {
+                // Rollback: remove the placeholder on failure
+                setCarts(prev => prev.filter(c => c.id !== tempId));
                 playSound(WarningSound);
-                toast.error(err.response.data.message);
+                toast.error(err?.response?.data?.message ?? "Failed to add product.");
+            })
+            .finally(() => {
+                // ✅ Opt-4: Release double-click guard regardless of outcome
+                setAddingProducts(prev => { const s = new Set(prev); s.delete(productId); return s; });
             });
     }
     function cartEmpty() {

@@ -39,7 +39,8 @@ export default function Cart({
                 const rate = parseFloat(rateText.replace("%", ""));
                 saleTax = exTaxAmount * (rate / 100);
             } else {
-                saleTax = parseFloat(rateText) || 0;
+                const ratePerUnit = parseFloat(rateText) || 0;
+                saleTax = ratePerUnit * item.quantity;
             }
 
             let furtherTax = 0;
@@ -107,7 +108,7 @@ export default function Cart({
     function increment(id) {
         const item = carts.find((cart) => cart.id === id);
         if (item) {
-            const newQty = (Number(item.quantity) + 0.1).toFixed(2);
+            const newQty = (Number(item.quantity) + 1).toFixed(2);
             updateQuantity(id, parseFloat(newQty));
         }
     }
@@ -115,7 +116,7 @@ export default function Cart({
     function decrement(id) {
         const item = carts.find((cart) => cart.id === id);
         if (item && item.quantity > 1) {
-            const newQty = (Number(item.quantity) - 0.1).toFixed(2);
+            const newQty = (Number(item.quantity) - 1).toFixed(2);
             updateQuantity(id, parseFloat(newQty));
         }
     }
