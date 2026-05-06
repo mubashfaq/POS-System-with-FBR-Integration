@@ -94,9 +94,21 @@
                         <td>{{$order->total_item}}</td>
                         <td>{{number_format($order->order_cost,2,'.',',')}}</td>
                         <td>{{number_format($order->sub_total,2,'.',',')}}</td>
-                        <td>{{number_format($order->order_sales_tax,2,'.',',')}}</td>
-                        @if ($showFurtherTax)                        
-                          <td>{{number_format($order->order_further_tax,2,'.',',')}}</td>
+                        <td>
+                          @if (!is_null($order->total_sale_tax))
+                            {{number_format($order->total_sale_tax,2,'.',',')}}
+                          @else 
+                            {{number_format($order->order_sales_tax,2,'.',',')}}
+                          @endif
+                        </td>
+                        @if ($showFurtherTax)  
+                        <td>
+                          @if (!is_null($order->total_further_tax))
+                            {{number_format($order->total_further_tax,2,'.',',')}}
+                          @else 
+                            {{number_format($order->order_further_tax,2,'.',',')}}
+                          @endif    
+                        </td>                  
                         @endif
                         <td>{{number_format($order->discount,2,'.',',')}}</td>
                         <td>{{number_format($order->total,2,'.',',')}}</td>

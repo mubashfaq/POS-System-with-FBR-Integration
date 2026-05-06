@@ -118,24 +118,30 @@
                                 </td>
                                 @php
                                     $inclTax = $item->total;
-                                    if($order->type == 'pos_invoice'){
-                                        $taxRate = $item->product->pos_sale_tax;
-                                    } else {
-                                        $taxRate = $item->product->rate_of_tax;
-                                    }
-
-                                    $taxRate = floatval(str_replace('%', '', $taxRate));
-                                    $taxAmount = $item->sub_total * ($taxRate / 100);
                                     $exclTax = $item->sub_total;
-                                    $furtherTax = 0;
+                                    if(!is_null($item->sale_tax) || !is_null($item->further_tax)){
+                                        $taxAmount = $item->sale_tax;
+                                        $furtherTax = $item->further_tax;
+                                    } else {
+                                        if($order->type == 'pos_invoice'){
+                                            $taxRate = $item->product->pos_sale_tax;
+                                        } else {
+                                            $taxRate = $item->product->rate_of_tax;
+                                        }
 
-                                    if (
-                                        $order->customer->is_registered &&
-                                        strtolower($order->customer->is_registered) === 'unregistered' &&
-                                        $item->product->sale_type != '3rd Schedule Goods'
-                                    ) {
-                                        $furtherTax = $exclTax * 0.04;
+                                        $taxRate = floatval(str_replace('%', '', $taxRate));
+                                        $taxAmount = $item->sub_total * ($taxRate / 100);
+                                        $furtherTax = 0;
+
+                                        if (
+                                            $order->customer->is_registered &&
+                                            strtolower($order->customer->is_registered) === 'unregistered' &&
+                                            $item->product->sale_type != '3rd Schedule Goods'
+                                        ) {
+                                            $furtherTax = $exclTax * 0.04;
+                                        }
                                     }
+                                    
 
                                     // ✅ Accumulate into totals
                                     $totalExclTax    += $exclTax;

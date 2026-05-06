@@ -183,6 +183,7 @@ class OrderController extends Controller
         ]);
 
         $totalAmountOrder = 0;
+        $totalTaxOrder = 0;
         $orderDiscount = $request->order_discount ?? 0;
 
 
@@ -196,22 +197,24 @@ class OrderController extends Controller
             $subTotal  = round($product->price * $qty, 2);
             $discount  = round(($product->price - $unitPrice) * $qty, 2);
 
-   // Sale TAX (NEW)
-    $rateText = trim($product->pos_sale_tax);
+           // Sale TAX (NEW)
+            $rateText = trim($product->pos_sale_tax);
 
-    $saleTax = 0;
+            $saleTax = 0;
 
             if (str_ends_with($rateText, '%')) {
                 $rate = floatval(str_replace('%', '', $rateText));
-        $saleTax = round($lineTotal * ($rate / 100), 2);
-    } else {
-        $saleTax = floatval($rateText) ?: 0;
+                $saleTax = round($lineTotal * ($rate / 100), 2);
+            } else {
+                $ratePerUnit = floatval($rateText) ?: 0;
+                $saleTax = round($ratePerUnit * $qty, 2);
             }
 
-    // âœ… FINAL TOTAL = line total + further tax
-    $finalTotal = round($lineTotal + $saleTax, 2);
+            // âœ… FINAL TOTAL = line total + further tax
+            $finalTotal = round($lineTotal + $saleTax, 2);
 
             $totalAmountOrder += $finalTotal;
+            $totalTaxOrder += $saleTax;
 
             $order->products()->create([
                 'quantity'       => $cart->quantity,
@@ -219,9 +222,12 @@ class OrderController extends Controller
                 'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
                 'sub_total'      => $subTotal,
                 'discount'       => $discount,
+                'tax_rate'       => $rateText,
+                'sale_tax'       => $saleTax,
+                'further_tax'    => 0,
                 'total'          => $finalTotal,
                 'product_id'     => $product->id,
-                'purchase_item_id' => $cart->purchase_item_id,
+                'purchase_item_id' => $cart->purchase_item_id
             ]);
 
             // Decrement product stock
@@ -240,6 +246,8 @@ class OrderController extends Controller
         $order->update([
             'sub_total' => $totalAmountOrder,
             'discount'  => $orderDiscount,
+            'total_sale_tax' => round($totalTaxOrder, 2),
+            'total_further_tax' => 0,
             'paid'      => $request->paid,
             'total'     => round($total, 2),
             'due'       => round($due, 2),
@@ -265,10 +273,10 @@ class OrderController extends Controller
             $valueExTax = $lineTotal; // already ex-tax
             if (str_ends_with($rateText, '%')) {
                 $rate = floatval(str_replace('%', '', $rateText));
-        
-            $salesTax = round($valueExTax * ($rate / 100), 2);
+                $salesTax = round($valueExTax * ($rate / 100), 2);
             } else {
-                $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+                $ratePerUnit = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+                $salesTax = round($ratePerUnit * $qty, 2);
             }
 
 
@@ -419,6 +427,8 @@ class OrderController extends Controller
 
                 OrderLog::create([
                     'order_id'       => $order->id,
+                    'user_id'        => $userId,
+                    'business_id'    => $businessId,
                     'request_payload' => $fbrPayload,
                     'response'       => $postResponseJson['Response'],
                     'error_code'     => $postResponseJson['Code'] ?? null,
@@ -506,6 +516,8 @@ class OrderController extends Controller
         ]);
 
         $totalAmountOrder = 0;
+        $totalSaleTax = 0;
+        $totalFurtherTax = 0;
         $orderDiscount = $request->order_discount ?? 0;
 
 
@@ -535,7 +547,8 @@ class OrderController extends Controller
                     $furtherTax = 0;
                 }
             } else {
-                $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+                $ratePerUnit = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+                $salesTax = round($ratePerUnit * $qty, 2);
                 // $valueExTax = round($lineTotal - $salesTax, 2);
                 $valueExTax = round($lineTotal, 2);
 
@@ -550,6 +563,8 @@ class OrderController extends Controller
             $finalTotal = round($lineTotal + $salesTax + $furtherTax, 2);
 
             $totalAmountOrder += $finalTotal;
+            $totalSaleTax += $salesTax;
+            $totalFurtherTax += $furtherTax;
 
             $order->products()->create([
                 'quantity'       => $cart->quantity,
@@ -557,6 +572,9 @@ class OrderController extends Controller
                 'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
                 'sub_total'      => $subTotal,
                 'discount'       => $discount,
+                'tax_rate'       => $rateText,
+                'sale_tax'     => $salesTax,
+                'further_tax'     => $furtherTax,
                 'total'          => $finalTotal,
                 'product_id'     => $product->id,
                 'purchase_item_id' => $cart->purchase_item_id,
@@ -578,6 +596,8 @@ class OrderController extends Controller
         $order->update([
             'sub_total' => $totalAmountOrder,
             'discount'  => $orderDiscount,
+            'total_sale_tax' => round($totalSaleTax, 2),
+            'total_further_tax' => round($totalFurtherTax, 2),
             'paid'      => $request->paid,
             'total'     => round($total, 2),
             'due'       => round($due, 2),
@@ -611,7 +631,8 @@ class OrderController extends Controller
                     $furtherTax = 0;
                 }
             } else {
-                $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+                $ratePerUnit = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+                $salesTax = round($ratePerUnit * $qty, 2);
                 // $valueExTax = round($lineTotal - $salesTax, 2);
                 $valueExTax = $lineTotal;
 
