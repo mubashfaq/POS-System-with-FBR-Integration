@@ -45,7 +45,8 @@ export default function Cart1({
                 const rate = parseFloat(rateText.replace("%", ""));
                 saleTax = exTaxAmount * (rate / 100); // ✅ direct %
             } else {
-                saleTax = parseFloat(rateText) || 0;
+                const ratePerUnit = parseFloat(rateText) || 0;
+                saleTax = ratePerUnit * item.quantity;
             }
             // console.log(saleTax);
 

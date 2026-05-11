@@ -10,6 +10,8 @@ class OrderLog extends Model
     use HasFactory;
 
     protected $fillable = [
+        'business_id',
+        'user_id',
         'order_id',
         'request_payload',
         'response',
