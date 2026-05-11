@@ -17,6 +17,7 @@ use App\Http\Controllers\GoogleController;
 use App\Http\Controllers\Backend\DashboardController;
 use App\Http\Controllers\Backend\RolePermission\PermissionController;
 use App\Http\Controllers\Backend\Pos\OrderController;
+use App\Http\Controllers\Backend\Pos\OrderLogController;
 use App\Http\Controllers\Backend\Product\BrandController;
 use App\Http\Controllers\Backend\Product\PurchaseController;
 use App\Http\Controllers\Backend\RolePermission\RoleController;
@@ -129,6 +130,8 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
 
     // Get Customer is register or unregister
     Route::post('customers/is-registered/{cnic}', [CustomerController::class, 'isRegisteredCustomer'])->name('customers.is-registered');
+
+    Route::get('order/logs', [OrderLogController::class, 'index'])->name('order-logs.index');
 
     Route::resource('units', UnitController::class);
     Route::resource('currencies', CurrencyController::class)->middleware('role:super_admin');

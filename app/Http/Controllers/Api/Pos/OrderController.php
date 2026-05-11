@@ -196,6 +196,7 @@ public function store(Request $request)
     ]);
 
     $totalAmountOrder = 0;
+    $totalTaxOrder = 0;
     $orderDiscount = $request->order_discount ?? 0;
 
 
@@ -218,13 +219,14 @@ public function store(Request $request)
             $rate = floatval(str_replace('%', '', $rateText));
             $saleTax = round($lineTotal * ($rate / 100), 2);
         } else {
-            $saleTax = floatval($rateText) ?: 0;
+            $ratePerUnit = floatval($rateText) ?: 0;
+            $saleTax = round($ratePerUnit * $qty, 2);
         }
 
-        // âœ… FINAL TOTAL = line total + further tax
         $finalTotal = round($lineTotal + $saleTax, 2);
 
         $totalAmountOrder += $finalTotal;
+        $totalTaxOrder += $saleTax;
 
         $order->products()->create([
             'quantity'       => $cart->quantity,
@@ -232,6 +234,9 @@ public function store(Request $request)
             'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
             'sub_total'      => $subTotal,
             'discount'       => $discount,
+            'tax_rate'       => $rateText,
+            'sale_tax'       => $saleTax,
+            'further_tax'    => 0,
             'total'          => $finalTotal,
             'product_id'     => $product->id,
             'purchase_item_id' => $cart->purchase_item_id,
@@ -278,6 +283,8 @@ public function store(Request $request)
     $order->update([
         'sub_total' => $totalAmountOrder,
         'discount'  => $orderDiscount,
+        'total_sale_tax' => round($totalTaxOrder, 2),
+        'total_further_tax' => 0,
         'paid'      => $request->paid,
         'total'     => round($total, 2),
         'due'       => round($due, 2),
@@ -286,14 +293,12 @@ public function store(Request $request)
 
     /* ================= FBR ITEMS ================= */
     $fbrItems = [];
-    // $furtherTax = 0;
     $lineTotal = 0;
     foreach ($carts as $cart) {
         $product = $cart->product;
         
 
         $qty = round($cart->quantity, 2);
-        // $lineTotal = round($product->discounted_price * $qty, 2);
         $unitPrice = $cart->price_override ?? $product->discounted_price;
         $lineTotal = round($unitPrice * $qty, 2);
 
@@ -305,7 +310,8 @@ public function store(Request $request)
             $rate = floatval(str_replace('%', '', $rateText));
             $salesTax = round($valueExTax * ($rate / 100), 2);
         } else {
-            $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+            $ratePerUnit = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+            $salesTax = round($ratePerUnit * $qty, 2);
         }
 
 
@@ -407,7 +413,7 @@ public function store(Request $request)
 
 
         if($postResponseJson['Response'] == "Invoice received successfully"){
-            DB::commit(); // save order data in db now 
+            DB::commit();
 
             Order::where('id', $order->id)->update([
                 'fbr_invoice_no'    => $fbr_invoice_number,
@@ -522,6 +528,8 @@ public function storeDigital(Request $request)
     ]);
 
     $totalAmountOrder = 0;
+    $totalSaleTax = 0;
+    $totalFurtherTax = 0;
     $orderDiscount = $request->order_discount ?? 0;
 
 
@@ -541,7 +549,6 @@ public function storeDigital(Request $request)
 
         if (str_ends_with($rateText, '%')) {
             $rate = floatval(str_replace('%', '', $rateText));
-            //  $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
             $valueExTax = round($lineTotal, 2);
             $salesTax  = round($valueExTax * ($rate / 100), 2);
 
@@ -551,8 +558,8 @@ public function storeDigital(Request $request)
                 $furtherTax = 0;
             }
         } else {
-            $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
-            // $valueExTax = round($lineTotal - $salesTax, 2);
+            $ratePerUnit = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+            $salesTax = round($ratePerUnit * $qty, 2);
             $valueExTax = round($lineTotal, 2);
 
             if ($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods') {
@@ -566,13 +573,17 @@ public function storeDigital(Request $request)
         $finalTotal = round($lineTotal + $salesTax + $furtherTax, 2);
 
         $totalAmountOrder += $finalTotal;
-
+        $totalSaleTax += $salesTax;
+        $totalFurtherTax += $furtherTax;
         $order->products()->create([
             'quantity'       => $cart->quantity,
             'price'          => $unitPrice,
             'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
             'sub_total'      => $subTotal,
             'discount'       => $discount,
+            'tax_rate'       => $rateText,
+            'sale_tax'       => $salesTax,
+            'further_tax'    => $furtherTax,
             'total'          => $finalTotal,
             'product_id'     => $product->id,
             'purchase_item_id' => $cart->purchase_item_id,
@@ -619,6 +630,8 @@ public function storeDigital(Request $request)
     $order->update([
         'sub_total' => $totalAmountOrder,
         'discount'  => $orderDiscount,
+        'total_sale_tax' => round($totalSaleTax, 2),
+        'total_further_tax' => round($totalFurtherTax, 2),
         'paid'      => $request->paid,
         'total'     => round($total, 2),
         'due'       => round($due, 2),
@@ -634,7 +647,6 @@ public function storeDigital(Request $request)
         
 
         $qty = round($cart->quantity, 2);
-        // $lineTotal = round($product->discounted_price * $qty, 2);
         $unitPrice = $cart->price_override ?? $product->discounted_price;
         $lineTotal = round($unitPrice * $qty, 2);
 
@@ -642,7 +654,6 @@ public function storeDigital(Request $request)
 
         if (str_ends_with($rateText, '%')) {
             $rate = floatval(str_replace('%', '', $rateText));
-          //  $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
             $valueExTax = $lineTotal;
             $salesTax  = round($valueExTax * ($rate / 100), 2);
 
@@ -654,8 +665,8 @@ public function storeDigital(Request $request)
             }
 
         } else {
-            $salesTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
-           // $valueExTax = round($lineTotal - $salesTax, 2);
+            $ratePerUnit = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+            $salesTax = round($ratePerUnit * $qty, 2);
            $valueExTax = $lineTotal;
 
              if($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods'){

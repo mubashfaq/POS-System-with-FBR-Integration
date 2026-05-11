@@ -88,7 +88,11 @@
               $unitPrice = (float) $item->discounted_price;
               $quantity = (float) $item->quantity;
               $total = (float) $item->total;
-
+              if(!is_null($item->sale_tax)){
+                $totalTaxAmount += $item->sale_tax;
+                $pfinalPricePerUnit = $item->discounted_price;
+                $pfinalLineTotal = $item->total - $item->sale_tax;
+              }else{
               // Har product ka apna tax rate
               $taxRateRaw = $item->product->pos_sale_tax ?? '0'; // fallback if null
               $taxRateNumeric = (float) str_replace('%', '', $taxRateRaw);
@@ -101,6 +105,9 @@
 
               $pfinalPricePerUnit = $item->discounted_price;
               $pfinalLineTotal = $item->total - $currentProductTax;
+              }
+
+             
             @endphp
             <tr>
               <td>{{ $item->product->name }} </td>

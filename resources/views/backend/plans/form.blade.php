@@ -160,7 +160,7 @@
     <!-- ✅ Status Column -->
     <div class="col-md-6">
         <label class="form-label fw-semibold">Status</label>
-
+        <input type="hidden" name="is_active" value="0">
         <div class="form-check form-switch mt-2">
 
            <input type="hidden" name="is_active" value="0">
@@ -181,11 +181,6 @@
 
 </div>
 
- 
-<div class="row g-3 mb-2">
-    {{-- POS Invoice Limit --}}
-    
-</div>
  
 
 {{-- Auto-generate slug from name --}}
