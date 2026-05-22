@@ -17,7 +17,7 @@ class OrderLogController extends Controller
 
         if ($request->ajax()) {
             $logs = OrderLog::with('order')
-                ->where('busniess_id', $businessId)
+                ->where('business_id', $businessId)
                 ->select('order_logs.*');
 
             return DataTables::of($logs)

@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>
-        @yield('title', 'Dashboard') | {{'site_name'}}
+        @yield('title', 'Dashboard') | {{ readConfig('site_name') }}
     </title>
 
      <!-- FAVICON ICON -->

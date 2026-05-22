@@ -132,7 +132,14 @@
                     </tbody>
                     <tfoot>
                       <tr style="font-weight: bold;">
-                        <td colspan="15" class="text-end">Total Profit: {{number_format($profit,2,'.',',')}} | Total Loss: {{number_format($loss,2,'.',',')}}</td>
+                        <td colspan="15" class="text-end">
+                          Total Profit: {{number_format($profit,2,'.',',')}} | 
+                          Total Loss: {{number_format($loss,2,'.',',')}} | 
+                          Total Sale Tax: {{number_format($sales_tax,2,'.',',')}} 
+                          @if ($showFurtherTax)
+                           | Total Further Tax: {{number_format($further_tax,2,'.',',')}} 
+                          @endif
+                        </td>
                         <td></td>
                       </tr>
                     </tfoot>

@@ -1,5 +1,5 @@
 @extends('backend.master')
-@section('title', 'Receipt_' . $order->id)
+@section('title', 'REC-' . $order->business_id . '-' . str_pad($order->invoice_number, 4, '0', STR_PAD_LEFT))
 @section('content')
 
   <div class="card">
@@ -82,7 +82,7 @@
 
         <tbody>
           @php $totalTaxAmount = 0; @endphp
-          @foreach ($order->products as $item)
+          @foreach ($order->products->where('is_accessory', 0) as $item)
             @php
               // Ensure numeric values
               $unitPrice = (float) $item->discounted_price;
