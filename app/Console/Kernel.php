@@ -139,7 +139,7 @@ class Kernel extends ConsoleKernel
                     // LOG RESPONSE
                     // ===============================
                     OrderLog::create([
-                        'buisness_id'    => session('business_id'),
+                        'business_id'    => session('business_id'),
                         'user_id'        => auth()->id(),
                         'order_id'       => $order->id,
                         'request_payload'=> $payload,

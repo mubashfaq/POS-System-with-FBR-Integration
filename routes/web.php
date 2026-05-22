@@ -24,6 +24,7 @@ use App\Http\Controllers\Backend\RolePermission\RoleController;
 use App\Http\Controllers\Backend\Product\UnitController;
 use App\Http\Controllers\Backend\UserManagementController;
 use App\Http\Controllers\Backend\WebsiteSettingController;
+use App\Http\Controllers\BulkFilerCheckController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SubscriptionController;
 use App\Models\Supplier;
@@ -53,6 +54,9 @@ Route::get('terms-conditions', function () {
 })->name('frontend.terms-conditions');
 
 Route::get('/plans', [PlanController::class, 'indexFront'])->name('plans.index');
+Route::get('/filer/bulk-check',         [BulkFilerCheckController::class, 'index'])->name('filer.bulk.index');
+Route::post('/filer/bulk-check',        [BulkFilerCheckController::class, 'checkBulk'])->name('filer.bulk.check');
+Route::post('/filer/bulk-download',     [BulkFilerCheckController::class, 'downloadResult'])->name('filer.bulk.download');
 
 
 //authentication
@@ -115,6 +119,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::post('plans/{plan}/toggle',  [PlanController::class, 'toggle'])->name('plans.toggle')->middleware('role:super_admin');
     Route::post('plans/reorder',        [PlanController::class, 'reorder'])->name('plans.reorder')->middleware('role:super_admin');
     Route::resource('orders', OrderController::class);
+    Route::post('orders/pdf-download', [OrderController::class, 'downloadPdf'])->name('orders.pdf-download');
     Route::resource('purchase', PurchaseController::class);
     Route::resource('suppliers', SupplierController::class);
     Route::get('customers/search', [CustomerController::class, 'search'])->name('customers.search');
@@ -158,6 +163,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     
     // start pos
         Route::get('/get/products', [CartController::class, 'getProducts'])->name('getProducts');
+    Route::get('/cart/quantity-validation', [CartController::class, 'getQuantityValidation'])->name('getQuantityValidation');
         
         // Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
         Route::get('/cart', [CartController::class, 'index'])

@@ -13,6 +13,7 @@ export default function Cart({
     isRegistered,
     onPriceChange,
     onTotalsChange,
+    quantityValidation
 }) {
     const [editingQuantity, setEditingQuantity] = useState({});
     const [cartItems, setCartItems] = useState([]);
@@ -26,6 +27,9 @@ export default function Cart({
         let subTotalExTax = 0;
         let furtherTaxCalc = 0;
         let saleTaxCalc = 0;
+
+        // Only parent items contribute to totals
+        const parentCarts = carts.filter((i) => !i.parent_cart_id && !i.is_accessory);
 
         const updatedCarts = carts.map((item) => {
             const price = Number(item.unit_price ?? item.product.discounted_price);
@@ -51,9 +55,12 @@ export default function Cart({
                 furtherTax = exTaxAmount * (4 / 100);
             }
 
-            subTotalExTax += exTaxAmount;
-            saleTaxCalc += saleTax;
-            furtherTaxCalc += furtherTax;
+            // Only accumulate from parent items
+            if (!item.parent_cart_id && !item.is_accessory) {
+                subTotalExTax += exTaxAmount;
+                saleTaxCalc += saleTax;
+                furtherTaxCalc += furtherTax;
+            }
 
             return {
                 ...item,
@@ -97,19 +104,39 @@ export default function Cart({
     }
 
     function handleQuantityBlur(id, value) {
-        const newQuantity = parseFloat(value);
-        if (!isNaN(newQuantity) && newQuantity > 0) {
-            updateQuantity(id, newQuantity);
-        } else {
+        const item = carts.find((cart) => cart.id === id);
+        const isAccessory = !!item?.parent_cart_id || !!item?.is_accessory;
+        const stockEnforced = quantityValidation == "disabled"; // disabled = enforce stock
+        const newQuantity = parseInt(value);
+    
+        if (isNaN(newQuantity) || newQuantity < 1) {
             setEditingQuantity((prev) => ({ ...prev, [id]: false }));
+            return;
         }
+    
+        // Block only when: main product AND stock is being enforced AND exceeds stock
+        if (!isAccessory && stockEnforced && newQuantity > item.product.quantity) {
+            playSound(WarningSound);
+            toast.error(`Only ${item.product.quantity} items available in stock`);
+            setEditingQuantity((prev) => ({ ...prev, [id]: false }));
+            return;
+        }
+    
+        updateQuantity(id, newQuantity);
     }
 
     function increment(id) {
         const item = carts.find((cart) => cart.id === id);
-        if (item) {
-            const newQty = (Number(item.quantity) + 1).toFixed(2);
-            updateQuantity(id, parseFloat(newQty));
+        if (!item) return;
+    
+        const isAccessory = !!item.parent_cart_id || !!item.is_accessory;
+        const stockEnforced = quantityValidation == "disabled"; // disabled = enforce stock
+    
+        // Accessories: always allow
+        // Main product + validation enabled: always allow (backend handles it)
+        // Main product + validation disabled: respect stock limit
+        if (isAccessory || !stockEnforced || item.quantity < item.product.quantity) {
+            updateQuantity(id, item.quantity + 1);
         }
     }
 
@@ -145,12 +172,24 @@ export default function Cart({
 
     const shouldApplyFurtherTax = (item) => {
         if (!item || !item.product || !registrationStatus) return false;
-
         return (
             item.product.sale_type != "3rd Schedule Goods" &&
             registrationStatus.toLowerCase() === "unregistered"
         );
     };
+
+    // Group: build a map of parent_cart_id -> [accessory items]
+    const accessoryMap = {};
+    cartItems.forEach((item) => {
+        if (item.parent_cart_id || item.is_accessory) {
+            const pid = item.parent_cart_id;
+            if (!accessoryMap[pid]) accessoryMap[pid] = [];
+            accessoryMap[pid].push(item);
+        }
+    });
+
+    // Only top-level (parent) items for main table rows
+    const parentItems = cartItems.filter((i) => !i.parent_cart_id && !i.is_accessory);
 
     return (
         <>
@@ -170,170 +209,228 @@ export default function Cart({
                                 </thead>
 
                                 <tbody>
-                                    {cartItems.length > 0 ? (
-                                        cartItems.map((item) => {
+                                    {parentItems.length > 0 ? (
+                                        parentItems.map((item) => {
                                             if (!item) return null;
-
                                             const applyFurtherTax = shouldApplyFurtherTax(item);
+                                            const itemAccessories = accessoryMap[item.id] || [];
 
                                             return (
-                                                <tr key={item.id}>
-                                                    <td>{item.product.name}</td>
+                                                <React.Fragment key={item.id}>
+                                                    {/* ── PARENT ROW ── */}
+                                                    <tr>
+                                                        <td>
+                                                            <strong>{item.product.name}</strong>
+                                                            {itemAccessories.length > 0 && (
+                                                                <span
+                                                                    className="badge badge-info ml-1"
+                                                                    style={{ fontSize: "0.7em" }}
+                                                                    title={`${itemAccessories.length} accessory item(s)`}
+                                                                >
+                                                                    <i className="fas fa-puzzle-piece"></i>{" "}
+                                                                    {itemAccessories.length}
+                                                                </span>
+                                                            )}
+                                                        </td>
 
-                                                    <td className="d-flex align-items-center">
+                                                        <td className="d-flex align-items-center">
+                                                            <button
+                                                                className="btn btn-warning btn-sm"
+                                                                onClick={() => decrement(item.id)}
+                                                                disabled={item.quantity <= 1}
+                                                            >
+                                                                <i className="fas fa-minus"></i>
+                                                            </button>
 
-                                                         <button
-                                                            className="btn btn-warning btn-sm"
-                                                            onClick={() =>
-                                                                decrement(
-                                                                    item.id,
-                                                                )
-                                                            }
-                                                            disabled={
-                                                                item.quantity <=
-                                                                1
-                                                            }
-                                                        >
-                                                            <i className="fas fa-minus"></i>
-                                                        </button>
-
-                                                         {editingQuantity[
-                                                            item.id
-                                                        ] ? (
-                                                            <input
-                                                                type="number"
-                                                                className="form-control form-control-sm qty ml-1 mr-1"
-                                                                defaultValue={
-                                                                    item.quantity
-                                                                }
-                                                                min="1"
-                                                                max={
-                                                                    item.product
-                                                                        .quantity
-                                                                }
-                                                                autoFocus
-                                                                onBlur={(e) =>
-                                                                    handleQuantityBlur(
-                                                                        item.id,
-                                                                        e.target
-                                                                            .value,
-                                                                    )
-                                                                }
-                                                                onKeyPress={(
-                                                                    e,
-                                                                ) => {
-                                                                    if (
-                                                                        e.key ===
-                                                                        "Enter"
-                                                                    ) {
-                                                                        handleQuantityBlur(
-                                                                            item.id,
-                                                                            e
-                                                                                .target
-                                                                                .value,
-                                                                        );
+                                                            {editingQuantity[item.id] ? (
+                                                                <input
+                                                                    type="number"
+                                                                    className="form-control form-control-sm qty ml-1 mr-1"
+                                                                    defaultValue={item.quantity}
+                                                                    min="1"
+                                                                    max={item.product.quantity}
+                                                                    autoFocus
+                                                                    onBlur={(e) =>
+                                                                        handleQuantityBlur(item.id, e.target.value)
                                                                     }
-                                                                }}
-                                                                style={{
-                                                                    width: "60px",
-                                                                }}
-                                                            />
-                                                        ) : (
-                                                            <div
-                                                                className="form-control form-control-sm qty ml-1 mr-1 text-center"
-                                                                style={{
-                                                                    width: "60px",
-                                                                    cursor: "pointer",
-                                                                    backgroundColor:
-                                                                        "#f8f9fa",
-                                                                }}
-                                                                onClick={() =>
-                                                                    setEditingQuantity(
-                                                                        (
-                                                                            prev,
-                                                                        ) => ({
+                                                                    onKeyPress={(e) => {
+                                                                        if (e.key === "Enter") {
+                                                                            handleQuantityBlur(item.id, e.target.value);
+                                                                        }
+                                                                    }}
+                                                                    style={{ width: "60px" }}
+                                                                />
+                                                            ) : (
+                                                                <div
+                                                                    className="form-control form-control-sm qty ml-1 mr-1 text-center"
+                                                                    style={{
+                                                                        width: "60px",
+                                                                        cursor: "pointer",
+                                                                        backgroundColor: "#f8f9fa",
+                                                                    }}
+                                                                    onClick={() =>
+                                                                        setEditingQuantity((prev) => ({
                                                                             ...prev,
                                                                             [item.id]: true,
-                                                                        }),
-                                                                    )
-                                                                }
+                                                                        }))
+                                                                    }
+                                                                >
+                                                                    {item.quantity}
+                                                                </div>
+                                                            )}
+
+                                                            <button
+                                                                className="btn btn-success btn-sm"
+                                                                onClick={() => increment(item.id)}
+                                                                disabled={quantityValidation == "disabled" && item.quantity >= item.product.quantity}
                                                             >
-                                                                {item.quantity}
-                                                            </div>
-                                                        )}
+                                                                <i className="fas fa-plus"></i>
+                                                            </button>
+                                                        </td>
 
-                                                         <button
-                                                            className="btn btn-success btn-sm"
-                                                            onClick={() =>
-                                                                increment(
-                                                                    item.id,
-                                                                )
-                                                            }
-                                                            // disabled={
-                                                            //     item.quantity >=
-                                                            //     item.product
-                                                            //         .quantity
-                                                            // }
-                                                        >
-                                                            <i className="fas fa-plus"></i>
-                                                        </button>
-                                                    </td>
+                                                        <td>
+                                                            <button
+                                                                className="btn btn-danger btn-sm mr-3"
+                                                                onClick={() => destroy(item.id)}
+                                                            >
+                                                                <i className="fas fa-trash"></i>
+                                                            </button>
+                                                        </td>
 
-                                                    
-                                                    <td>
-                                                        <button
-                                                            className="btn btn-danger btn-sm mr-3"
-                                                            onClick={() =>
-                                                                destroy(item.id)
-                                                            }
-                                                        >
-                                                            <i className="fas fa-trash"></i>
-                                                        </button>
-                                                    </td>
+                                                        <td className="text-right">
+                                                            <input
+                                                                type="number"
+                                                                className="border text-right"
+                                                                style={{ width: "80px" }}
+                                                                value={item.unit_price ?? item.product.discounted_price}
+                                                                onChange={(e) => {
+                                                                    const newPrice = parseFloat(e.target.value);
+                                                                    if (!isNaN(newPrice) && newPrice >= 0) {
+                                                                        onPriceChange(item.id, newPrice);
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </td>
 
-                                                    <td className="text-right">
-                                                        <input
-                                                            type="number"
-                                                            className="border text-right"
-                                                            style={{ width: "80px" }}
-                                                            value={item.unit_price ?? item.product.discounted_price}
-                                                            onChange={(e) => {
-                                                                const newPrice = parseFloat(e.target.value);
-                                                                if (!isNaN(newPrice) && newPrice >= 0) {
-                                                                    onPriceChange(item.id, newPrice);
-                                                                }
+                                                        <td className="text-right">
+                                                            {applyFurtherTax ? (
+                                                                <>
+                                                                    <div className="text-success font-weight-bold">
+                                                                        {item.total_with_tax}
+                                                                    </div>
+                                                                    <div className="small text-muted">
+                                                                        <del>{item.base_total}</del>
+                                                                    </div>
+                                                                    <div className="small text-danger">
+                                                                        +{item.further_tax} further tax
+                                                                    </div>
+                                                                    <div className="small text-warning">
+                                                                        +{item.sale_tax} sale tax
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <div className="font-weight-bold">
+                                                                        {item.base_total}
+                                                                    </div>
+                                                                    <div className="small text-warning">
+                                                                        +{item.sale_tax} sale tax
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+
+                                                    {/* ── ACCESSORY SUB-ROWS ── */}
+                                                    {itemAccessories.map((acc) => (
+                                                        <tr
+                                                            key={acc.id}
+                                                            style={{
+                                                                backgroundColor: "#f9f9f9",
+                                                                borderLeft: "3px solid #6c757d",
                                                             }}
-                                                        />
-                                                    </td>
+                                                        >
+                                                            <td style={{ paddingLeft: "28px", color: "#6c757d" }}>
+                                                                <i
+                                                                    className="fas fa-angle-right mr-1"
+                                                                    style={{ fontSize: "0.8em" }}
+                                                                ></i>
+                                                                <em>{acc.product.name}</em>
+                                                                <span
+                                                                    className="badge badge-secondary ml-1"
+                                                                    style={{ fontSize: "0.65em" }}
+                                                                >
+                                                                    accessory
+                                                                </span>
+                                                            </td>
 
-                                                    <td className="text-right">
-                                                        {applyFurtherTax ? (
-                                                            <>
-                                                                <div className="text-success font-weight-bold">
-                                                                    {item.total_with_tax}
-                                                                </div>
-                                                                <div className="small text-muted">
-                                                                    <del>{item.base_total}</del>
-                                                                </div>
-                                                                <div className="small text-danger">
-                                                                    +{item.further_tax} further tax
-                                                                </div>
-                                                                <div className="small text-warning">
-                                                                    +{item.sale_tax} sale tax
-                                                                </div>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <div className="font-weight-bold">
-                                                                    {item.base_total}
-                                                                </div>
-                                                                <div className="small text-warning">
-                                                                    +{item.sale_tax} sale tax
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                    </td>
-                                                </tr>
+                                                            <td className="d-flex align-items-center">
+                                                                <button
+                                                                    className="btn btn-warning btn-sm"
+                                                                    onClick={() => decrement(acc.id)}
+                                                                    disabled={acc.quantity <= 1}
+                                                                >
+                                                                    <i className="fas fa-minus"></i>
+                                                                </button>
+
+                                                                {editingQuantity[acc.id] ? (
+                                                                    <input
+                                                                        type="number"
+                                                                        className="form-control form-control-sm qty ml-1 mr-1"
+                                                                        defaultValue={acc.quantity}
+                                                                        min="1"
+                                                                        autoFocus
+                                                                        onBlur={(e) =>
+                                                                            handleQuantityBlur(acc.id, e.target.value)
+                                                                        }
+                                                                        onKeyPress={(e) => {
+                                                                            if (e.key === "Enter") {
+                                                                                handleQuantityBlur(acc.id, e.target.value);
+                                                                            }
+                                                                        }}
+                                                                        style={{ width: "60px" }}
+                                                                    />
+                                                                ) : (
+                                                                    <div
+                                                                        className="form-control form-control-sm qty ml-1 mr-1 text-center"
+                                                                        style={{
+                                                                            width: "60px",
+                                                                            cursor: "pointer",
+                                                                            backgroundColor: "#f0f0f0",
+                                                                        }}
+                                                                        onClick={() =>
+                                                                            setEditingQuantity((prev) => ({
+                                                                                ...prev,
+                                                                                [acc.id]: true,
+                                                                            }))
+                                                                        }
+                                                                    >
+                                                                        {acc.quantity}
+                                                                    </div>
+                                                                )}
+
+                                                                <button
+                                                                    className="btn btn-success btn-sm"
+                                                                    onClick={() => increment(acc.id)}
+                                                                >
+                                                                    <i className="fas fa-plus"></i>
+                                                                </button>
+                                                            </td>
+
+                                                            {/* No delete button — accessory is removed with parent */}
+                                                            <td></td>
+
+                                                            {/* No price column for accessories */}
+                                                            <td className="text-right text-muted">
+                                                                <small>—</small>
+                                                            </td>
+
+                                                            <td className="text-right text-muted">
+                                                                <small>stock only</small>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </React.Fragment>
                                             );
                                         })
                                     ) : (
