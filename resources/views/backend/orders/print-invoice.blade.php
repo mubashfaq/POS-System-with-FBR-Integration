@@ -1,5 +1,5 @@
 @extends('backend.master')
-@section('title', 'Invoice_'.$order->id)
+@section('title', 'INV-' . $order->business_id . '-' . str_pad($order->invoice_number, 4, '0', STR_PAD_LEFT))
 @section('content')
 <div class="card">
     <div class="card-body">
@@ -32,7 +32,7 @@
             <!-- info row -->
             <div class="row invoice-info">
                 <!-- /.col -->
-                <div class="col-sm-5 invoice-col">
+                <div class="col-sm-4 invoice-col">
                     @if(readConfig('is_show_customer_invoice'))
                     To
                     <address>
@@ -60,10 +60,13 @@
                     </address>
                 </div>
                 <!-- /.col -->
-                <div class="col-sm-3 invoice-col">
+                <div class="col-sm-4 invoice-col">
                     Info <br>
                     Sale ID #{{$order->id}}<br>
                     Sale Date: {{date('d/m/Y', strtotime($order->created_at))}}<br>
+                    @if (($fbrIntegration ?? null) == 'enabled')
+                    FBR Invoice: <div>{{ $order->fbr_invoice_no }}</div>
+                    @endif
                     <!-- <br>
           <b>Payment Due:</b> 2/22/2014<br>
           <b>Account:</b> 968-34567 -->
@@ -100,7 +103,7 @@
                                 $totalInclTax = 0;
                             @endphp
 
-                            @foreach ($order->products as $item )
+                            @foreach ($order->products->where('is_accessory', 0) as $item)
                             <tr>
                                 <td>{{$loop->index + 1}}</td>
                                 <td>{{$item->product->name}}</td>

@@ -39,6 +39,7 @@ return [
 
     'fbr' => [
         'token' => env('FBR_TOKEN'),
+        'global_token' => env('FBR_GLOBAL_TOKEN'),
     ],
     
 
