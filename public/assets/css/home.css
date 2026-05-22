@@ -123,6 +123,7 @@ body {
 
 .btn-primary-custom:hover,
 .btn-login:hover {
+    cursor: pointer;
     background: #fd7e14; /* match pricing theme */
     color: #fff;
     transform: translateY(-4px);

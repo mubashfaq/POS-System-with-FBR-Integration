@@ -67,4 +67,20 @@ class OrderProduct extends Model
     {
         return $this->belongsTo(PurchaseItem::class);
     }
+
+    /**
+     * Accessory order-product rows that belong to this parent row.
+     */
+    public function accessoryItems()
+    {
+        return $this->hasMany(OrderProduct::class, 'parent_order_product_id');
+    }
+
+    /**
+     * The parent order-product row (when this row is an accessory).
+     */
+    public function parentOrderProduct()
+    {
+        return $this->belongsTo(OrderProduct::class, 'parent_order_product_id');
+    }
 }
