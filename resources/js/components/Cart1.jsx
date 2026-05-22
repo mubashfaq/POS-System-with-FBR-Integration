@@ -299,11 +299,11 @@ export default function Cart1({
                                                                     item.id,
                                                                 )
                                                             }
-                                                            disabled={
-                                                                item.quantity >=
-                                                                item.product
-                                                                    .quantity
-                                                            }
+                                                            // disabled={
+                                                            //     item.quantity >=
+                                                            //     item.product
+                                                            //         .quantity
+                                                            // }
                                                         >
                                                             <i className="fas fa-plus"></i>
                                                         </button>
