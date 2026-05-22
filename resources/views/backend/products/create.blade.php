@@ -277,7 +277,33 @@
                         </div>
                     </div>
                 </div>
-                <div class="row">
+
+                {{-- ========== ACCESSORIES SECTION ========== --}}
+                <div class="card border mt-3">
+                    <div class="card-header bg-light d-flex align-items-center justify-content-between">
+                        <strong><i class="fas fa-puzzle-piece mr-2"></i> Accessories (Sub-Products)</strong>
+                        <button type="button" class="btn btn-sm action-button" id="addAccessoryRow">
+                            <i class="fas fa-plus"></i> Add Accessory
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small">When this product is added to the cart, these sub-products will be automatically included.</p>
+                        <table class="table table-bordered table-sm" id="accessoriesTable">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Sub-Product</th>
+                                    <th style="width:140px">Default Qty</th>
+                                    <th style="width:60px"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="accessoryRows">
+                                {{-- dynamic rows added via JS --}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="row mt-3">
                     <div class="col-md-6">
                         <button type="submit" class="btn action-button">Create</button>
                     </div>
@@ -608,8 +634,66 @@ $(document).ready(function() {
         }
     });
 
+    // ===============================
+    // ACCESSORIES builder
+    // ===============================
+    const allProducts = @json($allProducts);
 
+    function buildProductOptions(selectedId) {
+        let opts = '<option value="">-- Select Product --</option>';
+        allProducts.forEach(function(p) {
+            opts += `<option value="${p.id}" ${p.id == selectedId ? 'selected' : ''}>${p.name}</option>`;
+        });
+        return opts;
+    }
 
+    function addAccessoryRow(selectedId, qty) {
+        const row = `
+            <tr class="accessory-row">
+                <td>
+                    <select class="form-control form-control-sm accessory-product-select select2-acc">
+                        ${buildProductOptions(selectedId)}
+                    </select>
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm accessory-qty" 
+                           min="1" step="0.01" value="${qty || 1}">
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-danger remove-accessory">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>`;
+        $('#accessoryRows').append(row);
+        // Init select2 on the new dropdown
+        $('#accessoryRows .accessory-product-select').last().select2({ width: '100%' });
+    }
+
+    $('#addAccessoryRow').on('click', function() {
+        addAccessoryRow(null, 1);
+    });
+
+    $(document).on('click', '.remove-accessory', function() {
+        $(this).closest('tr').remove();
+    });
+
+    // Before form submit: build hidden inputs from rows
+    $('form.accountForm').on('submit', function() {
+        // Remove stale hidden inputs
+        $(this).find('input[name^="accessories"]').remove();
+        $('#accessoryRows tr.accessory-row').each(function() {
+            const pid = $(this).find('.accessory-product-select').val();
+            const qty = $(this).find('.accessory-qty').val();
+            if (pid) {
+                $('<input>').attr({
+                    type: 'hidden',
+                    name: `accessories[${pid}]`,
+                    value: qty || 1
+                }).appendTo('form.accountForm');
+            }
+        });
+    });
 
 })
 </script>

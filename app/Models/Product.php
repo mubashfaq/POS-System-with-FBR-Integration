@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Product extends Model
 {
@@ -67,6 +68,33 @@ class Product extends Model
    public function purchaseItems()
     {
         return $this->hasMany(PurchaseItem::class, 'product_id');
+    }
+
+    /**
+     * Accessories defined for this product (via product_accessories pivot).
+     * Each accessory includes a 'quantity' field (how many units needed per 1 parent unit).
+     */
+    public function accessories(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Product::class,
+            'product_accessories',
+            'product_id',
+            'accessory_product_id'
+        )->withPivot('quantity')->withTimestamps();
+    }
+
+    /**
+     * Parent products that use this product as an accessory.
+     */
+    public function parentProducts(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Product::class,
+            'product_accessories',
+            'accessory_product_id',
+            'product_id'
+        )->withPivot('quantity')->withTimestamps();
     }
 
     // agar scope active hai

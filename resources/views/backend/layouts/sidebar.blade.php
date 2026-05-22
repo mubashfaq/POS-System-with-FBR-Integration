@@ -309,7 +309,7 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
             </li>
             @endif
             {{-- Order Log --}}
-            @if (currentUserBusiness() && currentUserBusiness()->hasPermission(['order_log_view']))
+            @if (currentUserBusiness() && currentUserBusiness()->hasAnyPermission(['order_logs_view']))
             <li class="nav-item">
                 <a href="{{ route('backend.admin.order-logs.index') }}"
                     class="nav-link {{ $route === 'backend.admin.order-logs.index' ? 'active' : '' }}">
