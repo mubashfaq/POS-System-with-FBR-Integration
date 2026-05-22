@@ -275,7 +275,7 @@
         <p>Start managing your sales, inventory, and invoices with ease.</p>
 
         <a href="{{ route('login') }}" class="btn-primary-custom">Start Free Trial</a>
-        <a href="{{ route('plans.index') }}" class="btn-secondary-custom">View Pricing</a>
+        <a href="{{ route('filer.bulk.index') }}" class="btn-secondary-custom">Check Filer Status</a>
     </div>
 </section>
 

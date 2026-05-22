@@ -39,6 +39,7 @@ export default function Pos() {
     const [showBatchModal, setShowBatchModal] = useState(false);
     const [availableBatches, setAvailableBatches] = useState([]);
     const [targetProduct, setTargetProduct] = useState(null);
+    const [quantityValidation, setQuantityValidation] = useState(null);
 
     const [showProductModal, setShowProductModal] = useState(false);
 
@@ -48,6 +49,11 @@ export default function Pos() {
         addProductToCart(newProductId, customerId);
     };
 
+    useEffect(() => {
+        axios.get("/admin/cart/quantity-validation")
+            .then((res) => setQuantityValidation(res.data.quantity_validation))
+            .catch(() => setQuantityValidation("enabled")); // safe fallback — no stock enforcement
+    }, []); // empty array = runs once on mount
 
     const handlePriceChange = (cartId, newPrice) => {
     const price = parseFloat(newPrice);
@@ -545,6 +551,7 @@ function createOrder(redirect = false) {
                                 isRegistered={isRegistered}
                                 onPriceChange={handlePriceChange}
                                 onTotalsChange={handleCartTotals}
+                                quantityValidation={quantityValidation}
                             />
                             <div className="card">
                                 <div className="card-body">
