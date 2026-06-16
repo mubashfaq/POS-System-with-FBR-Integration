@@ -286,7 +286,7 @@ export default function Cart1({
                                                     </tr>
 
                                                     {/* ── ACCESSORY SUB-ROWS ── */}
-                                                    {itemAccessories.map((acc) => (
+                                                    {/* {itemAccessories.map((acc) => (
                                                         <tr key={acc.id} style={{ backgroundColor: "#f9f9f9", borderLeft: "3px solid #6c757d" }}>
                                                             <td style={{ paddingLeft: "28px", color: "#6c757d" }}>
                                                                 <i className="fas fa-angle-right mr-1" style={{ fontSize: "0.8em" }}></i>
@@ -318,7 +318,7 @@ export default function Cart1({
                                                             <td className="text-right text-muted"><small>—</small></td>
                                                             <td className="text-right text-muted"><small>stock only</small></td>
                                                         </tr>
-                                                    ))}
+                                                    ))} */}
                                                 </React.Fragment>
                                             );
                                         })

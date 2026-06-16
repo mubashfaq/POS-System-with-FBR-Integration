@@ -199,6 +199,9 @@ export default function CustomerCreateModal({
                                         <option value="Unregistered">
                                             Unregistered
                                         </option>
+                                        <option value="Endconsumer">
+                                        End Consumer
+                                        </option>
                                     </select>
                                 </div>
                             </div>

@@ -94,8 +94,12 @@ class ReportController extends Controller
             'paid'          => $orders->sum('paid'),
             'due'           => $orders->sum('due'),
             'total'         => $orders->sum('total'),
-            'sales_tax'     => round($orders->sum('order_sales_tax'), 2),
-            'further_tax'   => round($orders->sum('order_further_tax'), 2),
+            'sales_tax' => $orders->sum(function ($order) {
+                return $order->total_sale_tax ?? $order->order_sales_tax;
+            }),
+            'further_tax' => $orders->sum(function ($order) {
+                return $order->total_further_tax ?? $order->order_further_tax;
+            }),
             'start_date'    => $start_date->format('M d, Y'),
             'end_date'      => $end_date->format('M d, Y'),
             'profit'        => $orders->sum('order_profit'),
