@@ -65,6 +65,7 @@
               <option value="">Select Status</option>
               <option value="Registered" {{ $customer->is_registered == 'Registered' ? 'selected' : '' }}>Registered</option>
               <option value="Unregistered" {{ $customer->is_registered == 'Unregistered' ? 'selected' : '' }}>Unregistered</option>
+              <option value="Endconsumer" {{ $customer->is_registered == 'Endconsumer' ? 'selected' : '' }}>End Consumer</option>
             </select>
           </div>
         </div>

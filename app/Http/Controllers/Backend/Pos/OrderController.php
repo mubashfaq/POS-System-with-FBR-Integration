@@ -237,6 +237,7 @@ class OrderController extends Controller
 
         // Map parent cart id → order_product id so accessories can reference it
         $parentCartToOrderProduct = [];
+        $parentCartToQty = [];
 
         // ── PARENT ITEMS: price calculation + order_products insert ──
         foreach ($parentCarts as $cart) {
@@ -282,6 +283,7 @@ class OrderController extends Controller
             ]);
 
             $parentCartToOrderProduct[$cart->id] = $orderProduct->id;
+            $parentCartToQty[$cart->id] = $cart->quantity;
 
             // Decrement product stock
             $product->quantity -= $cart->quantity;
@@ -300,8 +302,11 @@ class OrderController extends Controller
             // Resolve parent order_product id
             $parentOrderProductId = $parentCartToOrderProduct[$cart->parent_cart_id] ?? null;
 
+            $parentQty  = $parentCartToQty[$cart->parent_cart_id] ?? 1;
+            $scaledQty  = $cart->quantity * $parentQty; 
+
             $order->products()->create([
-                'quantity'                  => $cart->quantity,
+                'quantity'                  => $scaledQty,
                 'price'                     => 0,
                 'purchase_price'            => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
                 'sub_total'                 => 0,
@@ -317,11 +322,11 @@ class OrderController extends Controller
             ]);
 
             // Decrement accessory stock
-            $product->quantity -= $cart->quantity;
+            $product->quantity -= $scaledQty;
             $product->save();
 
             if ($cart->purchase_item_id && $cart->purchaseItem) {
-                $cart->purchaseItem->decrement('remaining_qty', $cart->quantity);
+                $cart->purchaseItem->decrement('remaining_qty', $scaledQty);
             }
         }
 
@@ -622,6 +627,7 @@ class OrderController extends Controller
 
         // Map parent cart id -> order_product id
         $parentCartToOrderProduct = [];
+        $parentCartToQty = [];
 
         // ── PARENT ITEMS ──
         foreach ($parentCarts as $cart) {
@@ -682,6 +688,7 @@ class OrderController extends Controller
             ]);
 
             $parentCartToOrderProduct[$cart->id] = $orderProduct->id;
+            $parentCartToQty[$cart->id] = $cart->quantity;
 
             // Decrement product stock
             $product->quantity -= $cart->quantity;
@@ -699,8 +706,11 @@ class OrderController extends Controller
 
             $parentOrderProductId = $parentCartToOrderProduct[$cart->parent_cart_id] ?? null;
 
+            $parentQty  = $parentCartToQty[$cart->parent_cart_id] ?? 1;
+            $scaledQty  = $cart->quantity * $parentQty;
+
             $order->products()->create([
-                'quantity'                => $cart->quantity,
+                'quantity'                => $scaledQty,
                 'price'                   => 0,
                 'purchase_price'          => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
                 'sub_total'               => 0,
@@ -716,11 +726,11 @@ class OrderController extends Controller
             ]);
 
             // Decrement accessory stock
-            $product->quantity -= $cart->quantity;
+            $product->quantity -= $scaledQty;
             $product->save();
 
             if ($cart->purchase_item_id && $cart->purchaseItem) {
-                $cart->purchaseItem->decrement('remaining_qty', $cart->quantity);
+                $cart->purchaseItem->decrement('remaining_qty', $scaledQty);
             }
         }
 
