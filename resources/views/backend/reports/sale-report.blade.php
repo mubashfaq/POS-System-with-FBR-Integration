@@ -131,16 +131,35 @@
                       @endforelse
                     </tbody>
                     <tfoot>
-                      <tr style="font-weight: bold;">
-                        <td colspan="15" class="text-end">
-                          Total Profit: {{number_format($profit,2,'.',',')}} | 
-                          Total Loss: {{number_format($loss,2,'.',',')}} | 
-                          Total Sale Tax: {{number_format($sales_tax,2,'.',',')}} 
-                          @if ($showFurtherTax)
-                           | Total Further Tax: {{number_format($further_tax,2,'.',',')}} 
-                          @endif
-                        </td>
-                        <td></td>
+                      <tr class="report-summary-row">
+                          <td colspan="15" class="text-end">
+                              <span class="mr-3">
+                                  <i class="fas fa-chart-line text-success"></i>
+                                  Total Profit:
+                                  <strong>{{ number_format($profit,2,'.',',') }}</strong>
+                              </span>
+                  
+                              <span class="mr-3">
+                                  <i class="fas fa-chart-line text-danger"></i>
+                                  Total Loss:
+                                  <strong>{{ number_format($loss,2,'.',',') }}</strong>
+                              </span>
+                  
+                              <span class="mr-3">
+                                  <i class="fas fa-percentage text-warning"></i>
+                                  Total Sale Tax:
+                                  <strong>{{ number_format($sales_tax,2,'.',',') }}</strong>
+                              </span>
+                  
+                              @if ($showFurtherTax)
+                              <span>
+                                  <i class="fas fa-file-invoice-dollar text-info"></i>
+                                  Total Further Tax:
+                                  <strong>{{ number_format($further_tax,2,'.',',') }}</strong>
+                              </span>
+                              @endif
+                          </td>
+                          <td></td>
                       </tr>
                     </tfoot>
                   </table>
