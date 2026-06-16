@@ -342,7 +342,7 @@ export default function Cart({
                                                     </tr>
 
                                                     {/* ── ACCESSORY SUB-ROWS ── */}
-                                                    {itemAccessories.map((acc) => (
+                                                    {/* {itemAccessories.map((acc) => (
                                                         <tr
                                                             key={acc.id}
                                                             style={{
@@ -417,10 +417,8 @@ export default function Cart({
                                                                 </button>
                                                             </td>
 
-                                                            {/* No delete button — accessory is removed with parent */}
                                                             <td></td>
 
-                                                            {/* No price column for accessories */}
                                                             <td className="text-right text-muted">
                                                                 <small>—</small>
                                                             </td>
@@ -429,7 +427,7 @@ export default function Cart({
                                                                 <small>stock only</small>
                                                             </td>
                                                         </tr>
-                                                    ))}
+                                                    ))} */}
                                                 </React.Fragment>
                                             );
                                         })

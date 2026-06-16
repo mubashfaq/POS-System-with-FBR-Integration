@@ -68,6 +68,8 @@
                                 Registered</option>
                             <option value="Unregistered">
                                 Unregistered</option>
+                            <option value="Endconsumer">
+                                End Consumer</option>
                         </select>
                     </div>
 
