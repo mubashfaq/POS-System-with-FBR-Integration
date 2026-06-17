@@ -48,14 +48,6 @@ class ReportController extends Controller
 
         $orders->each(function ($order) {
 
-            // ── Cost / profit ────────────────────────────────────────────────
-            $order->order_cost = $order->products->sum(
-                fn($item) => $item->product->purchase_price * $item->quantity
-            );
-            $orderProfit         = $order->total - $order->order_cost;
-            $order->order_profit = $orderProfit > 0 ? $orderProfit : 0;
-            $order->order_loss   = $orderProfit < 0 ? abs($orderProfit) : 0;
-
             // ── Tax calculation ──────────────────────────────────────────────
             $orderSalesTax   = 0;
             $orderFurtherTax = 0;
@@ -86,6 +78,20 @@ class ReportController extends Controller
 
             $order->order_sales_tax   = round($orderSalesTax, 2);
             $order->order_further_tax = round($orderFurtherTax, 2);
+ 
+            $order->sale_tax_final = $order->total_sale_tax ?? $order->order_sales_tax;
+            $order->further_tax_final = $order->total_further_tax ?? $order->order_further_tax;
+
+            $saleTax = $order->sale_tax_final;
+            $furtherTax = $order->further_tax_final;
+
+            // ── Cost / profit ────────────────────────────────────────────────
+            $order->order_cost = $order->products->sum(
+                fn($item) => $item->product->purchase_price * $item->quantity
+            );
+            $orderProfit         = $order->total - $saleTax - $furtherTax - $order->order_cost;
+            $order->order_profit = $orderProfit > 0 ? $orderProfit : 0;
+            $order->order_loss   = $orderProfit < 0 ? abs($orderProfit) : 0;
         });
 
         $data = [
@@ -96,12 +102,8 @@ class ReportController extends Controller
             'paid'          => $orders->sum('paid'),
             'due'           => $orders->sum('due'),
             'total'         => $orders->sum('total'),
-            'sales_tax' => $orders->sum(function ($order) {
-                return $order->total_sale_tax ?? $order->order_sales_tax;
-            }),
-            'further_tax' => $orders->sum(function ($order) {
-                return $order->total_further_tax ?? $order->order_further_tax;
-            }),
+            'sales_tax' => $orders->sum('sale_tax_final'),
+            'further_tax' => $orders->sum('further_tax_final'),
             'start_date'    => $start_date->format('M d, Y'),
             'end_date'      => $end_date->format('M d, Y'),
             'profit'        => $orders->sum('order_profit'),
