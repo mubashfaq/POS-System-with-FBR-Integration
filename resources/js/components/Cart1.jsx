@@ -107,9 +107,9 @@ export default function Cart1({
         const item = carts.find((cart) => cart.id === id);
         const isAccessory = !!item?.parent_cart_id || !!item?.is_accessory;
         const stockEnforced = quantityValidation == "disabled"; // disabled = enforce stock
-        const newQuantity = parseInt(value);
+        const newQuantity = parseFloat(value);
     
-        if (isNaN(newQuantity) || newQuantity < 1) {
+        if (isNaN(newQuantity) || newQuantity < 0) {
             setEditingQuantity((prev) => ({ ...prev, [id]: false }));
             return;
         }
@@ -238,7 +238,7 @@ export default function Cart1({
                                                             </button>
                                                             {editingQuantity[item.id] ? (
                                                                 <input type="number" className="form-control form-control-sm qty ml-1 mr-1"
-                                                                    defaultValue={item.quantity} min="1" max={item.product.quantity} autoFocus
+                                                                    defaultValue={item.quantity} min="0.01" step="0.01" max={item.product.quantity} autoFocus
                                                                     onBlur={(e) => handleQuantityBlur(item.id, e.target.value)}
                                                                     onKeyPress={(e) => { if (e.key === "Enter") handleQuantityBlur(item.id, e.target.value); }}
                                                                     style={{ width: "60px" }} />
