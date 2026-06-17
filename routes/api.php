@@ -54,7 +54,7 @@ Route::middleware('auth:sanctum')->group(function () {
         });
         Route::controller(OrderController::class)->group(function () {
             Route::get('/orders', 'index');
-            Route::post('/order/create', 'store')->middleware(['business.type:pos,both']);
+            Route::post('/order/create', 'store');
             Route::post('/order/createDigital', 'storeDigital')->middleware(['business.type:digital,both']);
         });
 
