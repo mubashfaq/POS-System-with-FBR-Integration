@@ -162,7 +162,7 @@
                               <span class="mr-3">
                                 <i class="fas fa-money-bill-wave text-primary"></i>
                                 Total:
-                                <strong class="text-secondary">{{ number_format($total,2,'.',',') }}</strong>
+                                <strong class="text-primary">{{ number_format($total,2,'.',',') }}</strong>
                             </span>
                           </td>
                           <td></td>
