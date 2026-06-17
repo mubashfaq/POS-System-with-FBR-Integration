@@ -107,9 +107,9 @@ export default function Cart({
         const item = carts.find((cart) => cart.id === id);
         const isAccessory = !!item?.parent_cart_id || !!item?.is_accessory;
         const stockEnforced = quantityValidation == "disabled"; // disabled = enforce stock
-        const newQuantity = parseInt(value);
+        const newQuantity = parseFloat(value);
     
-        if (isNaN(newQuantity) || newQuantity < 1) {
+        if (isNaN(newQuantity) || newQuantity < 0) {
             setEditingQuantity((prev) => ({ ...prev, [id]: false }));
             return;
         }
@@ -247,7 +247,8 @@ export default function Cart({
                                                                     type="number"
                                                                     className="form-control form-control-sm qty ml-1 mr-1"
                                                                     defaultValue={item.quantity}
-                                                                    min="1"
+                                                                    min="0.01"
+                                                                    step="0.01"
                                                                     max={item.product.quantity}
                                                                     autoFocus
                                                                     onBlur={(e) =>

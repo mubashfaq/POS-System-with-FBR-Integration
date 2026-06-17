@@ -158,6 +158,8 @@ class OrderController extends Controller
 
 public function store(Request $request)
 {
+    var_dump('store');
+    exit();
     $request->validate([
         'customer_id'    => ['required', 'exists:customers,id', 'integer'],
         'order_discount' => ['nullable', 'numeric', 'min:0'],
@@ -170,12 +172,15 @@ public function store(Request $request)
         'items.*.purchase_item_id'    => ['nullable', 'exists:purchase_items,id', 'integer'],
         'items.*.price_override'      => ['nullable', 'numeric', 'min:0'],
     ]);
+    var_dump($request);
+    exit();
 
     $businessId = $request->attributes->get('business')->id;
 
     if (!$businessId) {
         return response()->json(['error' => 'No business selected'], 422);
     }
+    
 
     $customer = Customer::find($request->customer_id);
 
