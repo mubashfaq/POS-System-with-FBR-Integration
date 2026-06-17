@@ -125,18 +125,33 @@ export default function Cart1({
         updateQuantity(id, newQuantity);
     }    
 
+    // function increment(id) {
+    //     const item = carts.find((cart) => cart.id === id);
+    //     if (!item) return;
+    
+    //     const isAccessory = !!item.parent_cart_id || !!item.is_accessory;
+    //     const stockEnforced = quantityValidation == "disabled"; // disabled = enforce stock
+    
+    //     // Accessories: always allow
+    //     // Main product + validation enabled: always allow (backend handles it)
+    //     // Main product + validation disabled: respect stock limit
+    //     if (isAccessory || !stockEnforced || item.quantity < item.product.quantity) {
+    //         updateQuantity(id, item.quantity + 1);
+    //     }
+    // }
+
+
     function increment(id) {
         const item = carts.find((cart) => cart.id === id);
         if (!item) return;
-    
+
         const isAccessory = !!item.parent_cart_id || !!item.is_accessory;
-        const stockEnforced = quantityValidation == "disabled"; // disabled = enforce stock
-    
-        // Accessories: always allow
-        // Main product + validation enabled: always allow (backend handles it)
-        // Main product + validation disabled: respect stock limit
-        if (isAccessory || !stockEnforced || item.quantity < item.product.quantity) {
-            updateQuantity(id, item.quantity + 1);
+        const stockEnforced = quantityValidation == "disabled";
+
+        const currentQty = Number(item.quantity);
+
+        if (isAccessory || !stockEnforced || currentQty < item.product.quantity) {
+            updateQuantity(id, currentQty + 1);
         }
     }
 
