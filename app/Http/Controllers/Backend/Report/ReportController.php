@@ -39,7 +39,9 @@ class ReportController extends Controller
             ->when($customerId, fn($q) => $q->where('customer_id', $customerId))
             ->with([
                 'customer:id,name,is_registered',      // only needed columns
-                'products',                             // order items
+                'products' => function ($q) {
+                    $q->where('order_products.is_accessory', 0);
+                },                             // order items
                 'products.product:id,name,purchase_price,rate_of_tax,pos_sale_tax,sale_type', // product columns
             ])
             ->get();
