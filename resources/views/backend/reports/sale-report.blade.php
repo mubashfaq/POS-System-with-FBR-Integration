@@ -152,12 +152,18 @@
                               </span>
                   
                               @if ($showFurtherTax)
-                              <span>
+                              <span class="mr-3">
                                   <i class="fas fa-file-invoice-dollar text-info"></i>
                                   Total Further Tax:
                                   <strong>{{ number_format($further_tax,2,'.',',') }}</strong>
                               </span>
                               @endif
+
+                              <span class="mr-3">
+                                <i class="fas fa-money-bill-wave text-primary"></i>
+                                Total:
+                                <strong class="text-primary">{{ number_format($total,2,'.',',') }}</strong>
+                            </span>
                           </td>
                           <td></td>
                       </tr>
