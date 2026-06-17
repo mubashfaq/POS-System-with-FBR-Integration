@@ -28,7 +28,13 @@ class Order extends Model
     }
     public function getTotalItemAttribute()
     {
-        return $this->products()->sum('quantity');
+        $value = $this->products()
+            ->where('is_accessory', 0)
+            ->sum('quantity');
+
+        return $value == (int) $value
+            ? (string)(int) $value
+            : number_format($value, 2, '.', '');
     }
     
     
