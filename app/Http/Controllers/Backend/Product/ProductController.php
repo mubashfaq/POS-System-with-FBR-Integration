@@ -155,8 +155,10 @@ class ProductController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        $fbrIntegration = FbrTokenService::isIntegrationEnabled();
+
         return view('backend.products.create', compact(
-            'brands', 'categories', 'units', 'hsCodes', 'saleTypes', 'sroItems', 'business_type', 'allProducts'
+            'brands', 'categories', 'units', 'hsCodes', 'saleTypes', 'sroItems', 'business_type', 'allProducts', 'fbrIntegration'
         ));
     }
 
@@ -272,9 +274,11 @@ class ProductController extends Controller
             return [$acc->id => $acc->pivot->quantity];
         });
 
+        $fbrIntegration = FbrTokenService::isIntegrationEnabled();
+        
         return view('backend.products.edit', compact(
             'brands', 'categories', 'units', 'product', 'hsCodes', 'saleTypes', 'sroItems',
-            'business_type', 'allProducts', 'selectedAccessories'
+            'business_type', 'allProducts', 'selectedAccessories', 'fbrIntegration'
         ));
     }
 
