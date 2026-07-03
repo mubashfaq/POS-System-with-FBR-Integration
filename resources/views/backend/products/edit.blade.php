@@ -84,119 +84,175 @@
                                 name="pos_sale_tax" value="{{ old('pos_sale_tax', $product->pos_sale_tax) }}" required>
                         </div>
 
-                        @else
+                    @else
 
-                        <div class="mb-3 col-md-6">
-                            <label for="hsCode" class="form-label">
-                                Hs Code
-                                <span class="text-danger">*</span>
-                            </label>
-                            <select class="form-control select2" name="hsCode" id="hsCode" required>
-                                <option value="">Select HS Code</option>
-                                @foreach ($hsCodes as $code)
-                                <option value="{{ $code->hs_code}}"
-                                    {{ $product->hsCode == $code->hs_code ? 'selected' : '' }}>
-                                    {{ $code->hs_code }}
-                                </option>
-                                @endforeach
-                            </select>
-                        </div>
-    
-                        <div class="mb-3 col-md-6">
-                            <label for="description" class="form-label">
-                                Description <span class="text-danger">*</span>
-                            </label>
-                            <textarea rows="3" cols="50" name="hs_description" id="description" class="form-control"
-                                readonly>{{$product->hs_description}}</textarea>
-                        </div>
-    
-                        <div class="mb-3 col-md-6">
-                            <label for="uom" class="form-label">
-                                UOM
-                                <span class="text-danger">*</span>
-                            </label>
-                            <select id="uom" class="form-control select2" style="width: 100%;" name="uom" required>
-                                <option value="">Select Unit</option>
-                                @foreach ($units as $u)
-                                <option value="{{ $u->description }}"
-                                    {{ $product->uom == $u->description ? 'selected' : '' }}>
-                                    {{ $u->description }}
-                                </option>
-                                @endforeach
-                            </select>
-    
-                        </div>
-    
-                        <div class="mb-3 col-md-6">
-                            <label for="salesTaxWithheldAtSource" class="form-label">
-                                sales Tax HeldAtSource
-                                <span class="text-danger">*</span>
-                            </label>
-                            <input type="number" class="form-control " placeholder="Enter sales Tax HeldAtSource"
-                                name="salesTaxWithheldAtSource" value="0" required>
-    
-                        </div>
-    
-    
-                        <div class="mb-3 col-md-6">
-                            <label for="sale_type" class="form-label">
-                                Sale Type
-                                <span class="text-danger">*</span>
-                            </label>
-                            <input type="hidden" name="sale_type_id" id="sale_type_id">
-                            <select class="form-control select2" style="width: 100%;" name="sale_type" id="sale_type"
-                                required>
-                                <option value="">Select Sale Type</option>
-                                @foreach ($saleTypes as $st)
-                                <option value="{{ $st->transactioN_DESC }}" {{ $product->sale_type == $st->transactioN_DESC ? 'selected' : '' }}>
-                                    {{ $st->transactioN_DESC }}
-                                </option>
-                                @endforeach
-                            </select>
-                        </div>
-    
-                        <div class="mb-3 col-md-6">
-                            <label for="rate_of_tax_id" class="form-label">
-                                Rate of Tax
-                                <span class="text-danger">*</span>
-                            </label>
-                            <select class="form-control select2" style="width: 100%;" name="rate_of_tax" id="rate_of_tax"
-                                required>
-                                <option value="{{ $product->rate_of_tax }}">{{ $product->rate_of_tax}}</option>
-    
-                            </select>
-    
-                            <input type="hidden" name="rate_of_tax_id" id="rate_of_tax_id">
-                        </div>
-    
-    
-    
-                        <!-- sro schedule -->
-                        <div class="mb-3 col-md-6">
-                            <label for="sro_item" class="form-label">
-                                Sro Schedule
-                                <span class="text-danger"></span>
-                            </label>
-                            <select class="form-control select2" style="width: 100%;" name="sro_schedule" id="sro_schedule">
-                                <option value="{{ $product->sro_schedule}}">{{ $product->sro_schedule}}</option>
-    
-                            </select>
-    
-                            <input type="hidden" id="sro_schedule_id" name="sro_schedule_id">
-    
-                        </div>
-    
-    
-                        <div class="mb-3 col-md-6">
-                            <label for="sro_item" class="form-label">
-                                Sro Item Code
-                                <span class="text-danger"></span>
-                            </label>
-                            <select class="form-control select2" style="width: 100%;" name="sro_item" id="sro_item">
-                                <option value="">Select SRO Item</option>
-    
-                            </select>
-                        </div>
+                        @if ($fbrIntegration)
+                        
+
+                            <div class="mb-3 col-md-6">
+                                <label for="hsCode" class="form-label">
+                                    Hs Code
+                                    <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-control select2" name="hsCode" id="hsCode" required>
+                                    <option value="">Select HS Code</option>
+                                    @foreach ($hsCodes as $code)
+                                    <option value="{{ $code->hs_code}}"
+                                        {{ $product->hsCode == $code->hs_code ? 'selected' : '' }}>
+                                        {{ $code->hs_code }}
+                                    </option>
+                                    @endforeach
+                                </select>
+                            </div>
+        
+                            <div class="mb-3 col-md-6">
+                                <label for="description" class="form-label">
+                                    Description <span class="text-danger">*</span>
+                                </label>
+                                <textarea rows="3" cols="50" name="hs_description" id="description" class="form-control"
+                                    readonly>{{$product->hs_description}}</textarea>
+                            </div>
+        
+                            <div class="mb-3 col-md-6">
+                                <label for="uom" class="form-label">
+                                    UOM
+                                    <span class="text-danger">*</span>
+                                </label>
+                                <select id="uom" class="form-control select2" style="width: 100%;" name="uom" required>
+                                    <option value="">Select Unit</option>
+                                    @foreach ($units as $u)
+                                    <option value="{{ $u->description }}"
+                                        {{ $product->uom == $u->description ? 'selected' : '' }}>
+                                        {{ $u->description }}
+                                    </option>
+                                    @endforeach
+                                </select>
+        
+                            </div>
+        
+                            <div class="mb-3 col-md-6">
+                                <label for="salesTaxWithheldAtSource" class="form-label">
+                                    sales Tax HeldAtSource
+                                    <span class="text-danger">*</span>
+                                </label>
+                                <input type="number" class="form-control " placeholder="Enter sales Tax HeldAtSource"
+                                    name="salesTaxWithheldAtSource" value="0" required>
+        
+                            </div>
+        
+        
+                            <div class="mb-3 col-md-6">
+                                <label for="sale_type" class="form-label">
+                                    Sale Type
+                                    <span class="text-danger">*</span>
+                                </label>
+                                <input type="hidden" name="sale_type_id" id="sale_type_id">
+                                <select class="form-control select2" style="width: 100%;" name="sale_type" id="sale_type"
+                                    required>
+                                    <option value="">Select Sale Type</option>
+                                    @foreach ($saleTypes as $st)
+                                    <option value="{{ $st->transactioN_DESC }}" {{ $product->sale_type == $st->transactioN_DESC ? 'selected' : '' }}>
+                                        {{ $st->transactioN_DESC }}
+                                    </option>
+                                    @endforeach
+                                </select>
+                            </div>
+        
+                            <div class="mb-3 col-md-6">
+                                <label for="rate_of_tax_id" class="form-label">
+                                    Rate of Tax
+                                    <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-control select2" style="width: 100%;" name="rate_of_tax" id="rate_of_tax"
+                                    required>
+                                    <option value="{{ $product->rate_of_tax }}">{{ $product->rate_of_tax}}</option>
+        
+                                </select>
+        
+                                <input type="hidden" name="rate_of_tax_id" id="rate_of_tax_id">
+                            </div>
+        
+        
+        
+                            <!-- sro schedule -->
+                            <div class="mb-3 col-md-6">
+                                <label for="sro_item" class="form-label">
+                                    Sro Schedule
+                                    <span class="text-danger"></span>
+                                </label>
+                                <select class="form-control select2" style="width: 100%;" name="sro_schedule" id="sro_schedule">
+                                    <option value="{{ $product->sro_schedule}}">{{ $product->sro_schedule}}</option>
+        
+                                </select>
+        
+                                <input type="hidden" id="sro_schedule_id" name="sro_schedule_id">
+        
+                            </div>
+        
+        
+                            <div class="mb-3 col-md-6">
+                                <label for="sro_item" class="form-label">
+                                    Sro Item Code
+                                    <span class="text-danger"></span>
+                                </label>
+                                <select class="form-control select2" style="width: 100%;" name="sro_item" id="sro_item">
+                                    <option value="">Select SRO Item</option>
+        
+                                </select>
+                            </div>
+
+                        @else
+                            <div class="mb-3 col-md-6">
+                                <label for="hsCode" class="form-label">Hs Code <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="hsCode" id="hsCode"
+                                    placeholder="Enter HS Code" value="{{ $product->hsCode }}" required>
+                            </div>
+                        
+                            <div class="mb-3 col-md-6">
+                                <label for="description" class="form-label">Description <span class="text-danger">*</span></label>
+                                <textarea rows="3" cols="50" name="hs_description" id="description" class="form-control"
+                                    placeholder="Enter Description">{{ $product->hs_description }}</textarea>
+                            </div>
+                        
+                            <div class="mb-3 col-md-6">
+                                <label for="uom" class="form-label">UOM <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="uom" id="uom"
+                                    placeholder="Enter UOM" value="{{ $product->uom }}" required>
+                            </div>
+
+                            <div class="mb-3 col-md-6">
+                                <label for="salesTaxWithheldAtSource" class="form-label">
+                                    sales Tax HeldAtSource <span class="text-danger">*</span>
+                                </label>
+                                <input type="number" class="form-control" placeholder="Enter sales Tax HeldAtSource"
+                                    name="salesTaxWithheldAtSource" value="{{ $product->salesTaxWithheldAtSource }}" required>
+                            </div>
+
+                            <div class="mb-3 col-md-6">
+                                <label for="sale_type" class="form-label">Sale Type <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="sale_type" id="sale_type"
+                                    placeholder="Enter Sale Type" value="{{ $product->sale_type }}" required>
+                            </div>
+                        
+                            <div class="mb-3 col-md-6">
+                                <label for="rate_of_tax" class="form-label">Rate of Tax <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="rate_of_tax" id="rate_of_tax"
+                                    placeholder="Enter Rate of Tax" value="{{ $product->rate_of_tax }}" required>
+                            </div>
+                        
+                            <div class="mb-3 col-md-6">
+                                <label for="sro_schedule" class="form-label">Sro Schedule</label>
+                                <input type="text" class="form-control" name="sro_schedule" id="sro_schedule"
+                                    placeholder="Enter Sro Schedule" value="{{ $product->sro_schedule }}">
+                            </div>
+                        
+                            <div class="mb-3 col-md-6">
+                                <label for="sro_item" class="form-label">Sro Item Code</label>
+                                <input type="text" class="form-control" name="sro_item" id="sro_item"
+                                    placeholder="Enter Sro Item Code" value="{{ $product->sro_item }}">
+                            </div>
+                                
+                        @endif
 
                     @endif
 
@@ -319,7 +375,9 @@
 @endsection
 @push('script')
 <script src="{{ asset('js/image-field.js') }}"></script>
-
+<script>
+    var fbrIntegrationEnabled = @json($fbrIntegration);
+</script>
 <script>
 $(function() {
     //Date picker
@@ -551,197 +609,200 @@ $(document).ready(function() {
         format: 'YYYY-MM-DD'
     });
 
-    // =========================
-    // Variables for Edit Mode
-    // =========================
-    let dbUom = "{{ $product->uom ?? '' }}";
-    let dbSaleType = "{{ $product->sale_type ?? '' }}";
-    let dbRateOfTax = "{{ $product->rate_of_tax ?? '' }}";
-    let dbSroSchedule = "{{ $product->sro_schedule ?? '' }}";
-    let dbSroItem = "{{ $product->sro_item ?? '' }}";
+    if(fbrIntegrationEnabled) {
 
-    let saleData = [];
-    let sroData = [];
-    let sroItemData = [];
+        // =========================
+        // Variables for Edit Mode
+        // =========================
+        let dbUom = "{{ $product->uom ?? '' }}";
+        let dbSaleType = "{{ $product->sale_type ?? '' }}";
+        let dbRateOfTax = "{{ $product->rate_of_tax ?? '' }}";
+        let dbSroSchedule = "{{ $product->sro_schedule ?? '' }}";
+        let dbSroItem = "{{ $product->sro_item ?? '' }}";
 
-    // =========================
-    // HS Code → UOM
-    // =========================
-   function loadUoms(selectedHsCode, selectedUom) {
-    if (!selectedHsCode) return;
+        let saleData = [];
+        let sroData = [];
+        let sroItemData = [];
 
-    $.ajax({
-        url: "{{ route('backend.admin.products.hsCode-desc', ':hs_code') }}".replace(':hs_code', selectedHsCode),
-        type: 'GET',
-        dataType: 'json',
-        success: function(response) {
+        // =========================
+        // HS Code → UOM
+        // =========================
+        function loadUoms(selectedHsCode, selectedUom) {
+            if (!selectedHsCode) return;
 
-            // Set the description
-            $('#description').val(response.description);
+            $.ajax({
+                url: "{{ route('backend.admin.products.hsCode-desc', ':hs_code') }}".replace(':hs_code', selectedHsCode),
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
 
-            // Reset UOM dropdown
-            $('#uom').empty().append('<option value="">Select Unit</option>');
+                    // Set the description
+                    $('#description').val(response.description);
 
-            // Determine default UOM: edit mode or first from API
-            let defaultUom = selectedUom || (response.uom.length ? response.uom[0].description : null);
+                    // Reset UOM dropdown
+                    $('#uom').empty().append('<option value="">Select Unit</option>');
 
-            // Append options
-            $.each(response.uom, function(index, uom) {
-                let isSelected = uom.description === defaultUom;
-                let option = new Option(uom.description, uom.description, isSelected, isSelected);
-                $('#uom').append(option);
+                    // Determine default UOM: edit mode or first from API
+                    let defaultUom = selectedUom || (response.uom.length ? response.uom[0].description : null);
+
+                    // Append options
+                    $.each(response.uom, function(index, uom) {
+                        let isSelected = uom.description === defaultUom;
+                        let option = new Option(uom.description, uom.description, isSelected, isSelected);
+                        $('#uom').append(option);
+                    });
+
+                    // Trigger Select2 update
+                    $('#uom').trigger('change');
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching units:', error);
+                }
             });
-
-            // Trigger Select2 update
-            $('#uom').trigger('change');
-        },
-        error: function(xhr, status, error) {
-            console.error('Error fetching units:', error);
         }
-    });
-}
 
-    // On page load (edit mode)
-    if ($('#hsCode').val()) {
-        loadUoms($('#hsCode').val(), dbUom);
-    }
+        // On page load (edit mode)
+        if ($('#hsCode').val()) {
+            loadUoms($('#hsCode').val(), dbUom);
+        }
 
-    // On HS Code change
-    $('#hsCode').on('change', function() {
-        loadUoms($(this).val(), null);
-    });
-    
-
-    // =========================
-    // Sale Type → Rate of Tax → SRO Schedule → SRO Item
-    // =========================
-    function loadSaleTypeData(sale_type) {
-        $('#rate_of_tax').empty().append('<option value="">Select Sale Tax</option>');
-        $('#rate_of_tax_id').val('');
-
-        $('#sro_schedule').empty().append('<option value="">Select SRO Schedule</option>');
-        $('#sro_schedule_id').val('');
-
-        $('#sro_item').empty().append('<option value="">Select SRO Item</option>');
-        $('#sro_item_id').val('');
-
-        sroData = [];
-        sroItemData = [];
-
-        if (!sale_type) return;
-
-        $.ajax({
-            url: "{{ route('backend.admin.products.sale-type', ':sale_type') }}"
-                .replace(':sale_type', sale_type),
-            type: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                saleData = response.sale_data || [];
-
-                // Populate Rate of Tax
-                saleData.forEach(function(item) {
-                    $('#rate_of_tax').append(new Option(item.ratE_DESC, item.ratE_DESC));
-                });
-
-                // Edit mode: select saved Rate of Tax
-                if (dbRateOfTax) {
-                    $('#rate_of_tax').val(dbRateOfTax).trigger('change');
-                }
-            }
+        // On HS Code change
+        $('#hsCode').on('change', function() {
+            loadUoms($(this).val(), null);
         });
-    }
+        
 
-    // Sale Type change event
-    $('#sale_type').on('change', function() {
-        let sale_type = $(this).val();
-        loadSaleTypeData(sale_type);
-    });
+        // =========================
+        // Sale Type → Rate of Tax → SRO Schedule → SRO Item
+        // =========================
+        function loadSaleTypeData(sale_type) {
+            $('#rate_of_tax').empty().append('<option value="">Select Sale Tax</option>');
+            $('#rate_of_tax_id').val('');
 
-    // Rate of Tax → SRO Schedule
-    $('#rate_of_tax').on('change', function() {
-        let selectedDesc = $(this).val();
+            $('#sro_schedule').empty().append('<option value="">Select SRO Schedule</option>');
+            $('#sro_schedule_id').val('');
 
-        $('#sro_schedule').empty().append('<option value="">Select SRO Schedule</option>');
-        $('#sro_schedule_id').val('');
-        $('#sro_item').empty().append('<option value="">Select SRO Item</option>');
-        $('#sro_item_id').val('');
+            $('#sro_item').empty().append('<option value="">Select SRO Item</option>');
+            $('#sro_item_id').val('');
 
-        sroData = [];
-        sroItemData = [];
+            sroData = [];
+            sroItemData = [];
 
-        let selectedItem = saleData.find(item => item.ratE_DESC === selectedDesc);
-        if (!selectedItem) return;
+            if (!sale_type) return;
 
-        $('#rate_of_tax_id').val(selectedItem.ratE_ID);
+            $.ajax({
+                url: "{{ route('backend.admin.products.sale-type', ':sale_type') }}"
+                    .replace(':sale_type', sale_type),
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    saleData = response.sale_data || [];
 
-        // Fetch SRO Schedules
-        $.ajax({
-            url: "{{ route('backend.admin.products.sro-schedule', ':rate_tax_id') }}"
-                .replace(':rate_tax_id', selectedItem.ratE_ID),
-            type: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                sroData = response.sro_data || [];
+                    // Populate Rate of Tax
+                    saleData.forEach(function(item) {
+                        $('#rate_of_tax').append(new Option(item.ratE_DESC, item.ratE_DESC));
+                    });
 
-                sroData.forEach(function(item) {
-                    $('#sro_schedule').append(new Option(item.srO_DESC, item.srO_DESC));
-                });
-
-                // Edit mode: select saved SRO Schedule
-                if (dbSroSchedule) {
-                    $('#sro_schedule').val(dbSroSchedule).trigger('change');
+                    // Edit mode: select saved Rate of Tax
+                    if (dbRateOfTax) {
+                        $('#rate_of_tax').val(dbRateOfTax).trigger('change');
+                    }
                 }
-            }
+            });
+        }
+
+        // Sale Type change event
+        $('#sale_type').on('change', function() {
+            let sale_type = $(this).val();
+            loadSaleTypeData(sale_type);
         });
-    });
 
-    // SRO Schedule → SRO Item
-    $('#sro_schedule').on('change', function() {
-        let selectedDesc = $(this).val();
+        // Rate of Tax → SRO Schedule
+        $('#rate_of_tax').on('change', function() {
+            let selectedDesc = $(this).val();
 
-        $('#sro_item').empty().append('<option value="">Select SRO Item</option>');
-        $('#sro_item_id').val('');
+            $('#sro_schedule').empty().append('<option value="">Select SRO Schedule</option>');
+            $('#sro_schedule_id').val('');
+            $('#sro_item').empty().append('<option value="">Select SRO Item</option>');
+            $('#sro_item_id').val('');
 
-        sroItemData = [];
+            sroData = [];
+            sroItemData = [];
 
-        let selectedItem = sroData.find(item => item.srO_DESC === selectedDesc);
-        if (!selectedItem) return;
+            let selectedItem = saleData.find(item => item.ratE_DESC === selectedDesc);
+            if (!selectedItem) return;
 
-        $('#sro_schedule_id').val(selectedItem.srO_ID);
+            $('#rate_of_tax_id').val(selectedItem.ratE_ID);
 
-        $.ajax({
-            url: "{{ route('backend.admin.products.sro-Items-details', ':sro_schedule_id') }}"
-                .replace(':sro_schedule_id', selectedItem.srO_ID),
-            type: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                sroItemData = Array.isArray(response.sro_data) ? response.sro_data :
-                              (response.sro_data?.data || []);
+            // Fetch SRO Schedules
+            $.ajax({
+                url: "{{ route('backend.admin.products.sro-schedule', ':rate_tax_id') }}"
+                    .replace(':rate_tax_id', selectedItem.ratE_ID),
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    sroData = response.sro_data || [];
 
-                sroItemData.forEach(function(item) {
-                    $('#sro_item').append(new Option(item.srO_ITEM_DESC, item.srO_ITEM_DESC));
-                });
+                    sroData.forEach(function(item) {
+                        $('#sro_schedule').append(new Option(item.srO_DESC, item.srO_DESC));
+                    });
 
-                // Edit mode: select saved SRO Item
-                if (dbSroItem) {
-                    $('#sro_item').val(dbSroItem).trigger('change');
+                    // Edit mode: select saved SRO Schedule
+                    if (dbSroSchedule) {
+                        $('#sro_schedule').val(dbSroSchedule).trigger('change');
+                    }
                 }
-            }
+            });
         });
-    });
 
-    // SRO Item → Hidden ID
-    $('#sro_item').on('change', function() {
-        let selectedDesc = $(this).val();
-        let selectedItem = sroItemData.find(item => item.srO_ITEM_DESC === selectedDesc);
-        $('#sro_item_id').val(selectedItem ? selectedItem.srO_ITEM_ID : '');
-    });
+        // SRO Schedule → SRO Item
+        $('#sro_schedule').on('change', function() {
+            let selectedDesc = $(this).val();
 
-    // =========================
-    // Trigger Edit Mode Values
-    // =========================
-    if (dbSaleType) {
-        loadSaleTypeData(dbSaleType);
+            $('#sro_item').empty().append('<option value="">Select SRO Item</option>');
+            $('#sro_item_id').val('');
+
+            sroItemData = [];
+
+            let selectedItem = sroData.find(item => item.srO_DESC === selectedDesc);
+            if (!selectedItem) return;
+
+            $('#sro_schedule_id').val(selectedItem.srO_ID);
+
+            $.ajax({
+                url: "{{ route('backend.admin.products.sro-Items-details', ':sro_schedule_id') }}"
+                    .replace(':sro_schedule_id', selectedItem.srO_ID),
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    sroItemData = Array.isArray(response.sro_data) ? response.sro_data :
+                                (response.sro_data?.data || []);
+
+                    sroItemData.forEach(function(item) {
+                        $('#sro_item').append(new Option(item.srO_ITEM_DESC, item.srO_ITEM_DESC));
+                    });
+
+                    // Edit mode: select saved SRO Item
+                    if (dbSroItem) {
+                        $('#sro_item').val(dbSroItem).trigger('change');
+                    }
+                }
+            });
+        });
+
+        // SRO Item → Hidden ID
+        $('#sro_item').on('change', function() {
+            let selectedDesc = $(this).val();
+            let selectedItem = sroItemData.find(item => item.srO_ITEM_DESC === selectedDesc);
+            $('#sro_item_id').val(selectedItem ? selectedItem.srO_ITEM_ID : '');
+        });
+
+        // =========================
+        // Trigger Edit Mode Values
+        // =========================
+        if (dbSaleType) {
+            loadSaleTypeData(dbSaleType);
+        }
     }
 
     // ===============================
