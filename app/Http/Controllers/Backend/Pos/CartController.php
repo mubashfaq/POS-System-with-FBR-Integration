@@ -495,6 +495,10 @@ public function digitalInvoice(Request $request)
     }
     // clear cart
     PosCart::where('user_id', auth()->id())->delete();
+
+    if ($request->route()->getName() === 'backend.admin.cart.digitalInvoiceNew') {
+        return view('backend.cart.digital-invoice-new');
+    }
     return view('backend.cart.digital-invoice');
 
 }

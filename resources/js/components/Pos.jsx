@@ -22,6 +22,7 @@ export default function Pos() {
     const [customerId, setCustomerId] = useState();
     const customerIdRef = useRef(undefined); // ✅ always reflects latest customerId (fixes stale closure)
     const [isRegistered, setIsRegistered] = useState("Registered"); 
+    const [customerTaxType, setCustomerTaxType] = useState(null);
     const [cartUpdated, setCartUpdated] = useState(false);
     const [productUpdated, setProductUpdated] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -32,6 +33,7 @@ export default function Pos() {
     const [loading, setLoading] = useState(false);
     const [furtherTaxTotal, setFurtherTaxTotal] = useState(0);
     const [saleTaxTotal, setSaleTaxTotal] = useState(0);
+    const [customerTaxTotal, setCustomerTaxTotal] = useState(0);
 
     const [showBatchModal, setShowBatchModal] = useState(false);
     const [availableBatches, setAvailableBatches] = useState([]);
@@ -163,14 +165,14 @@ console.log("CART FROM API", data?.carts);
         const disc = orderDiscount === "" ? 0 : parseFloat(orderDiscount);
     
         // ✅ Calculate grand total from source values, not from updateTotal
-        const grandTotal = parseFloat(total) + parseFloat(saleTaxTotal) + parseFloat(furtherTaxTotal);
+        const grandTotal = parseFloat(total) + parseFloat(saleTaxTotal) + parseFloat(furtherTaxTotal) + parseFloat(customerTaxTotal);
         const afterDiscount = grandTotal - disc;
         const dueAmount = afterDiscount - paid1;
     
         setUpdateTotal(afterDiscount.toFixed(2));
         setDue(dueAmount.toFixed(2));
     
-    }, [orderDiscount, paid, total, saleTaxTotal, furtherTaxTotal]); // ✅ No updateTotal dependency
+    }, [orderDiscount, paid, total, saleTaxTotal, furtherTaxTotal, customerTaxTotal]); // ✅ No updateTotal dependency
     // ✅ Opt-2: Debounce product name search — wait 300ms after last keystroke
     useEffect(() => {
         setSearchBarcode("");
@@ -394,10 +396,11 @@ function orderCreate() {
 }
 
 
-const handleCartTotals = (subTotalCalc, saleTaxCalc, furtherTaxCalc, grandTotalCalc) => {
+const handleCartTotals = (subTotalCalc, saleTaxCalc, furtherTaxCalc, customerTaxCalc, grandTotalCalc) => {
     // setTotal(grandTotalCalc); // ✅ include further tax
     setTotal(subTotalCalc); // ✅ include further tax
     setSaleTaxTotal(saleTaxCalc);
+    setCustomerTaxTotal(customerTaxCalc.toFixed(2));
     setUpdateTotal(grandTotalCalc - orderDiscount); // after discount
     setDue(grandTotalCalc - orderDiscount - paid); // due
     setFurtherTaxTotal(furtherTaxCalc); // optional display
@@ -511,6 +514,7 @@ function createOrder(redirect = false) {
                                 <div className="col-12">
                                     <CustomerSelect
                                         setCustomerId={(id) => { setCustomerId(id); customerIdRef.current = id; }} // ✅ keep ref in sync
+                                        setCustomerTaxType={setCustomerTaxType}
                                         setIsRegistered={setIsRegistered}
                                         emptyCart={emptyCartOnCustomerChange}
                                     />
@@ -534,6 +538,7 @@ function createOrder(redirect = false) {
                                 setCartUpdated={setCartUpdated}
                                 cartUpdated={cartUpdated}
                                 isRegistered={isRegistered}
+                                customerTaxType={customerTaxType}
                                 onPriceChange={handlePriceChange}
                                 onTotalsChange={handleCartTotals}
                                 quantityValidation={quantityValidation}
@@ -554,6 +559,14 @@ function createOrder(redirect = false) {
                                             {Number(saleTaxTotal).toFixed(2)}
                                         </div>
                                     </div>
+                                    { customerTaxTotal > 0 && (
+                                        <div className="row text-bold mb-1">
+                                            <div className="col">Customer Tax:</div>
+                                            <div className="col text-right mr-2">
+                                                {Number(customerTaxTotal).toFixed(2)}
+                                            </div>
+                                        </div>
+                                    )}
                                     {/* <div className="row text-bold mb-1">
                                         <div className="col">Discount:</div>
                                         <div className="col text-right mr-2">
