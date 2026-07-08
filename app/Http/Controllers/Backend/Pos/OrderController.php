@@ -229,6 +229,7 @@ class OrderController extends Controller
 
         $totalAmountOrder = 0;
         $totalTaxOrder = 0;
+        $totalCustomerTaxOrder = 0;
         $orderDiscount = $request->order_discount ?? 0;
 
         // Separate parent items from accessory items
@@ -262,10 +263,20 @@ class OrderController extends Controller
                 $saleTax     = round($ratePerUnit * $qty, 2);
             }
 
-            $finalTotal = round($lineTotal + $saleTax, 2);
+            // Customer Tax
+            $customerTax = 0;
+
+            if ($customer->customer_tax_type === 'retailer') {
+                $customerTax = round($lineTotal * 0.005, 2);
+            } elseif ($customer->customer_tax_type === 'distributor') {
+                $customerTax = round($lineTotal * 0.01, 2);
+            }
+
+            $finalTotal = round($lineTotal + $saleTax + $customerTax, 2);
 
             $totalAmountOrder += $finalTotal;
             $totalTaxOrder    += $saleTax;
+            $totalCustomerTaxOrder += $customerTax;
 
             $orderProduct = $order->products()->create([
                 'quantity'         => $cart->quantity,
@@ -275,6 +286,7 @@ class OrderController extends Controller
                 'discount'         => $discount,
                 'tax_rate'         => $rateText,
                 'sale_tax'         => $saleTax,
+                'customer_tax'     => $customerTax,
                 'further_tax'      => 0,
                 'total'            => $finalTotal,
                 'product_id'       => $product->id,
@@ -312,6 +324,7 @@ class OrderController extends Controller
                 'sub_total'                 => 0,
                 'discount'                  => 0,
                 'tax_rate'                  => 0,
+                'customer_tax'              => 0,
                 'sale_tax'                  => 0,
                 'further_tax'               => 0,
                 'total'                     => 0,
@@ -337,6 +350,7 @@ class OrderController extends Controller
             'sub_total' => $totalAmountOrder,
             'discount'  => $orderDiscount,
             'total_sale_tax' => round($totalTaxOrder, 2),
+            'total_customer_tax' => round($totalCustomerTaxOrder, 2),
             'total_further_tax' => 0,
             'paid'      => $request->paid,
             'total'     => round($total, 2),
@@ -554,6 +568,7 @@ class OrderController extends Controller
             'customer_id' => ['required', 'exists:customers,id', 'integer'],
             'order_discount' => ['nullable', 'numeric', 'min:0'],
             'paid' => ['nullable', 'numeric', 'min:0'],
+            'orderDate'      => ['required', 'date', 'date_format:Y-m-d'],
         ]);
         $userId = auth()->id();
         $businessId = session('business_id');
@@ -614,10 +629,13 @@ class OrderController extends Controller
             'user_id'     => $userId,
             'business_id' => $businessId,
             'invoice_number' => $invoiceNumber,
+            'note' => $request->note ?? null,
+            'order_date' => $request->orderDate
         ]);
 
         $totalAmountOrder = 0;
         $totalSaleTax = 0;
+        $totalCustomerTaxOrder = 0;
         $totalFurtherTax = 0;
         $orderDiscount = $request->order_discount ?? 0;
 
@@ -666,11 +684,21 @@ class OrderController extends Controller
                 }
             }
 
-            $finalTotal = round($lineTotal + $salesTax + $furtherTax, 2);
+            // Customer Tax
+            $customerTax = 0;
+
+            if ($customer->customer_tax_type === 'retailer') {
+                $customerTax = round($lineTotal * 0.005, 2);
+            } elseif ($customer->customer_tax_type === 'distributor') {
+                $customerTax = round($lineTotal * 0.01, 2);
+            }
+
+            $finalTotal = round($lineTotal + $salesTax + $furtherTax + $customerTax, 2);
 
             $totalAmountOrder += $finalTotal;
             $totalSaleTax    += $salesTax;
             $totalFurtherTax += $furtherTax;
+            $totalCustomerTaxOrder += $customerTax;
 
             $orderProduct = $order->products()->create([
                 'quantity'         => $cart->quantity,
@@ -680,6 +708,7 @@ class OrderController extends Controller
                 'discount'         => $discount,
                 'tax_rate'         => $rateText,
                 'sale_tax'         => $salesTax,
+                'customer_tax'     => $customerTax,
                 'further_tax'      => $furtherTax,
                 'total'            => $finalTotal,
                 'product_id'       => $product->id,
@@ -717,6 +746,7 @@ class OrderController extends Controller
                 'discount'                => 0,
                 'tax_rate'                => 0,
                 'sale_tax'                => 0,
+                'customer_tax'            => 0,
                 'further_tax'             => 0,
                 'total'                   => 0,
                 'product_id'              => $product->id,
@@ -741,6 +771,7 @@ class OrderController extends Controller
             'sub_total'         => $totalAmountOrder,
             'discount'          => $orderDiscount,
             'total_sale_tax'    => round($totalSaleTax, 2),
+            'total_customer_tax' => round($totalCustomerTaxOrder, 2),
             'total_further_tax' => round($totalFurtherTax, 2),
             'paid'              => $request->paid,
             'total'             => round($total, 2),
@@ -870,7 +901,7 @@ class OrderController extends Controller
             "invoiceType" => "Sale Invoice",
             // "invoiceDate" => now()->format('Y-m-d'),
             // "invoiceDate" => now()->subDay()->format('Y-m-d'),
-            "invoiceDate" => now('UTC')->format('Y-m-d'),
+            "invoiceDate" => $request ->orderDate,
             "sellerNTNCNIC" => $business->ntn,
             "sellerBusinessName" => $business->business_name,
             "sellerProvince" => strtolower($business->state), // punjab

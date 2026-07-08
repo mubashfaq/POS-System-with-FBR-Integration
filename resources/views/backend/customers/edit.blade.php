@@ -68,6 +68,17 @@
               <option value="Endconsumer" {{ $customer->is_registered == 'Endconsumer' ? 'selected' : '' }}>End Consumer</option>
             </select>
           </div>
+
+          <div class="mb-3 col-md-6">
+            <label for="title" class="form-label">
+              Customer Tax Type
+            </label>
+            <select name="customer_tax_type" id="customer_tax_type" class="form-control" >
+              <option value="" {{ $customer->customer_tax_type == null ? 'selected' : '' }}>Select Tax Type</option>
+              <option value="retailer" {{ $customer->customer_tax_type == 'retaler' ? 'selected' : '' }}>Retailer</option>
+              <option value="distributor" {{ $customer->customer_tax_type == 'distributor' ? 'selected' : '' }}>Distributor</option>
+            </select>
+          </div>
         </div>
         <div class="row">
           <div class="col-md-6">

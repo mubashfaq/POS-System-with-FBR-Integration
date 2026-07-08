@@ -127,6 +127,7 @@ class CustomerController extends Controller
                 'province' => 'nullable|string|max:255',
                 'address' => 'nullable|string|max:255',
                 'is_registered' => 'nullable|string|max:255',
+                'customer_tax_type' => 'nullable|in:retailer,distributor',
             ]);
 
             $customer = Customer::create([
@@ -136,7 +137,8 @@ class CustomerController extends Controller
                 'province' => $request->province,
                 'address' => $request->address,
                 'is_registered' => $request->is_registered ?? 'Unregistered',
-                'business_id' => $businessId
+                'business_id' => $businessId,
+                'customer_tax_type' => $request->customer_tax_type,
             ]);
 
             return response()->json($customer);
@@ -162,6 +164,7 @@ class CustomerController extends Controller
             'province' => 'required|string|max:255',
             'address' => 'required|string|max:255',
             'is_registered' => 'required|string|max:255',
+            'customer_tax_type' => 'nullable|in:retailer,distributor',
 
         ]);
 
@@ -178,6 +181,7 @@ class CustomerController extends Controller
             'address' => $request->address,
             'is_registered' => $request->is_registered,
             'business_id' => $businessId,
+            'customer_tax_type' => $request->customer_tax_type,
         ]);
 
         session()->flash('success', 'Customer created successfully.');
@@ -225,9 +229,10 @@ class CustomerController extends Controller
             'province' => 'required|string|max:255',
             'address' => 'required|string|max:255',
             'is_registered' => 'required|string|max:255',
+            'customer_tax_type' => 'nullable|in:retailer,distributor',
         ]);
 
-        $customer->update($request->only(['name', 'phone', 'ntn_cnic', 'province', 'address', 'is_registered']));
+        $customer->update($request->only(['name', 'phone', 'ntn_cnic', 'province', 'address', 'is_registered', 'customer_tax_type']));
 
         session()->flash('success', 'Customer updated successfully.');
         return to_route('backend.admin.customers.index');

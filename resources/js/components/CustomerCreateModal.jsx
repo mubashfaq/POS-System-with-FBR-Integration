@@ -15,6 +15,7 @@ export default function CustomerCreateModal({
         province: "",
         address: "",
         is_registered: "Unregistered",
+        customer_tax_type: "",
     });
 
     const [loading, setLoading] = useState(false);
@@ -28,6 +29,7 @@ export default function CustomerCreateModal({
                 province: "",
                 address: "",
                 is_registered: "Unregistered",
+                customer_tax_type: "",
             });
         }
     }, [show, initialName]);
@@ -201,6 +203,27 @@ export default function CustomerCreateModal({
                                         </option>
                                         <option value="Endconsumer">
                                         End Consumer
+                                        </option>
+                                    </select>
+                                </div>
+                                <div className="mb-3 col-md-6">
+                                    <label className="form-label">
+                                        Customer Tax Type
+                                    </label>
+                                    <select
+                                        className="form-control"
+                                        name="customer_tax_type"
+                                        value={formData.customer_tax_type}
+                                        onChange={handleChange}
+                                    >
+                                        <option value="">
+                                            Select Tax Type
+                                        </option>
+                                        <option value="retailer">
+                                            Retailer
+                                        </option>
+                                        <option value="distributor">
+                                            Distributor
                                         </option>
                                     </select>
                                 </div>

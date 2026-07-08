@@ -174,6 +174,9 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
         Route::get('/digitalCart', [CartController::class, 'digitalInvoice'])
         ->middleware(['auth', 'business.type:digital,both'])
         ->name('cart.digitalInvoice');
+        Route::get('/digitalCartNew', [CartController::class, 'digitalInvoice'])
+        ->middleware(['auth', 'business.type:digital,both'])
+        ->name('cart.digitalInvoiceNew');
         
         Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
         Route::get('/product/{id}/batches', [CartController::class, 'getBatches'])->name('product.batches');
