@@ -769,8 +769,10 @@ function createOrder(redirect = false) {
                                                 />
                                                 <div className="product-details">
                                                     <p className="mb-0 text-bold product-name">
-                                                        {product.name} (
-                                                        {product.quantity})
+                                                        {product.name.length > 22
+                                                            ? `${product.name.substring(0, 22)}...`
+                                                            : product.name}{" "}
+                                                        ({product.quantity})
                                                     </p>
                                                     <p>
                                                         Price:{" "}
