@@ -80,6 +80,11 @@ export default function PosDigital() {
 
     // ── Lovable header fields ──────────────────────────────────────────────
     const today = new Date().toISOString().split("T")[0];
+
+    const minDateObj = new Date();
+    minDateObj.setDate(minDateObj.getDate() - 3);
+    const minDate = minDateObj.toISOString().split("T")[0];
+
     const [orderDate, setOrderDate] = useState(today);
     const [notes, setNotes] = useState("");
 
@@ -584,14 +589,16 @@ export default function PosDigital() {
 
                     {/* Center Side */}
                     <div className="col-md-4">
-                        <Field label="Date" required>
-                            <input
-                                type="date"
-                                className="form-control form-control-sm"
-                                value={orderDate}
-                                onChange={(e) => setOrderDate(e.target.value)}
-                            />
-                        </Field>
+                    <Field label="Date" required>
+                        <input
+                            type="date"
+                            className="form-control form-control-sm"
+                            value={orderDate}
+                            min={minDate}     // User cannot select older than 3 days
+                            max={today}       // User cannot select future dates
+                            onChange={(e) => setOrderDate(e.target.value)}
+                        />
+                    </Field>
                     </div>
 
                     {/* Right Side */}
