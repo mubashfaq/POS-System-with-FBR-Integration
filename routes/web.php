@@ -120,6 +120,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::post('plans/reorder',        [PlanController::class, 'reorder'])->name('plans.reorder')->middleware('role:super_admin');
     Route::resource('orders', OrderController::class);
     Route::post('orders/pdf-download', [OrderController::class, 'downloadPdf'])->name('orders.pdf-download');
+    Route::post('/orders/cancel', [OrderController::class, 'cancelOrder'])->name('order.cancel');
     Route::resource('purchase', PurchaseController::class);
     Route::resource('suppliers', SupplierController::class);
     Route::get('customers/search', [CustomerController::class, 'search'])->name('customers.search');

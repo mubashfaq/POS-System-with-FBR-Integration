@@ -107,8 +107,16 @@ class OrderController extends Controller
                         $buttons .= '<a class="btn btn-success btn-sm" href="' . route('backend.admin.orders.pos-receipt-digital', $data->id) . '"><i class="fas fa-file-invoice"></i> Receipt</a>';
                         $buttons .= '<a class="btn btn-secondary btn-sm" href="' . route('backend.admin.orders.pos-invoice-digital', $data->id) . '"><i class="fas fa-file-invoice"></i> Digital Invoice</a>';
                     }
-                    if (!$data->status) {
-                        $buttons .= '<a class="btn btn-warning btn-sm" href="' . route('backend.admin.due.collection', $data->id) . '"><i class="fas fa-receipt"></i> Due Collection</a>';
+                    if (!$data->is_cancelled) {
+                        if (!$data->status) {
+                            $buttons .= '<a class="btn btn-warning btn-sm" href="' . route('backend.admin.due.collection', $data->id) . '"><i class="fas fa-receipt"></i> Due Collection</a>';
+                        }
+
+                        $buttons .= '<button type="button" class="btn btn-danger btn-sm btn-cancel-order" data-id="' . $data->id . '">
+                                        <i class="fas fa-times-circle"></i> Cancel
+                                    </button>';
+                    } else {
+                        $buttons .= '<span class="badge badge-danger">Cancelled</span>';
                     }
                     $buttons .= '<a class="btn btn-primary btn-sm" href="' . route('backend.admin.orders.transactions', $data->id) . '"><i class="fas fa-exchange-alt"></i> Transactions</a>';
                     return $buttons;
@@ -1101,6 +1109,68 @@ class OrderController extends Controller
             ], 200);
         }
     }
+
+    public function cancelOrder(Request $request)
+    {
+        $request->validate([
+            'order_id' => ['required', 'exists:orders,id', 'integer'],
+        ]);
+
+        $businessId = session('business_id');
+
+        if (!$businessId) {
+            return response()->json(['error' => 'No business selected'], 422);
+        }
+
+        $order = Order::with('products.product', 'products.purchaseItem')
+            ->where('id', $request->order_id)
+            ->where('business_id', $businessId)
+            ->first();
+
+        if (!$order) {
+            return response()->json(['error' => 'Order not found'], 404);
+        }
+
+        if ($order->is_cancelled) {
+            return response()->json(['error' => 'Order is already cancelled'], 422);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            foreach ($order->products as $op) {
+                $product = $op->product;
+
+                if ($product) {
+                    $product->quantity += $op->quantity;
+                    $product->save();
+                }
+
+                if ($op->purchase_item_id && $op->purchaseItem) {
+                    $op->purchaseItem->increment('remaining_qty', $op->quantity);
+                }
+            }
+
+            $order->update([
+                'is_cancelled' => true,
+                'cancelled_by' => auth()->id(),
+                'cancelled_at' => now(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Order cancelled and stock restored successfully!',
+                'order'   => $order->fresh('products'),
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Order Cancel Error: ' . $e->getMessage());
+            return response()->json(['error' => 'Something went wrong while cancelling the order'], 500);
+        }
+    }
+
     public function show(string $id)
     {
         //
