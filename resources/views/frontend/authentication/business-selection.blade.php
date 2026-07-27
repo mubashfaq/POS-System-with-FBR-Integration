@@ -121,6 +121,7 @@
                                                 <option value="pos">POS</option>
                                                 <option value="digital">Digital</option>
                                                 <option value="both">Both</option>
+                                                <option value="pral">PRAL</option>
                                         </select>
                                     </div>                                 
                                     <div class="col-md-6 mb-3">

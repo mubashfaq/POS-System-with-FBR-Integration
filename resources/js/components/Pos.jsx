@@ -9,7 +9,7 @@ import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
 
-export default function Pos() {
+export default function Pos({ businessType }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [products, setProducts] = useState([]);
@@ -39,7 +39,6 @@ export default function Pos() {
     const [availableBatches, setAvailableBatches] = useState([]);
     const [targetProduct, setTargetProduct] = useState(null);
     const [quantityValidation, setQuantityValidation] = useState(null);
-
     // ✅ Opt-4: Double-click guard — tracks product IDs currently being added
     const [addingProducts, setAddingProducts] = useState(new Set());
 
@@ -73,6 +72,14 @@ export default function Pos() {
         console.error("Price update failed", err);
     });
 };
+
+    const api = (path) => {
+        const prefix = businessType === "pral"
+            ? "/admin/pral"
+            : "/admin";
+
+        return `${prefix}${path}`;
+    };
 
     
 
@@ -140,7 +147,7 @@ const emptyCartOnCustomerChange = async () => {
 
     const getCarts = async () => {
         try {
-            const res = await axios.get("/admin/cart");
+            const res = await axios.get(api("/cart"));;
             const data = res.data;
             setTotal(data?.total);
             setUpdateTotal(data?.total - orderDiscount);
@@ -353,8 +360,8 @@ function orderCreate() {
     setIsSubmitting(true); // disable button
 
     // Step 1: Pehle server se duplicate check
-    axios.put(
-        "/admin/order/create",
+    axios.put(api(
+        "/order/create"),
         {
             customer_id: customerId,
             is_registered: isRegistered, // ✅ IMPORTANT: Send registration status
@@ -417,7 +424,7 @@ function createOrder(redirect = false) {
         price: item.product.discounted_price, // ✅ frontend updated price
     }));
     axios.put(
-        "/admin/order/create",
+        api("/order/create"),
         {
             customer_id: customerId,
             is_registered: isRegistered, // ✅ IMPORTANT: Send registration status
