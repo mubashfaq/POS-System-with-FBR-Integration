@@ -60,7 +60,7 @@
                         <input type="number" step="0.01" min="0" class="form-control" placeholder="Enter price"
                             name="price" value="{{ old('price') }}" required>
                     </div>
-                    @if ($business_type === 'pos')
+                    @if ($business_type === 'pos' || $business_type === 'pral')
                     <div class="mb-3 col-md-6">
                         <label for="pct_code" class="form-label">
                            PCT Code

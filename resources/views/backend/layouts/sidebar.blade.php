@@ -66,6 +66,16 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                     </li>
                 @endif
 
+                @if ($business_type === 'pral')
+                    <li class="nav-item">
+                        <a href="{{ route('backend.admin.cart.pral') }}"
+                            class="nav-link {{ $route === 'backend.admin.cart.pral' ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-cart-plus"></i>
+                            <p>PRAL Cart</p>
+                        </a>
+                    </li>
+                @endif
+
             @endif
             {{-- Business Details --}}
             @if (currentUserBusiness() && currentUserBusiness()->hasAnyPermission(['business_update']))

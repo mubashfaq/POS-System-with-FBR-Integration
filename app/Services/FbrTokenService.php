@@ -55,6 +55,9 @@ class FbrTokenService
             case 'pos':
                 return $settings->{"pos_{$env}_token"};
 
+            case 'pral':
+                return $settings->{"pral_{$env}_token"};
+
             default:
                 return [
                     'digital_token' => $settings->{"digital_{$env}_token"},
