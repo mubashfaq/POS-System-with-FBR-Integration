@@ -32,7 +32,7 @@
                             <span class="text-danger">*</span>
 
                         </label>
-                        <input type="number" class="form-control" id="cnic" placeholder="Enter NTN or CNIC" name="ntn_cnic"
+                        <input type="text" class="form-control" id="cnic" placeholder="Enter NTN or CNIC" name="ntn_cnic"
                             value="{{ old('ntn_cnic') }}" required>
                     </div>
 
@@ -70,6 +70,17 @@
                                 Unregistered</option>
                             <option value="Endconsumer">
                                 End Consumer</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3 col-md-6">
+                        <label for="title" class="form-label">
+                        Customer Tax Type
+                        </label>
+                        <select name="customer_tax_type" id="customer_tax_type" class="form-control" >
+                            <option value="">Select Tax Type</option>
+                            <option value="retailer">Retailer</option>
+                            <option value="distributor">Distributor</option>
                         </select>
                     </div>
 
