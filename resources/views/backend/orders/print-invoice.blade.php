@@ -246,11 +246,12 @@
 
                     <div class="col-md-1">
                         <div class="img">
-                            @if($order->type == 'pos_invoice')
-                            <img src="{{ asset('assets/images/fbr_pos_invoice_system.png') }}" style="width: 100%;" alt="">
+                            @if ($business->business_type == 'pral')
+                                <img src="{{ asset('assets/images/pral-pos-component.png') }}" style="width: 120%;" alt="PRAL Invoice">
+                            @elseif($order->type == 'pos_invoice')
+                                <img src="{{ asset('assets/images/fbr_pos_invoice_system.png') }}" style="width: 100%;" alt="POS Invoice">
                             @else
-                            
-                            <img src="{{ asset('assets/images/fbr_logo-icon.png') }}" style="width: 100%;" alt="">
+                                <img src="{{ asset('assets/images/fbr_logo-icon.png') }}" style="width: 100%;" alt="Digital Invoice">
                             @endif
                         </div>
                     </div>
