@@ -56,7 +56,7 @@ class StoreProductRequest extends FormRequest
             'expire_date' => 'nullable|date',
             'status' => 'nullable|boolean',
         ];
-        if ($businessType === 'pos'){
+        if ($businessType === 'pos' || $businessType === 'pral') {
             $rules['PCTCode'] = 'required|string|max:255';
             $rules['pos_sale_tax'] = 'required|string|max:255';
         }else{

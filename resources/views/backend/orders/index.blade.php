@@ -223,6 +223,31 @@
             });
         });
 
+        $(document).on('click', '.btn-cancel-order', function () {
+            const orderId = $(this).data('id');
+
+            if (!confirm('Are you sure you want to cancel this order? Stock will be restored.')) {
+                return;
+            }
+
+            $.ajax({
+                url: '/admin/orders/cancel', // match your route
+                method: 'POST',
+                data: {
+                    order_id: orderId,
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function (res) {
+                    alert(res.message || 'Order cancelled successfully!');
+                    $('#your-orders-table').DataTable().ajax.reload(null, false); // reload table, keep pagination
+                },
+                error: function (xhr) {
+                    const msg = xhr.responseJSON?.error || 'Something went wrong.';
+                    alert(msg);
+                }
+            });
+        });
+
     });
 
     function getSelectedIds() {

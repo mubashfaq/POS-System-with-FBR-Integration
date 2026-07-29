@@ -291,7 +291,7 @@ export default function ProductCreateDigitalModal({ show, onClose, onCreated }) 
                                         <input type="number" className="form-control" name="quantity" value={formData.quantity} onChange={handleChange} min="0" step="1"  />
                                     </div>
 
-                                    {bType === 'pos' ? (
+                                    {bType === 'pos' || bType === 'pral' ? (
                                         <>
                                             <div className="mb-3 col-md-6">
                                                 <label className="form-label">PCT Code <span className="text-danger">*</span></label>
