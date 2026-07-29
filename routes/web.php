@@ -120,6 +120,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::post('plans/reorder',        [PlanController::class, 'reorder'])->name('plans.reorder')->middleware('role:super_admin');
     Route::resource('orders', OrderController::class);
     Route::post('orders/pdf-download', [OrderController::class, 'downloadPdf'])->name('orders.pdf-download');
+    Route::post('/orders/cancel', [OrderController::class, 'cancelOrder'])->name('order.cancel');
     Route::resource('purchase', PurchaseController::class);
     Route::resource('suppliers', SupplierController::class);
     Route::get('customers/search', [CustomerController::class, 'search'])->name('customers.search');
@@ -165,15 +166,21 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
         Route::get('/get/products', [CartController::class, 'getProducts'])->name('getProducts');
     Route::get('/cart/quantity-validation', [CartController::class, 'getQuantityValidation'])->name('getQuantityValidation');
         
-        // Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
-        Route::get('/cart', [CartController::class, 'index'])
+    Route::get('/cart', [CartController::class, 'index'])
         ->middleware(['auth', 'business.type:pos,both'])
         ->name('cart.index');
+
+    Route::get('/pral/cart', [CartController::class, 'index'])
+        ->middleware(['auth', 'business.type:pral'])
+        ->name('cart.pral');
        
-        // Route::get('/digitalCart', [CartController::class, 'digitalInvoice'])->name('cart.digitalInvoice');
-        Route::get('/digitalCart', [CartController::class, 'digitalInvoice'])
+    Route::get('/digitalCart', [CartController::class, 'digitalInvoice'])
         ->middleware(['auth', 'business.type:digital,both'])
         ->name('cart.digitalInvoice');
+
+    Route::get('/digitalCartNew', [CartController::class, 'digitalInvoice'])
+        ->middleware(['auth', 'business.type:digital,both'])
+        ->name('cart.digitalInvoiceNew');
         
         Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
         Route::get('/product/{id}/batches', [CartController::class, 'getBatches'])->name('product.batches');
@@ -187,6 +194,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
         Route::put('/cart/delete', [CartController::class, 'delete']);
         Route::put('/cart/empty', [CartController::class, 'empty']);
         Route::put('/order/create', [OrderController::class, 'store'])->middleware('plan.limit:invoice,pos_invoice');
+        Route::put('/pral/order/create', [OrderController::class, 'storePral'])->middleware('plan.limit:invoice,pos_invoice');
         Route::put('/order/createDigital', [OrderController::class, 'storeDigital'])->middleware('plan.limit:invoice,digital_invoice');
         Route::get('orders/fbr-status/{id}', [OrderController::class, 'fbrStatus'])->name('orders.fbr-status');
 

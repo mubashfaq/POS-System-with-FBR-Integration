@@ -59,8 +59,8 @@ class UpdateProductRequest extends FormRequest
                 Rule::unique('products', 'sku')->ignore($productId),
             ],
             'description' => 'nullable|string',
-            'category_id' => 'required|exists:categories,id',
-            'brand_id' => 'required|exists:brands,id',
+            'category_id' => 'nullable|exists:categories,id',
+            'brand_id' => 'nullable|exists:brands,id',
             // 'unit_id' => 'required|exists:units,id',
             'price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0|required_with:discount_type',
@@ -71,7 +71,7 @@ class UpdateProductRequest extends FormRequest
             'status' => 'nullable|boolean',
         ];
 
-        if ($businessType === 'pos'){
+        if ($businessType === 'pos' || $businessType === 'pral') {
             $rules['PCTCode'] = 'required|string|max:255';
             $rules['pos_sale_tax'] = 'required|string|max:255';
         }else{

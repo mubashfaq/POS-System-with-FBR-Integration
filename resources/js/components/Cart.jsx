@@ -11,6 +11,7 @@ export default function Cart({
     setCartUpdated,
     cartUpdated,
     isRegistered,
+    customerTaxType,
     onPriceChange,
     onTotalsChange,
     quantityValidation
@@ -19,6 +20,7 @@ export default function Cart({
     const [cartItems, setCartItems] = useState([]);
     const [subTotal, setSubTotal] = useState(0);
     const [furtherTaxTotal, setFurtherTaxTotal] = useState(0);
+    const [customerTaxTotal, setCustomerTaxTotal] = useState(0);
     const [grandTotal, setGrandTotal] = useState(0);
 
     const registrationStatus = isRegistered || "Registered";
@@ -27,6 +29,7 @@ export default function Cart({
         let subTotalExTax = 0;
         let furtherTaxCalc = 0;
         let saleTaxCalc = 0;
+        let customerTaxCalc = 0;
 
         // Only parent items contribute to totals
         const parentCarts = carts.filter((i) => !i.parent_cart_id && !i.is_accessory);
@@ -55,11 +58,20 @@ export default function Cart({
                 furtherTax = exTaxAmount * (4 / 100);
             }
 
+            let customerTax = 0;
+
+            if (customerTaxType === "retailer") {
+                customerTax = exTaxAmount * 0.005; // 0.5%
+            } else if (customerTaxType === "distributor") {
+                customerTax = exTaxAmount * 0.01; // 1%
+            }
+
             // Only accumulate from parent items
             if (!item.parent_cart_id && !item.is_accessory) {
                 subTotalExTax += exTaxAmount;
                 saleTaxCalc += saleTax;
                 furtherTaxCalc += furtherTax;
+                customerTaxCalc += customerTax;
             }
 
             return {
@@ -67,19 +79,21 @@ export default function Cart({
                 base_total: exTaxAmount.toFixed(2),
                 sale_tax: saleTax.toFixed(2),
                 further_tax: furtherTax.toFixed(2),
-                total_with_tax: (exTaxAmount + furtherTax + saleTax).toFixed(2),
+                customer_tax: customerTax.toFixed(2),
+                total_with_tax: (exTaxAmount + furtherTax + saleTax + customerTax).toFixed(2),
             };
         });
 
-        const grandTotal = subTotalExTax + saleTaxCalc + furtherTaxCalc;
+        const grandTotal = subTotalExTax + saleTaxCalc + furtherTaxCalc + customerTaxCalc;
 
         setCartItems(updatedCarts);
         setSubTotal(subTotalExTax.toFixed(2));
         setFurtherTaxTotal(furtherTaxCalc.toFixed(2));
         setGrandTotal(grandTotal.toFixed(2));
+        setCustomerTaxTotal(customerTaxCalc.toFixed(2));
 
         if (onTotalsChange) {
-            onTotalsChange(subTotalExTax, saleTaxCalc, furtherTaxCalc, grandTotal);
+            onTotalsChange(subTotalExTax, saleTaxCalc, furtherTaxCalc, customerTaxCalc, grandTotal);
         }
     }, [carts, registrationStatus]);
 
@@ -336,6 +350,11 @@ export default function Cart({
                                                                     <div className="small text-muted">
                                                                         <del>{item.base_total}</del>
                                                                     </div>
+                                                                    {parseFloat(item.customer_tax) > 0 && (
+                                                                        <div className="small text-primary">
+                                                                            +{item.customer_tax} customer tax
+                                                                        </div>
+                                                                    )}
                                                                     <div className="small text-danger">
                                                                         +{item.further_tax} further tax
                                                                     </div>
@@ -348,6 +367,11 @@ export default function Cart({
                                                                     <div className="font-weight-bold">
                                                                         {item.base_total}
                                                                     </div>
+                                                                    {parseFloat(item.customer_tax) > 0 && (
+                                                                        <div className="small text-primary">
+                                                                            +{item.customer_tax} customer tax
+                                                                        </div>
+                                                                    )}
                                                                     <div className="small text-warning">
                                                                         +{item.sale_tax} sale tax
                                                                     </div>

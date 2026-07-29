@@ -1,7 +1,20 @@
 @extends('backend.master')
-@section('title', 'Pos')
+@section('title')
+    @switch($businessType)
+        @case('pral')
+            PRAL Cart
+            @break
+
+        @case('pos')
+            POS
+            @break
+
+        @default
+            Cart
+    @endswitch
+@endsection
 @section('content')
-<div id="cart"></div>
+<div id="cart" data-business-type="{{ $businessType }}"></div>
 @push('style')
 <style>
     .products-card-container {
