@@ -52,24 +52,13 @@ class BusinessController extends Controller
 
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    // public function create()
-    // {
-    //     // yahan se sab countries laa rahe hain
-    //     $countries = countries('en');
-
-    //     return view('backend.business.create', compact('countries'));
-    // }
-
     public function create(Request $request)
     {
         $validated = $request->validate([
             'business_name' => 'required|string|max:255',
             'industry' => 'required|string|max:255',
             'ntn' => 'nullable|string|max:255',
-            'business_type' => 'required|in:pos,digital,both',
+            'business_type' => 'required|in:pos,digital,pral,both',
             'country' => 'required|string|max:255',
             'city' => 'required|string|max:255',
             'email'           => 'nullable|email|max:255',

@@ -9,7 +9,7 @@ import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
 
-export default function Pos() {
+export default function Pos({ businessType }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [products, setProducts] = useState([]);
@@ -22,6 +22,7 @@ export default function Pos() {
     const [customerId, setCustomerId] = useState();
     const customerIdRef = useRef(undefined); // ✅ always reflects latest customerId (fixes stale closure)
     const [isRegistered, setIsRegistered] = useState("Registered"); 
+    const [customerTaxType, setCustomerTaxType] = useState(null);
     const [cartUpdated, setCartUpdated] = useState(false);
     const [productUpdated, setProductUpdated] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -32,12 +33,12 @@ export default function Pos() {
     const [loading, setLoading] = useState(false);
     const [furtherTaxTotal, setFurtherTaxTotal] = useState(0);
     const [saleTaxTotal, setSaleTaxTotal] = useState(0);
+    const [customerTaxTotal, setCustomerTaxTotal] = useState(0);
 
     const [showBatchModal, setShowBatchModal] = useState(false);
     const [availableBatches, setAvailableBatches] = useState([]);
     const [targetProduct, setTargetProduct] = useState(null);
     const [quantityValidation, setQuantityValidation] = useState(null);
-
     // ✅ Opt-4: Double-click guard — tracks product IDs currently being added
     const [addingProducts, setAddingProducts] = useState(new Set());
 
@@ -71,6 +72,14 @@ export default function Pos() {
         console.error("Price update failed", err);
     });
 };
+
+    const api = (path) => {
+        const prefix = businessType === "pral"
+            ? "/admin/pral"
+            : "/admin";
+
+        return `${prefix}${path}`;
+    };
 
     
 
@@ -138,7 +147,7 @@ const emptyCartOnCustomerChange = async () => {
 
     const getCarts = async () => {
         try {
-            const res = await axios.get("/admin/cart");
+            const res = await axios.get(api("/cart"));;
             const data = res.data;
             setTotal(data?.total);
             setUpdateTotal(data?.total - orderDiscount);
@@ -163,14 +172,14 @@ console.log("CART FROM API", data?.carts);
         const disc = orderDiscount === "" ? 0 : parseFloat(orderDiscount);
     
         // ✅ Calculate grand total from source values, not from updateTotal
-        const grandTotal = parseFloat(total) + parseFloat(saleTaxTotal) + parseFloat(furtherTaxTotal);
+        const grandTotal = parseFloat(total) + parseFloat(saleTaxTotal) + parseFloat(furtherTaxTotal) + parseFloat(customerTaxTotal);
         const afterDiscount = grandTotal - disc;
         const dueAmount = afterDiscount - paid1;
     
         setUpdateTotal(afterDiscount.toFixed(2));
         setDue(dueAmount.toFixed(2));
     
-    }, [orderDiscount, paid, total, saleTaxTotal, furtherTaxTotal]); // ✅ No updateTotal dependency
+    }, [orderDiscount, paid, total, saleTaxTotal, furtherTaxTotal, customerTaxTotal]); // ✅ No updateTotal dependency
     // ✅ Opt-2: Debounce product name search — wait 300ms after last keystroke
     useEffect(() => {
         setSearchBarcode("");
@@ -351,8 +360,8 @@ function orderCreate() {
     setIsSubmitting(true); // disable button
 
     // Step 1: Pehle server se duplicate check
-    axios.put(
-        "/admin/order/create",
+    axios.put(api(
+        "/order/create"),
         {
             customer_id: customerId,
             is_registered: isRegistered, // ✅ IMPORTANT: Send registration status
@@ -394,10 +403,11 @@ function orderCreate() {
 }
 
 
-const handleCartTotals = (subTotalCalc, saleTaxCalc, furtherTaxCalc, grandTotalCalc) => {
+const handleCartTotals = (subTotalCalc, saleTaxCalc, furtherTaxCalc, customerTaxCalc, grandTotalCalc) => {
     // setTotal(grandTotalCalc); // ✅ include further tax
     setTotal(subTotalCalc); // ✅ include further tax
     setSaleTaxTotal(saleTaxCalc);
+    setCustomerTaxTotal(customerTaxCalc.toFixed(2));
     setUpdateTotal(grandTotalCalc - orderDiscount); // after discount
     setDue(grandTotalCalc - orderDiscount - paid); // due
     setFurtherTaxTotal(furtherTaxCalc); // optional display
@@ -414,7 +424,7 @@ function createOrder(redirect = false) {
         price: item.product.discounted_price, // ✅ frontend updated price
     }));
     axios.put(
-        "/admin/order/create",
+        api("/order/create"),
         {
             customer_id: customerId,
             is_registered: isRegistered, // ✅ IMPORTANT: Send registration status
@@ -511,6 +521,7 @@ function createOrder(redirect = false) {
                                 <div className="col-12">
                                     <CustomerSelect
                                         setCustomerId={(id) => { setCustomerId(id); customerIdRef.current = id; }} // ✅ keep ref in sync
+                                        setCustomerTaxType={setCustomerTaxType}
                                         setIsRegistered={setIsRegistered}
                                         emptyCart={emptyCartOnCustomerChange}
                                     />
@@ -534,6 +545,7 @@ function createOrder(redirect = false) {
                                 setCartUpdated={setCartUpdated}
                                 cartUpdated={cartUpdated}
                                 isRegistered={isRegistered}
+                                customerTaxType={customerTaxType}
                                 onPriceChange={handlePriceChange}
                                 onTotalsChange={handleCartTotals}
                                 quantityValidation={quantityValidation}
@@ -554,6 +566,14 @@ function createOrder(redirect = false) {
                                             {Number(saleTaxTotal).toFixed(2)}
                                         </div>
                                     </div>
+                                    { customerTaxTotal > 0 && (
+                                        <div className="row text-bold mb-1">
+                                            <div className="col">Customer Tax:</div>
+                                            <div className="col text-right mr-2">
+                                                {Number(customerTaxTotal).toFixed(2)}
+                                            </div>
+                                        </div>
+                                    )}
                                     {/* <div className="row text-bold mb-1">
                                         <div className="col">Discount:</div>
                                         <div className="col text-right mr-2">
@@ -721,8 +741,10 @@ function createOrder(redirect = false) {
                                                 />
                                                 <div className="product-details">
                                                     <p className="mb-0 text-bold product-name">
-                                                        {product.name} (
-                                                        {product.quantity})
+                                                        {product.name.length > 22
+                                                            ? `${product.name.substring(0, 22)}...`
+                                                            : product.name}{" "}
+                                                        ({product.quantity})
                                                     </p>
                                                     <p>
                                                         Price:{" "}

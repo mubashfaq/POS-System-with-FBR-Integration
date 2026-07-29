@@ -82,6 +82,14 @@ use Illuminate\Support\Facades\DB;
          <!-- cart.digitalInvoice
         @endcan -->
 
+        @if ($canSaleCreate && $business_type === 'pral')
+            <li class="nav-item dropdown">
+                <a class="nav-link btn pos-btn text-white" href="{{ route('backend.admin.cart.pral') }}">
+                    <i class="fas fa-cart-plus"></i> Pral Cart
+                </a>
+            </li>
+         @endif
+
           @if ($canSaleCreate && $business_type === 'digital')
             <li class="nav-item dropdown">
                 <a class="nav-link btn pos-btn text-white" href="{{ route('backend.admin.cart.digitalInvoice') }}">

@@ -11,6 +11,7 @@ export default function Cart1({
     setCartUpdated,
     cartUpdated,
     isRegistered,
+    customerTaxType,
     onPriceChange,
     onTotalsChange,
     quantityValidation
@@ -19,6 +20,7 @@ export default function Cart1({
     const [cartItems, setCartItems] = useState([]);
     const [subTotal, setSubTotal] = useState(0);
     const [furtherTaxTotal, setFurtherTaxTotal] = useState(0);
+    const [customerTaxTotal, setCustomerTaxTotal] = useState(0);
     const [grandTotal, setGrandTotal] = useState(0);
 
     // Cart.jsx ke top me ya component function ke andar
@@ -29,6 +31,7 @@ export default function Cart1({
         let subTotalCalc = 0;
         let furtherTaxCalc = 0;
         let saleTaxCalc = 0;
+        let customerTaxCalc = 0;
 
         const updatedCarts = carts.map((item) => {
             const price = Number(item.unit_price ?? item.product.discounted_price);
@@ -48,12 +51,21 @@ export default function Cart1({
             }
 
             let furtherTax = 0;
+        
+            let customerTax = 0;
+
+            if (customerTaxType === "retailer") {
+                customerTax = exTaxAmount * 0.005; // 0.5%
+            } else if (customerTaxType === "distributor") {
+                customerTax = exTaxAmount * 0.01; // 1%
+            }
 
             // Only parent items contribute to totals
             if (!item.parent_cart_id && !item.is_accessory) {
                 subTotalCalc  += baseTotal;
                 saleTaxCalc   += saleTax;
                 furtherTaxCalc += furtherTax;
+                customerTaxCalc += customerTax;
             }
 
             return {
@@ -61,21 +73,24 @@ export default function Cart1({
                 base_total:    baseTotal.toFixed(2),
                 sale_tax:      saleTax.toFixed(2),
                 further_tax:   furtherTax.toFixed(2),
-                total_with_tax: (baseTotal + saleTax + furtherTax).toFixed(2),
+                customer_tax: customerTax.toFixed(2),
+                total_with_tax: (baseTotal + saleTax + furtherTax + customerTax).toFixed(2),
             };
         });
 
         setCartItems(updatedCarts);
         setSubTotal(subTotalCalc.toFixed(2));
         setFurtherTaxTotal(furtherTaxCalc.toFixed(2));
-        setGrandTotal((subTotalCalc + furtherTaxCalc + saleTaxCalc).toFixed(2));
+        setCustomerTaxTotal(customerTaxCalc.toFixed(2));
+        setGrandTotal((subTotalCalc + furtherTaxCalc + saleTaxCalc + customerTaxCalc).toFixed(2));
 
         if (onTotalsChange) {
             onTotalsChange(
                 subTotalCalc,
                 saleTaxCalc,
                 furtherTaxCalc,
-                subTotalCalc + furtherTaxCalc + saleTaxCalc,
+                customerTaxCalc,
+                subTotalCalc + furtherTaxCalc + saleTaxCalc + customerTaxCalc,
             );
         }
     }, [carts, registrationStatus]);
@@ -290,11 +305,21 @@ export default function Cart1({
                                                                 <>
                                                                     <div className="text-success font-weight-bold">{item.total_with_tax}</div>
                                                                     <div className="small text-warning">+{item.sale_tax} sale tax</div>
+                                                                    {parseFloat(item.customer_tax) > 0 && (
+                                                                        <div className="small text-primary">
+                                                                            +{item.customer_tax} customer tax
+                                                                        </div>
+                                                                    )}
                                                                 </>
                                                             ) : (
                                                                 <>
                                                                     <div className="font-weight-bold">{item.total_with_tax}</div>
                                                                     <div className="small text-warning">+{item.sale_tax} sale tax</div>
+                                                                    {parseFloat(item.customer_tax) > 0 && (
+                                                                        <div className="small text-primary">
+                                                                            +{item.customer_tax} customer tax
+                                                                        </div>
+                                                                    )}
                                                                 </>
                                                             )}
                                                         </td>
