@@ -104,7 +104,6 @@ class CustomerController extends Controller
 
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('customer_create'), 403);
 
-        // abort_if(!auth()->user()->can('customer_create'), 403);
         if ($request->wantsJson()) {
             $request->validate([
                 'name' => 'required|string',
@@ -119,7 +118,6 @@ class CustomerController extends Controller
                 'ntn_cnic' => [
                     'nullable',
                     'string',
-                    'regex:/^[0-9]+$/', // only digits allowed
                     Rule::unique('customers')->where(function ($query) use ($businessId) {
                         return $query->where('business_id', $businessId);
                     }),
@@ -156,7 +154,6 @@ class CustomerController extends Controller
             'ntn_cnic' => [
                 'required',
                 'string',
-                'regex:/^[0-9]+$/',
                 Rule::unique('customers')->where(function ($query) use ($businessId) {
                     return $query->where('business_id', $businessId);
                 }),
@@ -205,7 +202,6 @@ class CustomerController extends Controller
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('customer_update'), 403);
 
 
-        // abort_if(!auth()->user()->can('customer_update'), 403);
         $customer = Customer::findOrFail($id);
         return view('backend.customers.edit', compact('customer'));
     }
@@ -219,13 +215,12 @@ class CustomerController extends Controller
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('customer_update'), 403);
 
 
-        // abort_if(!auth()->user()->can('customer_update'), 403);
         $customer = Customer::findOrFail($id);
 
         $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|string|max:20|unique:customers,phone,' . $customer->id, // Corrected syntax
-            'ntn_cnic' => 'required|string|regex:/^[0-9]+$/',
+            'ntn_cnic' => 'required|string',
             'province' => 'required|string|max:255',
             'address' => 'required|string|max:255',
             'is_registered' => 'required|string|max:255',
