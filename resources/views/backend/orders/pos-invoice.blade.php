@@ -163,7 +163,9 @@
 
             <div class="col-6 col-md-2 mr-md-4 fbr-logo">
               <div class="img ">
-                @if($order->type == 'pos_invoice')
+                @if ($business->business_type == 'pral')
+                  <img src="{{ asset('assets/images/pral-pos-component.png') }}" style="width: 300%;" alt="PRAL Invoice">
+                @elseif($order->type == 'pos_invoice')
                   <img src="{{ asset('assets/images/fbr_pos_invoice_system.png') }}" alt="">
                 @else
                   <img src="{{ asset('assets/images/fbr_logo-icon.png') }}" alt="">

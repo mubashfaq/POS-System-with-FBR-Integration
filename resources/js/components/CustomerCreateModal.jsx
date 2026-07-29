@@ -152,7 +152,7 @@ export default function CustomerCreateModal({
                                         NTN/CNIC
                                     </label>
                                     <input
-                                        type="number"
+                                        type="text"
                                         className="form-control"
                                         name="ntn_cnic"
                                         value={formData.ntn_cnic}
