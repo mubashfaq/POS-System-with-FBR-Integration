@@ -75,10 +75,12 @@ class OrderController extends Controller
                 ->addColumn('total', fn($data) => number_format($data->total, 2, '.', ','))
                 ->addColumn('paid', fn($data) => number_format($data->paid, 2, '.', ','))
                 ->addColumn('due', fn($data) => number_format($data->due, 2, '.', ','))
-                ->addColumn('type', fn($data) => 
-                    ($data->type == 'pos_invoice') 
-                        ? '<span class="badge bg-info">POS</span>' 
-                        : '<span class="badge bg-secondary">Digital</span>'
+                ->addColumn(
+                    'type',
+                    fn($data) =>
+                    ($data->type == 'pos_invoice')
+                    ? '<span class="badge bg-info">POS</span>'
+                    : '<span class="badge bg-secondary">Digital</span>'
                 )
                 ->rawColumns(['type'])                // ->addColumn('stock_total', fn($data) => number_format($stockTotal->sum('grand_total'), 2, '.', ','))
                 ->addColumn('status', fn($data) => $data->status
@@ -86,20 +88,20 @@ class OrderController extends Controller
                     : '<span class="badge bg-danger">Due</span>')
                 ->addColumn('date', fn($data) => $data->created_at->format('Y-m-d'))
                 ->addColumn('fbr_status', function ($d) {
-                    if ($d->api_status == 200 && (empty($d->error_code) || $d->error_code == null) && $d->fbr_invoice_no != null ||$d->fbr_invoice_no != "") {
+                    if ($d->api_status == 200 && (empty($d->error_code) || $d->error_code == null) && $d->fbr_invoice_no != null || $d->fbr_invoice_no != "") {
                         return "<button data-id=$d->id class='fbr-status btn btn-md bg-white' title='Data Submitted'><i class='fas fa-check-circle text-success'></i></button>";
                     }
-                    if ($d->api_status == 200 && (!empty($d->error_code) || $d->error_code != null) && $d->fbr_invoice_no == null ||$d->fbr_invoice_no == "") {
+                    if ($d->api_status == 200 && (!empty($d->error_code) || $d->error_code != null) && $d->fbr_invoice_no == null || $d->fbr_invoice_no == "") {
                         return "<button data-id=$d->id class='fbr-status btn btn-md bg-white' title='Data Not Correct For FBR'><i class='fas fa-times-circle text-danger'></i></button>";
                     }
-                    if ($d->api_status != 200 && $d->fbr_invoice_no == null ||$d->fbr_invoice_no != "") {
+                    if ($d->api_status != 200 && $d->fbr_invoice_no == null || $d->fbr_invoice_no != "") {
                         return "<button data-id=$d->id class='fbr-status btn btn-md bg-white' title='Api Faild' ><i class='fas fa-exclamation-triangle text-warning'></i></button>";
                     }
                 })
                 ->addColumn('action', function ($data) {
                     $buttons = '';
 
-                    
+
                     if ($data->type == "pos_invoice") {
                         $buttons .= '<a class="btn btn-success btn-sm" href="' . route('backend.admin.orders.invoice', $data->id) . '"><i class="fas fa-file-invoice"></i> Invoice</a>';
                         $buttons .= '<a class="btn btn-secondary btn-sm" href="' . route('backend.admin.orders.pos-invoice', $data->id) . '"><i class="fas fa-file-invoice"></i> Pos Invoice</a>';
@@ -158,7 +160,7 @@ class OrderController extends Controller
     // <<<<<<<<<<<<<<<<<<<<< first sennd fbi ten save in  >>>>>>>>>>>>>>>>>>>>>
 
     public function store(Request $request)
-    {   
+    {
         $request->validate([
             'customer_id' => ['required', 'exists:customers,id', 'integer'],
             'order_discount' => ['nullable', 'numeric', 'min:0'],
@@ -222,7 +224,7 @@ class OrderController extends Controller
 
         $order = Order::create([
             'customer_id' => $request->customer_id,
-            'user_id'     => $userId,
+            'user_id' => $userId,
             'business_id' => $businessId,
             'invoice_number' => $invoiceNumber,
         ]);
@@ -232,7 +234,7 @@ class OrderController extends Controller
         $orderDiscount = $request->order_discount ?? 0;
 
         // Separate parent items from accessory items
-        $parentCarts    = $carts->filter(fn($c) => is_null($c->parent_cart_id));
+        $parentCarts = $carts->filter(fn($c) => is_null($c->parent_cart_id));
         $accessoryCarts = $carts->filter(fn($c) => !is_null($c->parent_cart_id));
 
         // Map parent cart id → order_product id so accessories can reference it
@@ -245,41 +247,41 @@ class OrderController extends Controller
 
             // Use price_override if exists
             $unitPrice = $cart->price_override ?? $product->discounted_price;
-            $qty       = $cart->quantity;
+            $qty = $cart->quantity;
             $lineTotal = round($unitPrice * $qty, 2);
-            $subTotal  = round($product->price * $qty, 2);
-            $discount  = round(($product->price - $unitPrice) * $qty, 2);
+            $subTotal = round($product->price * $qty, 2);
+            $discount = round(($product->price - $unitPrice) * $qty, 2);
 
             // Sale TAX
             $rateText = trim($product->pos_sale_tax);
-            $saleTax  = 0;
+            $saleTax = 0;
 
             if (str_ends_with($rateText, '%')) {
-                $rate    = floatval(str_replace('%', '', $rateText));
+                $rate = floatval(str_replace('%', '', $rateText));
                 $saleTax = round($lineTotal * ($rate / 100), 2);
             } else {
                 $ratePerUnit = floatval($rateText) ?: 0;
-                $saleTax     = round($ratePerUnit * $qty, 2);
+                $saleTax = round($ratePerUnit * $qty, 2);
             }
 
             $finalTotal = round($lineTotal + $saleTax, 2);
 
             $totalAmountOrder += $finalTotal;
-            $totalTaxOrder    += $saleTax;
+            $totalTaxOrder += $saleTax;
 
             $orderProduct = $order->products()->create([
-                'quantity'         => $cart->quantity,
-                'price'            => $unitPrice,
-                'purchase_price'   => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
-                'sub_total'        => $subTotal,
-                'discount'         => $discount,
-                'tax_rate'         => $rateText,
-                'sale_tax'         => $saleTax,
-                'further_tax'      => 0,
-                'total'            => $finalTotal,
-                'product_id'       => $product->id,
+                'quantity' => $cart->quantity,
+                'price' => $unitPrice,
+                'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
+                'sub_total' => $subTotal,
+                'discount' => $discount,
+                'tax_rate' => $rateText,
+                'sale_tax' => $saleTax,
+                'further_tax' => 0,
+                'total' => $finalTotal,
+                'product_id' => $product->id,
                 'purchase_item_id' => $cart->purchase_item_id,
-                'is_accessory'     => false,
+                'is_accessory' => false,
             ]);
 
             $parentCartToOrderProduct[$cart->id] = $orderProduct->id;
@@ -302,23 +304,23 @@ class OrderController extends Controller
             // Resolve parent order_product id
             $parentOrderProductId = $parentCartToOrderProduct[$cart->parent_cart_id] ?? null;
 
-            $parentQty  = $parentCartToQty[$cart->parent_cart_id] ?? 1;
-            $scaledQty  = $cart->quantity * $parentQty; 
+            $parentQty = $parentCartToQty[$cart->parent_cart_id] ?? 1;
+            $scaledQty = $cart->quantity * $parentQty;
 
             $order->products()->create([
-                'quantity'                  => $scaledQty,
-                'price'                     => 0,
-                'purchase_price'            => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
-                'sub_total'                 => 0,
-                'discount'                  => 0,
-                'tax_rate'                  => 0,
-                'sale_tax'                  => 0,
-                'further_tax'               => 0,
-                'total'                     => 0,
-                'product_id'                => $product->id,
-                'purchase_item_id'          => $cart->purchase_item_id,
-                'is_accessory'              => true,
-                'parent_order_product_id'   => $parentOrderProductId,
+                'quantity' => $scaledQty,
+                'price' => 0,
+                'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
+                'sub_total' => 0,
+                'discount' => 0,
+                'tax_rate' => 0,
+                'sale_tax' => 0,
+                'further_tax' => 0,
+                'total' => 0,
+                'product_id' => $product->id,
+                'purchase_item_id' => $cart->purchase_item_id,
+                'is_accessory' => true,
+                'parent_order_product_id' => $parentOrderProductId,
             ]);
 
             // Decrement accessory stock
@@ -331,17 +333,17 @@ class OrderController extends Controller
         }
 
         $total = $totalAmountOrder - $orderDiscount;
-        $due   = $total - ($request->paid ?? 0);
+        $due = $total - ($request->paid ?? 0);
 
         $order->update([
             'sub_total' => $totalAmountOrder,
-            'discount'  => $orderDiscount,
+            'discount' => $orderDiscount,
             'total_sale_tax' => round($totalTaxOrder, 2),
             'total_further_tax' => 0,
-            'paid'      => $request->paid,
-            'total'     => round($total, 2),
-            'due'       => round($due, 2),
-            'status'    => round($due, 2) <= 0,
+            'paid' => $request->paid,
+            'total' => round($total, 2),
+            'due' => round($due, 2),
+            'status' => round($due, 2) <= 0,
         ]);
 
         /* ================= FBR ITEMS ================= */
@@ -358,7 +360,7 @@ class OrderController extends Controller
             $lineTotal = round($unitPrice * $qty, 2);
 
             $rateText = trim($product->pos_sale_tax); // 18%
-            $taxRate  = (float) str_replace('%', '', $rateText); // 18
+            $taxRate = (float) str_replace('%', '', $rateText); // 18
             $salesTax = 0;
             $valueExTax = $lineTotal; // already ex-tax
             if (str_ends_with($rateText, '%')) {
@@ -380,7 +382,7 @@ class OrderController extends Controller
                 // "PCTCode" => "11001010",
                 "TaxRate" => $taxRate,
                 "SaleValue" => $valueExTax,
-            "TotalAmount" => $lineTotal + $salesTax ,//+ $furtherTax,
+                "TotalAmount" => $lineTotal + $salesTax,//+ $furtherTax,
                 "TaxCharged" => $salesTax,
                 "discount" => 0,
                 "InvoiceType" => 1,
@@ -422,7 +424,7 @@ class OrderController extends Controller
 
             return response()->json([
                 'message' => 'Order completed successfully (FBR Not Integrated)',
-                'order'   => $order,
+                'order' => $order,
             ], 200);
         } else {
 
@@ -438,28 +440,52 @@ class OrderController extends Controller
             }
             $tokenUrlEnd = FbrTokenService::getTokenUrl();
             $post_api_response = null;
+            // try {
+
+            //     $post_api_response = Http::withOptions([
+            //         'timeout' => 620,
+            //         'connect_timeout' => 620,
+            //         'verify' => false,
+            //         //   CURLOPT_SSL_VERIFYHOST => false,
+            //         // CURLOPT_SSL_VERIFYPEER => false,
+            //     ])->withHeaders([
+            //         'Authorization' => "Bearer $token",
+            //         'Content-Type' => 'application/json',
+            //         'Accept-Encoding' => 'gzip, deflate, br',
+            //         'Accept' => '*/*'
+            //     ])->withBody(json_encode($fbrPayload), 'application/json')
+            //         ->post("https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData");
+            //     //  ->post("https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData", $fbrPayload);
+            //     // ])->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb", $fbrPayload);
+
+
+            // } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            //     info('Connection Exception: ' . $e->getMessage());
+            // }
+
             try {
 
                 $post_api_response = Http::withOptions([
                     'timeout' => 620,
                     'connect_timeout' => 620,
                     'verify' => false,
-                    //   CURLOPT_SSL_VERIFYHOST => false,
-                    // CURLOPT_SSL_VERIFYPEER => false,
-                ])->withHeaders([
-                    'Authorization' => "Bearer $token",
-                    'Content-Type' => 'application/json',
-                    'Accept-Encoding' => 'gzip, deflate, br',
-                    'Accept' => '*/*'
-                ])->withBody(json_encode($fbrPayload), 'application/json')
-                    ->post("https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData");
-                //  ->post("https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData", $fbrPayload);
-                // ])->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb", $fbrPayload);
+                ])
+                    ->withToken($token)
+                    ->acceptJson()
+                    ->post(
+                        "https://ims.pral.com.pk/ims/sandbox/api/Live/PostData",
+                        $fbrPayload
+                    );
 
+            } catch (\Throwable $e) {
 
-            } catch (\Illuminate\Http\Client\ConnectionException $e) {
-                info('Connection Exception: ' . $e->getMessage());
+                dd([
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ]);
             }
+
 
             $postResponseJson = $post_api_response->json();
             // dd($postResponseJson);
@@ -467,7 +493,7 @@ class OrderController extends Controller
             /* ================= FBR API CALL ================= */
             Log::info('FBR Payload', [
                 'order_id' => $order->id ?? null,
-                'payload'  => $fbrPayload,
+                'payload' => $fbrPayload,
                 'post_response_pos' => $postResponseJson['Response'],
             ]);
 
@@ -481,9 +507,9 @@ class OrderController extends Controller
                 DB::commit(); // save order data in db now 
 
                 Order::where('id', $order->id)->update([
-                    'fbr_invoice_no'    => $fbr_invoice_number,
-                    'api_status'    => $post_api_response->status(),
-                    'api_message'   => 1,
+                    'fbr_invoice_no' => $fbr_invoice_number,
+                    'api_status' => $post_api_response->status(),
+                    'api_message' => 1,
                     'type' => 'pos_invoice',
                 ]);
 
@@ -491,18 +517,18 @@ class OrderController extends Controller
                     'order_id' => $order->id ?? null,
                     'user_id' => $userId,
                     'business_id' => $businessId,
-                    'payload'  => $fbrPayload,
+                    'payload' => $fbrPayload,
                     'post_response_pos' => $postResponseJson['Response'],
                 ]);
 
                 OrderLog::create([
-                    'order_id'       => $order->id,
-                    'user_id'        => $userId,
-                    'business_id'    => $businessId,
+                    'order_id' => $order->id,
+                    'user_id' => $userId,
+                    'business_id' => $businessId,
                     'request_payload' => $fbrPayload,
-                    'response'       => $postResponseJson['Response'],
-                    'error_code'     => $postResponseJson['Code'] ?? null,
-                    'error_message'  => $postResponseJson['Response'] ?? null,
+                    'response' => $postResponseJson['Response'],
+                    'error_code' => $postResponseJson['Code'] ?? null,
+                    'error_message' => $postResponseJson['Response'] ?? null,
                 ]);
             } else {
 
@@ -511,18 +537,18 @@ class OrderController extends Controller
                     'order_id' => $order->id ?? null,
                     'user_id' => $userId,
                     'business_id' => $businessId,
-                    'payload'  => $fbrPayload,
+                    'payload' => $fbrPayload,
                     'post_response_pos' => $postResponseJson['Response'],
                 ]);
 
                 OrderLog::create([
-                    'order_id'       => $order->id,
-                    'user_id'        => $userId,
-                    'business_id'    => $businessId,
+                    'order_id' => $order->id,
+                    'user_id' => $userId,
+                    'business_id' => $businessId,
                     'request_payload' => $fbrPayload,
-                    'response'       => $postResponseJson['Response'],
-                    'error_code'     => $postResponseJson['Code'] ?? null,
-                    'error_message'  => $postResponseJson['Response'] ?? null,
+                    'response' => $postResponseJson['Response'],
+                    'error_code' => $postResponseJson['Code'] ?? null,
+                    'error_message' => $postResponseJson['Response'] ?? null,
                 ]);
 
                 DB::rollBack();
@@ -611,7 +637,7 @@ class OrderController extends Controller
 
         $order = Order::create([
             'customer_id' => $request->customer_id,
-            'user_id'     => $userId,
+            'user_id' => $userId,
             'business_id' => $businessId,
             'invoice_number' => $invoiceNumber,
         ]);
@@ -622,7 +648,7 @@ class OrderController extends Controller
         $orderDiscount = $request->order_discount ?? 0;
 
         // Separate parent items from accessory items
-        $parentCarts    = $carts->filter(fn($c) => is_null($c->parent_cart_id));
+        $parentCarts = $carts->filter(fn($c) => is_null($c->parent_cart_id));
         $accessoryCarts = $carts->filter(fn($c) => !is_null($c->parent_cart_id));
 
         // Map parent cart id -> order_product id
@@ -637,8 +663,8 @@ class OrderController extends Controller
             $unitPrice = $cart->price_override ?? $product->discounted_price;
             $qty = $cart->quantity;
             $lineTotal = round($unitPrice * $qty, 2);
-            $subTotal  = round($unitPrice * $qty, 2);
-            $discount  = round(($product->price - $unitPrice) * $qty, 2);
+            $subTotal = round($unitPrice * $qty, 2);
+            $discount = round(($product->price - $unitPrice) * $qty, 2);
 
             // FURTHER TAX
             $rateText = trim($product->rate_of_tax);
@@ -647,7 +673,7 @@ class OrderController extends Controller
             if (str_ends_with($rateText, '%')) {
                 $rate = floatval(str_replace('%', '', $rateText));
                 $valueExTax = round($lineTotal, 2);
-                $salesTax  = round($valueExTax * ($rate / 100), 2);
+                $salesTax = round($valueExTax * ($rate / 100), 2);
 
                 if ($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods') {
                     $furtherTax = round($valueExTax * (4 / 100), 2);
@@ -669,22 +695,22 @@ class OrderController extends Controller
             $finalTotal = round($lineTotal + $salesTax + $furtherTax, 2);
 
             $totalAmountOrder += $finalTotal;
-            $totalSaleTax    += $salesTax;
+            $totalSaleTax += $salesTax;
             $totalFurtherTax += $furtherTax;
 
             $orderProduct = $order->products()->create([
-                'quantity'         => $cart->quantity,
-                'price'            => $unitPrice,
-                'purchase_price'   => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
-                'sub_total'        => $subTotal,
-                'discount'         => $discount,
-                'tax_rate'         => $rateText,
-                'sale_tax'         => $salesTax,
-                'further_tax'      => $furtherTax,
-                'total'            => $finalTotal,
-                'product_id'       => $product->id,
+                'quantity' => $cart->quantity,
+                'price' => $unitPrice,
+                'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
+                'sub_total' => $subTotal,
+                'discount' => $discount,
+                'tax_rate' => $rateText,
+                'sale_tax' => $salesTax,
+                'further_tax' => $furtherTax,
+                'total' => $finalTotal,
+                'product_id' => $product->id,
                 'purchase_item_id' => $cart->purchase_item_id,
-                'is_accessory'     => false,
+                'is_accessory' => false,
             ]);
 
             $parentCartToOrderProduct[$cart->id] = $orderProduct->id;
@@ -706,22 +732,22 @@ class OrderController extends Controller
 
             $parentOrderProductId = $parentCartToOrderProduct[$cart->parent_cart_id] ?? null;
 
-            $parentQty  = $parentCartToQty[$cart->parent_cart_id] ?? 1;
-            $scaledQty  = $cart->quantity * $parentQty;
+            $parentQty = $parentCartToQty[$cart->parent_cart_id] ?? 1;
+            $scaledQty = $cart->quantity * $parentQty;
 
             $order->products()->create([
-                'quantity'                => $scaledQty,
-                'price'                   => 0,
-                'purchase_price'          => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
-                'sub_total'               => 0,
-                'discount'                => 0,
-                'tax_rate'                => 0,
-                'sale_tax'                => 0,
-                'further_tax'             => 0,
-                'total'                   => 0,
-                'product_id'              => $product->id,
-                'purchase_item_id'        => $cart->purchase_item_id,
-                'is_accessory'            => true,
+                'quantity' => $scaledQty,
+                'price' => 0,
+                'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
+                'sub_total' => 0,
+                'discount' => 0,
+                'tax_rate' => 0,
+                'sale_tax' => 0,
+                'further_tax' => 0,
+                'total' => 0,
+                'product_id' => $product->id,
+                'purchase_item_id' => $cart->purchase_item_id,
+                'is_accessory' => true,
                 'parent_order_product_id' => $parentOrderProductId,
             ]);
 
@@ -735,23 +761,23 @@ class OrderController extends Controller
         }
 
         $total = $totalAmountOrder - $orderDiscount;
-        $due   = $total - ($request->paid ?? 0);
+        $due = $total - ($request->paid ?? 0);
 
         $order->update([
-            'sub_total'         => $totalAmountOrder,
-            'discount'          => $orderDiscount,
-            'total_sale_tax'    => round($totalSaleTax, 2),
+            'sub_total' => $totalAmountOrder,
+            'discount' => $orderDiscount,
+            'total_sale_tax' => round($totalSaleTax, 2),
             'total_further_tax' => round($totalFurtherTax, 2),
-            'paid'              => $request->paid,
-            'total'             => round($total, 2),
-            'due'               => round($due, 2),
-            'status'            => round($due, 2) <= 0,
+            'paid' => $request->paid,
+            'total' => round($total, 2),
+            'due' => round($due, 2),
+            'status' => round($due, 2) <= 0,
         ]);
 
         /* ================= FBR ITEMS (parent products only) ================= */
         $fbrItems = [];
         $furtherTax = 0;
-        $lineTotal  = 0;
+        $lineTotal = 0;
         foreach ($parentCarts as $cart) {
             $product = $cart->product;
 
@@ -767,7 +793,7 @@ class OrderController extends Controller
                 $rate = floatval(str_replace('%', '', $rateText));
                 //  $valueExTax = round($lineTotal / (1 + ($rate / 100)), 2);
                 $valueExTax = $lineTotal;
-                $salesTax  = round($valueExTax * ($rate / 100), 2);
+                $salesTax = round($valueExTax * ($rate / 100), 2);
 
                 if ($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods') {
                     $furtherTax = round($valueExTax * (4 / 100), 2);
@@ -883,7 +909,7 @@ class OrderController extends Controller
             "scenarioId" => $SN,
             "items" => $fbrItems
         ];
-            
+
 
         // Check if FBR integration is disabled
         if (!FbrTokenService::isIntegrationEnabled()) {
@@ -899,7 +925,7 @@ class OrderController extends Controller
 
             return response()->json([
                 'message' => 'Order completed successfully (FBR Not Integrated)',
-                'order'   => $order,
+                'order' => $order,
             ], 200);
         } else {
 
@@ -922,11 +948,11 @@ class OrderController extends Controller
                     'timeout' => 2420,
                     'connect_timeout' => 2420,
                 ])->withHeaders([
-                    'Authorization' => "Bearer $token",
-                    'Content-Type' => 'application/json',
-                    'Accept-Encoding' => 'gzip, deflate, br',
-                    'Accept' => '*/*'
-                ])->withBody(json_encode($fbrPayload), 'application/json')
+                            'Authorization' => "Bearer $token",
+                            'Content-Type' => 'application/json',
+                            'Accept-Encoding' => 'gzip, deflate, br',
+                            'Accept' => '*/*'
+                        ])->withBody(json_encode($fbrPayload), 'application/json')
                     ->post("https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata$tokenUrlEnd");
 
                 // ->post("https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb", $fbrPayload);
@@ -945,7 +971,7 @@ class OrderController extends Controller
             /* ================= FBR API CALL ================= */
             Log::info('FBR Payload', [
                 'order_id' => $order->id ?? null,
-                'payload'  => $fbrPayload,
+                'payload' => $fbrPayload,
                 'validation_response_digital' => $responseJson,
             ]);
 
@@ -953,18 +979,18 @@ class OrderController extends Controller
                 'order_id' => $order->id ?? null,
                 'user_id' => $userId,
                 'business_id' => $businessId,
-                'payload'  => $fbrPayload,
+                'payload' => $fbrPayload,
                 'validation_response_digital' => $responseJson,
             ]);
 
             OrderLog::create([
-                'order_id'       => $order->id,
-                'user_id'        => $userId,
-                'business_id'    => $businessId,
+                'order_id' => $order->id,
+                'user_id' => $userId,
+                'business_id' => $businessId,
                 'request_payload' => $fbrPayload,
-                'response'       => $responseJson,
-                'status_code'    => $response->status(),
-                'success'        => $response->ok(),
+                'response' => $responseJson,
+                'status_code' => $response->status(),
+                'success' => $response->ok(),
             ]);
 
 
@@ -977,10 +1003,10 @@ class OrderController extends Controller
 
             /* ================= SAVE API STATUS & LOGS (NO ROLLBACK) ================= */
             Order::where('id', $order->id)->update([
-                'api_status'    => $response->status(),
-                'error_code'    => $errorCode,
+                'api_status' => $response->status(),
+                'error_code' => $errorCode,
                 'error_message' => $errorMessage,
-                'api_message'   => $response->ok(),
+                'api_message' => $response->ok(),
             ]);
 
 
@@ -1005,11 +1031,11 @@ class OrderController extends Controller
                     'connect_timeout' => 2420,
 
                 ])->withHeaders([
-                    'Authorization' => "Bearer $token",
-                    'Content-Type' => 'application/json',
-                    'Accept-Encoding' => 'gzip, deflate, br',
-                    'Accept' => '*/*'
-                ])->withBody(json_encode($fbrPayload), 'application/json')
+                            'Authorization' => "Bearer $token",
+                            'Content-Type' => 'application/json',
+                            'Accept-Encoding' => 'gzip, deflate, br',
+                            'Accept' => '*/*'
+                        ])->withBody(json_encode($fbrPayload), 'application/json')
                     ->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata$tokenUrlEnd");
                 //  ->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb", $fbrPayload);
 
@@ -1040,22 +1066,22 @@ class OrderController extends Controller
             ]);
 
             OrderLog::create([
-                'order_id'       => $order->id,
-                'user_id'        => $userId,
-                'business_id'    => $businessId,
+                'order_id' => $order->id,
+                'user_id' => $userId,
+                'business_id' => $businessId,
                 'request_payload' => "POST API Response",
-                'response'       => $postResponseJson,
-                'status_code'    => $response->status(),
-                'error_code'     => $errorCode,
-                'error_message'  => $errorMessage,
-                'success'        => $response->ok(),
+                'response' => $postResponseJson,
+                'status_code' => $response->status(),
+                'error_code' => $errorCode,
+                'error_message' => $errorMessage,
+                'success' => $response->ok(),
                 'fbr_invoice_number' => $fbr_invoice_number,
             ]);
 
 
             /* ================= SAVE API STATUS & LOGS (NO ROLLBACK) ================= */
             Order::where('id', $order->id)->update([
-                'fbr_invoice_no'    => $fbr_invoice_number,
+                'fbr_invoice_no' => $fbr_invoice_number,
             ]);
 
 
@@ -1119,9 +1145,9 @@ class OrderController extends Controller
 
             $due = $order->due - $data['amount'];
             $paid = $order->paid + $data['amount'];
-            $order->due = round((float)$due, 2);
-            $order->paid = round((float)$paid, 2);
-            $order->status = round((float)$due, 2) <= 0;
+            $order->due = round((float) $due, 2);
+            $order->paid = round((float) $paid, 2);
+            $order->status = round((float) $due, 2) <= 0;
             $order->save();
             $collection_amount = $data['amount'];
             //create order transaction
@@ -1215,9 +1241,9 @@ class OrderController extends Controller
             ]);
         }
 
-        if ($data->api_status != 200 ) {
+        if ($data->api_status != 200) {
             $message = "API Not Run Due to Some Issue From FBR";
-        } elseif ($data->api_status == 200 && empty($data->error_code) && ($data->fbr_invoice_no != null )) {
+        } elseif ($data->api_status == 200 && empty($data->error_code) && ($data->fbr_invoice_no != null)) {
             $message = "Successfully Sent to FBR.";
         } else {
             $message = "Failed to send to FBR " . $data->error_code;
