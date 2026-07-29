@@ -23,6 +23,7 @@ export default function Pos() {
     const [customerId, setCustomerId] = useState();
     const customerIdRef = useRef(); // keeps a non-stale ref for use in callbacks
     const [isRegistered, setIsRegistered] = useState("Registered"); 
+    const [customerTaxType, setCustomerTaxType] = useState(null);
     const [cartUpdated, setCartUpdated] = useState(false);
     const [productUpdated, setProductUpdated] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -33,7 +34,10 @@ export default function Pos() {
     const [loading, setLoading] = useState(false);
     const [furtherTaxTotal, setFurtherTaxTotal] = useState(0);
     const [SaleTax, setSaleTax] = useState(0);
+    const [customerTaxTotal, setCustomerTaxTotal] = useState(0);
     const [subTotal, setSubTotal] = useState(0);
+    const today = new Date().toISOString().split("T")[0];
+    const [orderDate, setOrderDate] = useState(today);
 
 
     const [showBatchModal, setShowBatchModal] = useState(false);
@@ -373,6 +377,7 @@ function orderCreate() {
             paid: parseFloat(paid) || 0,
             cart: carts,
             check_duplicate: true,
+            orderDate: orderDate,
         },
         { headers: { "Content-Type": "application/json" } }
     )
@@ -407,10 +412,11 @@ function orderCreate() {
 }
 
 
-const handleCartTotals = (subTotalCalc, saleTaxCalc, furtherTaxCalc, grandTotalCalc) => {
+const handleCartTotals = (subTotalCalc, saleTaxCalc, furtherTaxCalc, customerTaxCalc, grandTotalCalc) => {
     const computedSubTotal = subTotalCalc + furtherTaxCalc; 
     setSubTotal(computedSubTotal.toFixed(2));
     setSaleTax(saleTaxCalc.toFixed(2));
+    setCustomerTaxTotal(customerTaxCalc.toFixed(2));
     setTotal(grandTotalCalc);                              
     setUpdateTotal((grandTotalCalc - orderDiscount).toFixed(2));
     setDue((grandTotalCalc - orderDiscount - paid).toFixed(2));
@@ -435,6 +441,7 @@ function createOrder(redirect = false) {
             order_discount: parseFloat(orderDiscount) || 0,
             paid: parseFloat(paid) || 0,
             cart: carts,
+            orderDate: orderDate,
         },
         { headers: { "Content-Type": "application/json" } }
     )
@@ -527,6 +534,7 @@ function createOrder(redirect = false) {
                                     <CustomerSelect
                                         setCustomerId={setCustomerId}
                                         setIsRegistered={setIsRegistered}
+                                        setCustomerTaxType={setCustomerTaxType}
                                         emptyCart={emptyCartOnCustomerChange}
                                     />
                                 </div>
@@ -549,6 +557,7 @@ function createOrder(redirect = false) {
                                 setCartUpdated={setCartUpdated}
                                 cartUpdated={cartUpdated}
                                 isRegistered={isRegistered}
+                                customerTaxType={customerTaxType}
                                 onPriceChange={handlePriceChange}
                                 onTotalsChange={handleCartTotals}
                                 quantityValidation={quantityValidation}
@@ -567,6 +576,14 @@ function createOrder(redirect = false) {
                                         <div className="col">Sale Tax:</div>
                                         <div className="col text-right mr-2">{Number(SaleTax).toFixed(2)}</div>
                                     </div>
+                                    { customerTaxTotal > 0 && (
+                                        <div className="row text-bold mb-1">
+                                            <div className="col">Customer Tax:</div>
+                                            <div className="col text-right mr-2">
+                                                {Number(customerTaxTotal).toFixed(2)}
+                                            </div>
+                                        </div>
+                                    )}
                                     {/* <div className="row text-bold mb-1">
                                         <div className="col">Discount:</div>
                                         <div className="col text-right mr-2">
@@ -752,8 +769,10 @@ function createOrder(redirect = false) {
                                                 />
                                                 <div className="product-details">
                                                     <p className="mb-0 text-bold product-name">
-                                                        {product.name} (
-                                                        {product.quantity})
+                                                        {product.name.length > 22
+                                                            ? `${product.name.substring(0, 22)}...`
+                                                            : product.name}{" "}
+                                                        ({product.quantity})
                                                     </p>
                                                     <p>
                                                         Price:{" "}

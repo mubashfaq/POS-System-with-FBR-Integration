@@ -4,7 +4,7 @@ import axios from "axios";
 import CustomerCreateModal from "./CustomerCreateModal";
 import toast from "react-hot-toast"; 
 
-const CustomerSelect = ({ setCustomerId ,setIsRegistered, emptyCart }) => {
+const CustomerSelect = ({ setCustomerId ,setIsRegistered, setCustomerTaxType, emptyCart }) => {
     const [customers, setCustomers] = useState([]);
     const [selectedCustomer, setSelectedCustomer] = useState({});
 
@@ -55,6 +55,7 @@ const handleChange = async (newValue) => {
         const res = await axios.post(`/admin/select-customer/${newValue.value}`);
         if (!res.data.customer) throw new Error("Customer not found");
         setIsRegistered(res.data.customer.is_registered);
+        setCustomerTaxType(res.data.customer.customer_tax_type);
     } catch (err) {
         console.error(err);
         toast.error("Failed to change customer");

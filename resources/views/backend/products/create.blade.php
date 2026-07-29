@@ -29,9 +29,8 @@
                     <div class="mb-3 col-md-6">
                         <label for="brand_id" class="form-label">
                             Brand
-                            <span class="text-danger">*</span>
                         </label>
-                        <select class="form-control select2" style="width: 100%;" name="brand_id" required>
+                        <select class="form-control select2" style="width: 100%;" name="brand_id">
                             <option value="">Select Brand</option>
                             @foreach ($brands as $item)
                             <option value={{ $item->id }} {{ old('brand_id') == $item->id ? 'selected' : '' }}>
@@ -43,9 +42,8 @@
                     <div class="mb-3 col-md-6">
                         <label for="category_id" class="form-label">
                             Category
-                            <span class="text-danger">*</span>
                         </label>
-                        <select class="form-control select2" style="width: 100%;" name="category_id" required>
+                        <select class="form-control select2" style="width: 100%;" name="category_id">
                             <option value="">Select Category</option>
                             @foreach ($categories as $item)
                             <option value={{ $item->id }} {{ old('category_id') == $item->id ? 'selected' : '' }}>
@@ -62,7 +60,7 @@
                         <input type="number" step="0.01" min="0" class="form-control" placeholder="Enter price"
                             name="price" value="{{ old('price') }}" required>
                     </div>
-                    @if ($business_type === 'pos')
+                    @if ($business_type === 'pos' || $business_type === 'pral')
                     <div class="mb-3 col-md-6">
                         <label for="pct_code" class="form-label">
                            PCT Code

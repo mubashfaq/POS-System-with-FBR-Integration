@@ -107,8 +107,16 @@ class OrderController extends Controller
                         $buttons .= '<a class="btn btn-success btn-sm" href="' . route('backend.admin.orders.pos-receipt-digital', $data->id) . '"><i class="fas fa-file-invoice"></i> Receipt</a>';
                         $buttons .= '<a class="btn btn-secondary btn-sm" href="' . route('backend.admin.orders.pos-invoice-digital', $data->id) . '"><i class="fas fa-file-invoice"></i> Digital Invoice</a>';
                     }
-                    if (!$data->status) {
-                        $buttons .= '<a class="btn btn-warning btn-sm" href="' . route('backend.admin.due.collection', $data->id) . '"><i class="fas fa-receipt"></i> Due Collection</a>';
+                    if (!$data->is_cancelled) {
+                        if (!$data->status) {
+                            $buttons .= '<a class="btn btn-warning btn-sm" href="' . route('backend.admin.due.collection', $data->id) . '"><i class="fas fa-receipt"></i> Due Collection</a>';
+                        }
+
+                        $buttons .= '<button type="button" class="btn btn-danger btn-sm btn-cancel-order" data-id="' . $data->id . '">
+                                        <i class="fas fa-times-circle"></i> Cancel
+                                    </button>';
+                    } else {
+                        $buttons .= '<span class="badge badge-danger">Cancelled</span>';
                     }
                     $buttons .= '<a class="btn btn-primary btn-sm" href="' . route('backend.admin.orders.transactions', $data->id) . '"><i class="fas fa-exchange-alt"></i> Transactions</a>';
                     return $buttons;
@@ -229,6 +237,7 @@ class OrderController extends Controller
 
         $totalAmountOrder = 0;
         $totalTaxOrder = 0;
+        $totalCustomerTaxOrder = 0;
         $orderDiscount = $request->order_discount ?? 0;
 
         // Separate parent items from accessory items
@@ -262,10 +271,20 @@ class OrderController extends Controller
                 $saleTax     = round($ratePerUnit * $qty, 2);
             }
 
-            $finalTotal = round($lineTotal + $saleTax, 2);
+            // Customer Tax
+            $customerTax = 0;
+
+            if ($customer->customer_tax_type === 'retailer') {
+                $customerTax = round($lineTotal * 0.005, 2);
+            } elseif ($customer->customer_tax_type === 'distributor') {
+                $customerTax = round($lineTotal * 0.01, 2);
+            }
+
+            $finalTotal = round($lineTotal + $saleTax + $customerTax, 2);
 
             $totalAmountOrder += $finalTotal;
             $totalTaxOrder    += $saleTax;
+            $totalCustomerTaxOrder += $customerTax;
 
             $orderProduct = $order->products()->create([
                 'quantity'         => $cart->quantity,
@@ -275,6 +294,7 @@ class OrderController extends Controller
                 'discount'         => $discount,
                 'tax_rate'         => $rateText,
                 'sale_tax'         => $saleTax,
+                'customer_tax'     => $customerTax,
                 'further_tax'      => 0,
                 'total'            => $finalTotal,
                 'product_id'       => $product->id,
@@ -312,6 +332,7 @@ class OrderController extends Controller
                 'sub_total'                 => 0,
                 'discount'                  => 0,
                 'tax_rate'                  => 0,
+                'customer_tax'              => 0,
                 'sale_tax'                  => 0,
                 'further_tax'               => 0,
                 'total'                     => 0,
@@ -337,6 +358,7 @@ class OrderController extends Controller
             'sub_total' => $totalAmountOrder,
             'discount'  => $orderDiscount,
             'total_sale_tax' => round($totalTaxOrder, 2),
+            'total_customer_tax' => round($totalCustomerTaxOrder, 2),
             'total_further_tax' => 0,
             'paid'      => $request->paid,
             'total'     => round($total, 2),
@@ -547,15 +569,16 @@ class OrderController extends Controller
         }
     }
 
-
-    public function storeDigital(Request $request)
-    {
+    public function storePral(Request $request)
+    {   
         $request->validate([
             'customer_id' => ['required', 'exists:customers,id', 'integer'],
             'order_discount' => ['nullable', 'numeric', 'min:0'],
             'paid' => ['nullable', 'numeric', 'min:0'],
         ]);
-        $userId = auth()->id();
+
+        $userId =  auth()->id();
+
         $businessId = session('business_id');
 
         if (!$businessId) {
@@ -617,7 +640,399 @@ class OrderController extends Controller
         ]);
 
         $totalAmountOrder = 0;
+        $totalTaxOrder = 0;
+        $totalCustomerTaxOrder = 0;
+        $orderDiscount = $request->order_discount ?? 0;
+
+        // Separate parent items from accessory items
+        $parentCarts    = $carts->filter(fn($c) => is_null($c->parent_cart_id));
+        $accessoryCarts = $carts->filter(fn($c) => !is_null($c->parent_cart_id));
+
+        // Map parent cart id → order_product id so accessories can reference it
+        $parentCartToOrderProduct = [];
+        $parentCartToQty = [];
+
+        // ── PARENT ITEMS: price calculation + order_products insert ──
+        foreach ($parentCarts as $cart) {
+            $product = $cart->product;
+
+            // Use price_override if exists
+            $unitPrice = $cart->price_override ?? $product->discounted_price;
+            $qty       = $cart->quantity;
+            $lineTotal = round($unitPrice * $qty, 2);
+            $subTotal  = round($product->price * $qty, 2);
+            $discount  = round(($product->price - $unitPrice) * $qty, 2);
+
+            // Sale TAX
+            $rateText = trim($product->pos_sale_tax);
+            $saleTax  = 0;
+
+            if (str_ends_with($rateText, '%')) {
+                $rate    = floatval(str_replace('%', '', $rateText));
+                $saleTax = round($lineTotal * ($rate / 100), 2);
+            } else {
+                $ratePerUnit = floatval($rateText) ?: 0;
+                $saleTax     = round($ratePerUnit * $qty, 2);
+            }
+
+            // Customer Tax
+            $customerTax = 0;
+
+            if ($customer->customer_tax_type === 'retailer') {
+                $customerTax = round($lineTotal * 0.005, 2);
+            } elseif ($customer->customer_tax_type === 'distributor') {
+                $customerTax = round($lineTotal * 0.01, 2);
+            }
+
+            $finalTotal = round($lineTotal + $saleTax + $customerTax, 2);
+
+            $totalAmountOrder += $finalTotal;
+            $totalTaxOrder    += $saleTax;
+            $totalCustomerTaxOrder += $customerTax;
+
+            $orderProduct = $order->products()->create([
+                'quantity'         => $cart->quantity,
+                'price'            => $unitPrice,
+                'purchase_price'   => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
+                'sub_total'        => $subTotal,
+                'discount'         => $discount,
+                'tax_rate'         => $rateText,
+                'sale_tax'         => $saleTax,
+                'customer_tax'     => $customerTax,
+                'further_tax'      => 0,
+                'total'            => $finalTotal,
+                'product_id'       => $product->id,
+                'purchase_item_id' => $cart->purchase_item_id,
+                'is_accessory'     => false,
+            ]);
+
+            $parentCartToOrderProduct[$cart->id] = $orderProduct->id;
+            $parentCartToQty[$cart->id] = $cart->quantity;
+
+            // Decrement product stock
+            $product->quantity -= $cart->quantity;
+            $product->save();
+
+            // Decrement batch remaining_qty if batch is linked
+            if ($cart->purchase_item_id && $cart->purchaseItem) {
+                $cart->purchaseItem->decrement('remaining_qty', $cart->quantity);
+            }
+        }
+
+        // ── ACCESSORY ITEMS: stock decrement only, no price contribution ──
+        foreach ($accessoryCarts as $cart) {
+            $product = $cart->product;
+
+            // Resolve parent order_product id
+            $parentOrderProductId = $parentCartToOrderProduct[$cart->parent_cart_id] ?? null;
+
+            $parentQty  = $parentCartToQty[$cart->parent_cart_id] ?? 1;
+            $scaledQty  = $cart->quantity * $parentQty; 
+
+            $order->products()->create([
+                'quantity'                  => $scaledQty,
+                'price'                     => 0,
+                'purchase_price'            => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
+                'sub_total'                 => 0,
+                'discount'                  => 0,
+                'tax_rate'                  => 0,
+                'customer_tax'              => 0,
+                'sale_tax'                  => 0,
+                'further_tax'               => 0,
+                'total'                     => 0,
+                'product_id'                => $product->id,
+                'purchase_item_id'          => $cart->purchase_item_id,
+                'is_accessory'              => true,
+                'parent_order_product_id'   => $parentOrderProductId,
+            ]);
+
+            // Decrement accessory stock
+            $product->quantity -= $scaledQty;
+            $product->save();
+
+            if ($cart->purchase_item_id && $cart->purchaseItem) {
+                $cart->purchaseItem->decrement('remaining_qty', $scaledQty);
+            }
+        }
+
+        $total = $totalAmountOrder - $orderDiscount;
+        $due   = $total - ($request->paid ?? 0);
+
+        $order->update([
+            'sub_total' => $totalAmountOrder,
+            'discount'  => $orderDiscount,
+            'total_sale_tax' => round($totalTaxOrder, 2),
+            'total_customer_tax' => round($totalCustomerTaxOrder, 2),
+            'total_further_tax' => 0,
+            'paid'      => $request->paid,
+            'total'     => round($total, 2),
+            'due'       => round($due, 2),
+            'status'    => round($due, 2) <= 0,
+        ]);
+
+        /* ================= FBR ITEMS ================= */
+        $fbrItems = [];
+        $lineTotal = 0;
+        foreach ($carts as $cart) {
+            $product = $cart->product;
+
+
+            $qty = round($cart->quantity, 2);
+            $unitPrice = $cart->price_override ?? $product->discounted_price;
+            $lineTotal = round($unitPrice * $qty, 2);
+
+            $rateText = trim($product->pos_sale_tax); // 18%
+            $taxRate  = (float) str_replace('%', '', $rateText); // 18
+            $salesTax = 0;
+            $valueExTax = $lineTotal; // already ex-tax
+            if (str_ends_with($rateText, '%')) {
+                $rate = floatval(str_replace('%', '', $rateText));
+                $salesTax = round($valueExTax * ($rate / 100), 2);
+            } else {
+                $ratePerUnit = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+                $salesTax = round($ratePerUnit * $qty, 2);
+            }
+
+
+
+            $fbrItems[] = [
+
+                "ItemCode" => $product->sku,
+                "ItemName" => $product->name,
+                "quantity" => $qty,
+                "PCTCode" => $product->PCTCode,
+                "TaxRate" => $taxRate,
+                "SaleValue" => $valueExTax,
+                "TotalAmount" => $lineTotal + $salesTax,
+                "TaxCharged" => $salesTax,
+                "discount" => 0,
+                "InvoiceType" => 1,
+
+            ];
+        }
+
+        $customer = Customer::find($request->customer_id);
+        $business = Business::find($businessId);
+
+        $fbrPayload = [
+            "POSID" => 819045,
+            "USIN" => "USIN-" . $order->business_id . "-" . str_pad($order->invoice_number, 4, '0', STR_PAD_LEFT),
+            "DateTime" => now()->format('Y-m-d'),
+            "buyerNTN" => $customer->ntn_cnic,
+            "buyerCNIC" => $customer->ntn_cnic,
+            "BuyerName" => $customer->name,
+            "BuyerPhoneNumber" => $customer->phone,
+            "items" => $fbrItems,
+            "TotalBillAmount" => $lineTotal + $salesTax,
+            "TotalQuantity" => $qty,
+            "TotalSaleValue" => $valueExTax,
+            "TotalTaxCharged" => $salesTax,
+            "PaymentMode" => 2,
+            "InvoiceType" => 1
+        ];
+
+        if (!FbrTokenService::isIntegrationEnabled()) {
+
+            DB::commit();
+
+            Order::where('id', $order->id)->update([
+                'type' => 'pos_invoice',
+            ]);
+
+            PosCart::where('user_id', auth()->id())->delete();
+
+            return response()->json([
+                'message' => 'Order completed successfully (FBR Not Integrated)',
+                'order'   => $order,
+            ], 200);
+
+        } else {
+
+            $tokens = FbrTokenService::getToken();
+
+            if (is_array($tokens)) {
+                $token = $tokens['pos_token'];
+            } else {
+                $token = $tokens;
+            }
+            $tokenUrlEnd = FbrTokenService::getTokenUrl();
+            $post_api_response = null;
+            try {
+
+                $post_api_response = Http::withOptions([
+                    'timeout' => 620,
+                    'connect_timeout' => 620,
+                    'verify' => false,
+                ])->withHeaders([
+                    'Authorization' => "Bearer $token",
+                    'Content-Type' => 'application/json',
+                    'Accept-Encoding' => 'gzip, deflate, br',
+                    'Accept' => '*/*'
+                ])->withBody(json_encode($fbrPayload), 'application/json')
+                    ->post("https://ims.pral.com.pk/ims/sandbox/api/Live/PostData");
+
+
+            } catch (\Illuminate\Http\Client\ConnectionException $e) {
+                info('Connection Exception: ' . $e->getMessage());
+            }
+
+            $postResponseJson = $post_api_response->json();
+
+            /* ================= FBR API CALL ================= */
+            Log::info('FBR Payload', [
+                'order_id' => $order->id ?? null,
+                'payload'  => $fbrPayload,
+                'post_response_pos' => $postResponseJson['Response'],
+            ]);
+
+            $fbr_invoice_number = data_get($postResponseJson, 'InvoiceNumber');
+
+
+            if ($postResponseJson['Response'] == "Invoice received successfully") {
+                DB::commit(); // save order data in db now 
+
+                Order::where('id', $order->id)->update([
+                    'fbr_invoice_no'    => $fbr_invoice_number,
+                    'api_status'    => $post_api_response->status(),
+                    'api_message'   => 1,
+                    'type' => 'pos_invoice',
+                ]);
+
+                Log::channel('fbr')->info('FBR Payload', [
+                    'order_id' => $order->id ?? null,
+                    'user_id' => $userId,
+                    'business_id' => $businessId,
+                    'payload'  => $fbrPayload,
+                    'post_response_pos' => $postResponseJson['Response'],
+                ]);
+
+                OrderLog::create([
+                    'order_id'       => $order->id,
+                    'user_id'        => $userId,
+                    'business_id'    => $businessId,
+                    'request_payload' => $fbrPayload,
+                    'response'       => $postResponseJson['Response'],
+                    'error_code'     => $postResponseJson['Code'] ?? null,
+                    'error_message'  => $postResponseJson['Response'] ?? null,
+                ]);
+            } else {
+
+
+                Log::channel('fbr')->info('FBR Payload', [
+                    'order_id' => $order->id ?? null,
+                    'user_id' => $userId,
+                    'business_id' => $businessId,
+                    'payload'  => $fbrPayload,
+                    'post_response_pos' => $postResponseJson['Response'],
+                ]);
+
+                OrderLog::create([
+                    'order_id'       => $order->id,
+                    'user_id'        => $userId,
+                    'business_id'    => $businessId,
+                    'request_payload' => $fbrPayload,
+                    'response'       => $postResponseJson['Response'],
+                    'error_code'     => $postResponseJson['Code'] ?? null,
+                    'error_message'  => $postResponseJson['Response'] ?? null,
+                ]);
+
+                DB::rollBack();
+
+                return response()->json([
+                    'error' => $postResponseJson['Response'],
+                    'error_code' => $postResponseJson->Code ?? null,
+                    'error_message' => $postResponseJson['Response'] ?? null,
+                    'fbr_api_response' => $postResponseJson,
+                ]);
+            }
+
+
+            PosCart::where('user_id', auth()->id())->delete();
+
+            return response()->json([
+                'message' => 'Order completed successfully!',
+                'fbr_payload_sent' => $fbrPayload,
+                'fbr_api_response' => $postResponseJson,
+                'order' => $order
+            ], 200);
+        }
+    }
+
+
+    public function storeDigital(Request $request)
+    {
+        $request->validate([
+            'customer_id' => ['required', 'exists:customers,id', 'integer'],
+            'order_discount' => ['nullable', 'numeric', 'min:0'],
+            'paid' => ['nullable', 'numeric', 'min:0'],
+            'orderDate'      => ['required', 'date', 'date_format:Y-m-d'],
+        ]);
+        $userId = auth()->id();
+        $businessId = session('business_id');
+
+        if (!$businessId) {
+            return response()->json(['error' => 'No business selected'], 422);
+        }
+
+        $customer = Customer::find($request->customer_id);
+
+
+        $carts = PosCart::with(['product', 'purchaseItem'])
+            ->where('user_id', auth()->id())
+            ->lockForUpdate()
+            ->get();
+
+        if ($carts->isEmpty()) {
+            return response()->json(['error' => 'Cart is empty'], 422);
+        }
+
+        /* ================= DUPLICATE CHECK ================= */
+        if ($request->check_duplicate) {
+
+            $cartProductIds = $carts->pluck('product.id')->toArray();
+
+            $duplicateOrder = Order::where('customer_id', $request->customer_id)
+                ->where('business_id', $businessId)
+                ->whereHas('products', function ($q) use ($cartProductIds) {
+                    $q->whereIn('product_id', $cartProductIds);
+                })
+                ->first();
+
+            if ($duplicateOrder) {
+                return response()->json([
+                    'duplicate' => true,
+                    'message' => 'Same order already exists. Do you want to create it again?',
+                ]);
+            }
+
+            return response()->json(['duplicate' => false]);
+        }
+
+        /* ================= ORDER TRANSACTION ================= */
+        DB::beginTransaction();
+
+        $counter = BusinessCounter::lockForUpdate()
+            ->firstOrCreate(
+                ['business_id' => $businessId],
+                ['last_invoice_number' => 0]
+            );
+
+        $counter->increment('last_invoice_number');
+
+        $invoiceNumber = $counter->last_invoice_number;
+
+        $order = Order::create([
+            'customer_id' => $request->customer_id,
+            'user_id'     => $userId,
+            'business_id' => $businessId,
+            'invoice_number' => $invoiceNumber,
+            'note' => $request->note ?? null,
+            'order_date' => $request->orderDate
+        ]);
+
+        $totalAmountOrder = 0;
         $totalSaleTax = 0;
+        $totalCustomerTaxOrder = 0;
         $totalFurtherTax = 0;
         $orderDiscount = $request->order_discount ?? 0;
 
@@ -666,11 +1081,21 @@ class OrderController extends Controller
                 }
             }
 
-            $finalTotal = round($lineTotal + $salesTax + $furtherTax, 2);
+            // Customer Tax
+            $customerTax = 0;
+
+            if ($customer->customer_tax_type === 'retailer') {
+                $customerTax = round($lineTotal * 0.005, 2);
+            } elseif ($customer->customer_tax_type === 'distributor') {
+                $customerTax = round($lineTotal * 0.01, 2);
+            }
+
+            $finalTotal = round($lineTotal + $salesTax + $furtherTax + $customerTax, 2);
 
             $totalAmountOrder += $finalTotal;
             $totalSaleTax    += $salesTax;
             $totalFurtherTax += $furtherTax;
+            $totalCustomerTaxOrder += $customerTax;
 
             $orderProduct = $order->products()->create([
                 'quantity'         => $cart->quantity,
@@ -680,6 +1105,7 @@ class OrderController extends Controller
                 'discount'         => $discount,
                 'tax_rate'         => $rateText,
                 'sale_tax'         => $salesTax,
+                'customer_tax'     => $customerTax,
                 'further_tax'      => $furtherTax,
                 'total'            => $finalTotal,
                 'product_id'       => $product->id,
@@ -717,6 +1143,7 @@ class OrderController extends Controller
                 'discount'                => 0,
                 'tax_rate'                => 0,
                 'sale_tax'                => 0,
+                'customer_tax'            => 0,
                 'further_tax'             => 0,
                 'total'                   => 0,
                 'product_id'              => $product->id,
@@ -741,6 +1168,7 @@ class OrderController extends Controller
             'sub_total'         => $totalAmountOrder,
             'discount'          => $orderDiscount,
             'total_sale_tax'    => round($totalSaleTax, 2),
+            'total_customer_tax' => round($totalCustomerTaxOrder, 2),
             'total_further_tax' => round($totalFurtherTax, 2),
             'paid'              => $request->paid,
             'total'             => round($total, 2),
@@ -870,7 +1298,7 @@ class OrderController extends Controller
             "invoiceType" => "Sale Invoice",
             // "invoiceDate" => now()->format('Y-m-d'),
             // "invoiceDate" => now()->subDay()->format('Y-m-d'),
-            "invoiceDate" => now('UTC')->format('Y-m-d'),
+            "invoiceDate" => $request ->orderDate,
             "sellerNTNCNIC" => $business->ntn,
             "sellerBusinessName" => $business->business_name,
             "sellerProvince" => strtolower($business->state), // punjab
@@ -1070,6 +1498,68 @@ class OrderController extends Controller
             ], 200);
         }
     }
+
+    public function cancelOrder(Request $request)
+    {
+        $request->validate([
+            'order_id' => ['required', 'exists:orders,id', 'integer'],
+        ]);
+
+        $businessId = session('business_id');
+
+        if (!$businessId) {
+            return response()->json(['error' => 'No business selected'], 422);
+        }
+
+        $order = Order::with('products.product', 'products.purchaseItem')
+            ->where('id', $request->order_id)
+            ->where('business_id', $businessId)
+            ->first();
+
+        if (!$order) {
+            return response()->json(['error' => 'Order not found'], 404);
+        }
+
+        if ($order->is_cancelled) {
+            return response()->json(['error' => 'Order is already cancelled'], 422);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            foreach ($order->products as $op) {
+                $product = $op->product;
+
+                if ($product) {
+                    $product->quantity += $op->quantity;
+                    $product->save();
+                }
+
+                if ($op->purchase_item_id && $op->purchaseItem) {
+                    $op->purchaseItem->increment('remaining_qty', $op->quantity);
+                }
+            }
+
+            $order->update([
+                'is_cancelled' => true,
+                'cancelled_by' => auth()->id(),
+                'cancelled_at' => now(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Order cancelled and stock restored successfully!',
+                'order'   => $order->fresh('products'),
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Order Cancel Error: ' . $e->getMessage());
+            return response()->json(['error' => 'Something went wrong while cancelling the order'], 500);
+        }
+    }
+
     public function show(string $id)
     {
         //

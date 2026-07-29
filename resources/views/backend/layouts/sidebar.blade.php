@@ -57,6 +57,23 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                             <p>Digital Invoice</p>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="{{ route('backend.admin.cart.digitalInvoiceNew') }}"
+                            class="nav-link {{ $route === 'backend.admin.cart.digitalInvoiceNew' ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-cart-plus"></i>
+                            <p>New Digital Invoice</p>
+                        </a>
+                    </li>
+                @endif
+
+                @if ($business_type === 'pral')
+                    <li class="nav-item">
+                        <a href="{{ route('backend.admin.cart.pral') }}"
+                            class="nav-link {{ $route === 'backend.admin.cart.pral' ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-cart-plus"></i>
+                            <p>PRAL Cart</p>
+                        </a>
+                    </li>
                 @endif
 
             @endif
