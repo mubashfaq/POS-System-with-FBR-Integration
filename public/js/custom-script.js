@@ -22,3 +22,34 @@ function previewThumbnail(input) {
         reader.readAsDataURL(input.files[0]);
     }
 }
+
+function showToast(message, type = 'success') {
+
+    const bgClass = {
+        success: 'bg-success',
+        error: 'bg-danger',
+        warning: 'bg-warning'
+    }[type] || 'bg-success';
+
+    const toastHtml = `
+        <div style="position: fixed; top: 1rem; right: 1rem; z-index:9999;"
+             class="toast align-items-center ${bgClass} border-0 text-white"
+             role="alert"
+             data-delay="2000">
+            <div class="toast-body">
+                ${message}
+            </div>
+        </div>`;
+
+    const $toast = $(toastHtml);
+
+    $('body').append($toast);
+
+    const toast = new bootstrap.Toast($toast[0]);
+
+    toast.show();
+
+    $toast.on('hidden.bs.toast', function () {
+        $(this).remove();
+    });
+}

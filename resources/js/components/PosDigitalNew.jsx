@@ -10,7 +10,6 @@ import Swal from "sweetalert2";
 import CartNew from "./CartNew";
 import toast, { Toaster } from "react-hot-toast";
 import CustomerSelect from "./CutomerSelect";
-import ProductCreateDigitalModal from "./ProductCreateDigitalModal";
 
 import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
@@ -75,14 +74,11 @@ export default function PosDigital() {
     const [targetProduct, setTargetProduct] = useState(null);
     const [quantityValidation, setQuantityValidation] = useState(null);
 
-    // ── Product create modal ───────────────────────────────────────────────
-    const [showProductModal, setShowProductModal] = useState(false);
-
     // ── Lovable header fields ──────────────────────────────────────────────
     const today = new Date().toISOString().split("T")[0];
 
     const minDateObj = new Date();
-    minDateObj.setDate(minDateObj.getDate() - 3);
+    minDateObj.setDate(minDateObj.getDate() - 20);
     const minDate = minDateObj.toISOString().split("T")[0];
 
     const [orderDate, setOrderDate] = useState(today);
@@ -270,6 +266,46 @@ export default function PosDigital() {
             .catch((err) => console.error("Price update failed", err));
     };
 
+    const handleQuantityChange = (cartId, newQty) => {
+        // Update local state immediately so UI remains responsive
+        setCarts((prev) =>
+            prev.map((item) =>
+                item.id === cartId ? { ...item, quantity: newQty } : item,
+            ),
+        );
+
+        const qty = parseFloat(newQty);
+        if (isNaN(qty) || qty <= 0) return;
+
+        // Stock validation check if quantityValidation is disabled
+        const item = carts.find((c) => c.id === cartId);
+        if (item) {
+            const isAccessory = !!item.parent_cart_id || !!item.is_accessory;
+            const stockEnforced = quantityValidation === "disabled";
+            if (!isAccessory && stockEnforced && qty > item.product.quantity) {
+                playSound(WarningSound);
+                toast.error(`Only ${item.product.quantity} items available in stock`);
+                // Reset to max stock
+                setCarts((prev) =>
+                    prev.map((item) =>
+                        item.id === cartId ? { ...item, quantity: item.product.quantity } : item,
+                    ),
+                );
+                // Sync max stock with backend
+                axios
+                    .put("/admin/cart/update-quantity", { id: cartId, quantity: item.product.quantity })
+                    .then(() => setCartUpdated((prev) => !prev))
+                    .catch((err) => console.error("Quantity update failed", err));
+                return;
+            }
+        }
+
+        axios
+            .put("/admin/cart/update-quantity", { id: cartId, quantity: qty })
+            .then(() => setCartUpdated((prev) => !prev))
+            .catch((err) => console.error("Quantity update failed", err));
+    };
+
     const handleCartTotals = (
         subTotalCalc,
         saleTaxCalc,
@@ -306,15 +342,16 @@ export default function PosDigital() {
                         toast.error("Insufficient stock or no batches found.");
                         return;
                     }
-                    if (batches.length === 1) {
-                        submitToCart(id, batches[0].id);
-                    } else {
-                        const batchEnabled =
-                            res.data.is_batch_enabled === true ||
-                            res.data.is_batch_enabled === 1;
 
-                        if (!batchEnabled) {
-                            submitToCart(id, batches[batches.length - 1].id);
+                    const batchEnabled =
+                        res.data.is_batch_enabled === true ||
+                        res.data.is_batch_enabled === 1;
+
+                    if (!batchEnabled) {
+                        submitToCart(id, null);
+                    } else {
+                        if (batches.length === 1) {
+                            submitToCart(id, batches[0].id);
                         } else {
                             setTargetProduct(product);
                             setAvailableBatches(batches);
@@ -547,7 +584,6 @@ export default function PosDigital() {
     // Product modal handlers
     // ═══════════════════════════════════════════════════════════════════════
 
-    const handleCreateProduct = () => setShowProductModal(true);
     const handleProductCreated = (newProductId) => {
         getUpdatedProducts();
         addProductToCart(newProductId, customerId);
@@ -619,11 +655,13 @@ export default function PosDigital() {
                     isRegistered={isRegistered}
                     customerTaxType={customerTaxType}
                     onPriceChange={handlePriceChange}
+                    onQuantityChange={handleQuantityChange}
                     onTotalsChange={handleCartTotals}
                     quantityValidation={quantityValidation}
                     products={products}
                     onAddProduct={addProductToCart}
                     customerId={customerId}
+                    onProductCreated={handleProductCreated}
                 />
 
                 {/* ── Notes + Totals (Lovable layout) ─────────────────────── */}
@@ -900,6 +938,14 @@ export default function PosDigital() {
                                     </table>
                                 </div>
                             </div>
+                            {quantityValidation === 'enabled' && (
+                                <div className="px-3 pb-2 mt-n4">
+                                    <small className="text-muted">
+                                        <i className="fas fa-info-circle mr-1"></i>
+                                        Batches with less than 1 quantity available can also be selected.
+                                    </small>
+                                </div>
+                            )}
                             <div className="modal-footer">
                                 <button
                                     type="button"
@@ -913,13 +959,6 @@ export default function PosDigital() {
                     </div>
                 </div>
             )}
-
-            {/* ── Product create modal ───────────────────────────────────── */}
-            <ProductCreateDigitalModal
-                show={showProductModal}
-                onClose={() => setShowProductModal(false)}
-                onCreated={handleProductCreated}
-            />
 
             <Toaster position="top-right" reverseOrder={false} />
         </>

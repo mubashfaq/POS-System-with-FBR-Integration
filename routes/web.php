@@ -194,9 +194,14 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
         Route::put('/cart/delete', [CartController::class, 'delete']);
         Route::put('/cart/empty', [CartController::class, 'empty']);
         Route::put('/order/create', [OrderController::class, 'store'])->middleware('plan.limit:invoice,pos_invoice');
-        Route::put('/pral/order/create', [OrderController::class, 'storePral'])->middleware('plan.limit:invoice,pos_invoice');
+        Route::post('/pos-orders/{orderId}/submit', [OrderController::class, 'submitPOSOrder'])->name('orders.submit-pos');
+        Route::put('/pral/order/create', [OrderController::class, 'store'])->middleware('plan.limit:invoice,pos_invoice');
+        Route::post('/pral-orders/{orderId}/submit', [OrderController::class, 'submitPRALOrder'])->name('orders.submit-pral');
         Route::put('/order/createDigital', [OrderController::class, 'storeDigital'])->middleware('plan.limit:invoice,digital_invoice');
+        Route::post('/digital-orders/{orderId}/submit', [OrderController::class, 'submitDigitalOrder'])->name('orders.submit-digital');
         Route::get('orders/fbr-status/{id}', [OrderController::class, 'fbrStatus'])->name('orders.fbr-status');
+        Route::post('/orders/{order}/custom-invoice', [OrderController::class, 'updateCustomInvoice'])
+            ->name('orders.custom-invoice');
 
         Route::get('/get/customers',[CustomerController::class,'getCustomers']);
         Route::post('/create/customers', [CustomerController::class, 'store']);

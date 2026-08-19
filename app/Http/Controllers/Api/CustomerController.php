@@ -71,7 +71,6 @@ class CustomerController extends Controller
             'ntn_cnic' => [
                 'required',
                 'string',
-                'regex:/^[0-9]+$/', // only digits allowed
                 Rule::unique('customers')->where(function ($query) use ($business) {
                     return $query->where('business_id', $business->id);
                 }),
@@ -162,7 +161,7 @@ class CustomerController extends Controller
                     return $query->where('business_id', $business->id);
                 })->ignore($customer->id),
             ],
-            'ntn_cnic' => 'required|string|regex:/^[0-9]+$/',
+            'ntn_cnic' => 'required|string',
             'province' => 'required|string|max:255',
             'address' => 'required|string|max:255',
             'is_registered' => 'required|string|max:255',

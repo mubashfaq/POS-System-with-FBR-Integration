@@ -528,7 +528,8 @@ public function digitalInvoice(Request $request)
                         'purchase_id' => $batch->purchase_id, // original purchase_id
                         'purchase_price' => $batch->purchase_price,
                         'price' => $batch->price,
-                        'remaining_qty' => $batch->remaining_qty > 0 ? $batch->remaining_qty : 1, // display fix
+                        // 'remaining_qty' => $batch->remaining_qty > 0 ? $batch->remaining_qty : 1,
+                        'remaining_qty' => $batch->remaining_qty,
                         'quantity' => $batch->quantity > 0 ? $batch->quantity : 1,
                         'purchase_date' => $batch->purchase 
                             ? \Carbon\Carbon::parse($batch->purchase->date)->format('Y-m-d') 
@@ -536,22 +537,6 @@ public function digitalInvoice(Request $request)
                         'created_at' => $batch->created_at,
                     ];
                 });
-
-                // Dummy batch only if no PurchaseItem exists at all
-                if ($batches->isEmpty()) {
-                    $batches = collect([
-                        [
-                            'id' => null,
-                            'purchase_id' => null, // no purchase exists
-                            'purchase_price' => 0,
-                            'price' => $product->default_sell_price ?? 0,
-                            'remaining_qty' => 1,
-                            'quantity' => 1,
-                            'purchase_date' => now()->format('Y-m-d'),
-                            'created_at' => now(),
-                        ]
-                    ]);
-                }
     
         }
         return response()->json([

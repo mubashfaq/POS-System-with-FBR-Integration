@@ -3,6 +3,57 @@
 @section('title', 'Sale')
 
 @section('content')
+<style>
+    .btn-expand {
+        display: inline-flex;
+        align-items: center;
+        height: 31px;
+        padding: 0 8px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        font-size: 0.8rem;
+        overflow: hidden;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: all 0.25s ease;
+    }
+
+    .btn-expand i {
+        flex-shrink: 0;
+        width: 14px;
+        text-align: center;
+    }
+
+    .btn-expand span {
+        max-width: 0;
+        opacity: 0;
+        margin-left: 0;
+        overflow: hidden;
+        transition: max-width 0.25s ease, opacity 0.2s ease, margin-left 0.25s ease;
+        white-space: nowrap;
+    }
+
+    .btn-expand:hover span {
+        max-width: 160px;
+        opacity: 1;
+        margin-left: 6px;
+    }
+
+    /* Colors — Bootstrap jaisi hi rakhi hain */
+    .btn-expand.btn-primary        { background: #0d6efd; color: #fff; }
+    .btn-expand.btn-danger         { background: #dc3545; color: #fff; }
+    .btn-expand.btn-outline-success   { border-color: #198754; color: #198754; }
+    .btn-expand.btn-outline-secondary { border-color: #6c757d; color: #6c757d; }
+    .btn-expand.btn-outline-warning   { border-color: #ffc107; color: #997404; }
+    .btn-expand.btn-outline-primary   { border-color: #0d6efd; color: #0d6efd; }
+    .btn-expand.btn-outline-danger    { border-color: #dc3545; color: #dc3545; }
+
+    .btn-expand.btn-outline-success:hover   { background: #198754; color: #fff; }
+    .btn-expand.btn-outline-secondary:hover { background: #6c757d; color: #fff; }
+    .btn-expand.btn-outline-warning:hover   { background: #ffc107; color: #000; }
+    .btn-expand.btn-outline-primary:hover   { background: #0d6efd; color: #fff; }
+    .btn-expand.btn-outline-danger:hover    { background: #dc3545; color: #fff; }
+</style>
 <div class="card">
   <div class="mt-n5 mb-3 d-flex justify-content-end align-items-center">
 
@@ -46,7 +97,9 @@
                 <th>Type</th>
                 <th>Date</th>
                 <th>Status</th>
+                @if ($fbr)
                 <th>FBR Status</th>
+                @endif
                 <th data-orderable="false">Action</th>
               </tr>
             </thead>
@@ -128,12 +181,14 @@
                 { data: 'type',        name: 'type' },
                 { data: 'date',        name: 'date' },
                 { data: 'status',      name: 'status' },
-                {
-                    data: 'fbr_status',
-                    name: 'fbr_status',
-                    orderable: false,
-                    searchable: false
-                },
+                @if ($fbr)
+                    {
+                        data: 'fbr_status',
+                        name: 'fbr_status',
+                        orderable: false,
+                        searchable: false
+                    },
+                @endif
                 { data: 'action',      name: 'action' }
             ]
         });
@@ -158,6 +213,52 @@
         table.on('draw', function () {
             $('#select-all').prop('checked', false).prop('indeterminate', false);
             updateDownloadButton();
+        });
+
+        $(document).on('click', '.btn-send-fbr', function () {
+            const btn = $(this);
+            const url = btn.data('url');
+
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Sending...');
+
+            $.ajax({
+                url: url,
+                method: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}'   // yahan add karo
+                },
+                success: function (res) {
+                    showToast(res.message || 'Order submitted to FBR', 'success');
+                    table.ajax.reload(null, false);
+                },
+                error: function (xhr) {
+                    const err = xhr.responseJSON;
+                    let message = 'Submission failed';
+
+                    if (err) {
+                        if (err.error_message) {
+                            // validation-failed case (statusCode != "00")
+                            message = err.error_message;
+                        } else if (err.body) {
+                            // HTTP-fault case (401, 500 from FBR gateway)
+                            let body = err.body;
+                            if (typeof body === 'string') {
+                                try { body = JSON.parse(body); } catch (e) {}
+                            }
+                            message = body?.fault?.message
+                                || body?.fault?.description
+                                || body?.Response   // POS-style error
+                                || err.error
+                                || message;
+                        } else if (err.error) {
+                            message = err.error;
+                        }
+                    }
+
+                    showToast(message, 'error');
+                    btn.prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Send to FBR');
+                }
+            });
         });
 
         // --- Download Button ---
@@ -231,19 +332,19 @@
             }
 
             $.ajax({
-                url: '/admin/orders/cancel', // match your route
+                url: '/admin/orders/cancel',
                 method: 'POST',
                 data: {
                     order_id: orderId,
                     _token: '{{ csrf_token() }}'
                 },
                 success: function (res) {
-                    alert(res.message || 'Order cancelled successfully!');
-                    $('#your-orders-table').DataTable().ajax.reload(null, false); // reload table, keep pagination
+                    showToast(res.message || 'Order cancelled successfully!', 'succcess');
+                    table.ajax.reload(null, false); // ✅ 'table' variable already defined globally upar
                 },
                 error: function (xhr) {
                     const msg = xhr.responseJSON?.error || 'Something went wrong.';
-                    alert(msg);
+                    showToast(msg, 'error');
                 }
             });
         });

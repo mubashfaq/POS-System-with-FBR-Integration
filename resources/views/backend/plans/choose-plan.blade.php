@@ -162,14 +162,10 @@
                             <ul class="list-unstyled price-features mt-4">
                                 @php $combined = $plan->combinedInvoiceLimit(); @endphp
                                 <li>✔  {{ $combined === -1 ? 'Unlimited' : $combined }}  Invoices</li>
-                                {{-- <li>✔ POS Billing</li> --}}
-                                {{-- <li>✔ Basic Reports</li> --}}
                                 <li>
                                     ✔ {{ $plan->limitLabel('max_users') }}
                                     User{{ $plan->max_users !== 1 ? 's' : '' }}
                                 </li>
-                                {{-- <li>✔ Email Support</li> --}}
-
                                 {{-- @foreach($plan->features as $label)
                                 <li>
                                     ✔ <span>{{ $label }}</span>

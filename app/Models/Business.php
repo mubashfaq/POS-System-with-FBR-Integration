@@ -45,4 +45,9 @@ class Business extends Model
     {
         return $this->subscription?->plan;
     }
+
+    public function invoiceSetting()
+    {
+        return $this->hasOne(InvoiceSetting::class, 'business_id');
+    }
 }

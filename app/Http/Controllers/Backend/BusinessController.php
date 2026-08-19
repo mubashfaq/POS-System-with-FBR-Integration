@@ -57,13 +57,13 @@ class BusinessController extends Controller
         $validated = $request->validate([
             'business_name' => 'required|string|max:255',
             'industry' => 'required|string|max:255',
-            'ntn' => 'nullable|string|max:255',
+            'ntn' => ['nullable', 'string', 'regex:/^(?:[A-Za-z0-9]{7}|[A-Za-z0-9]{13})$/'],
             'business_type' => 'required|in:pos,digital,pral,both',
             'country' => 'required|string|max:255',
             'city' => 'required|string|max:255',
             'email'           => 'nullable|email|max:255',
             'phone'           => 'nullable|string|max:50',
-            'cnic'           => 'required|string|max:50',
+            'cnic' => ['required', 'string', 'regex:/^(?:[A-Za-z0-9]{7}|[A-Za-z0-9]{13})$/'],
             'state'           => 'required|string|max:50',
             'logo'            => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'currency'        => 'nullable|string|max:10',
@@ -73,56 +73,59 @@ class BusinessController extends Controller
             'instagram_link'  => 'nullable|url|max:255',
             'enable_batch'    => 'nullable|boolean',
             'address'         => 'required|string',
+        ],  [
+            'ntn.regex' => 'NTN must contain exactly 7 or 13 characters.',
+            'cnic.regex' => 'NTN must contain exactly 7 or 13 characters.',
         ]);
-    // File Upload
-    if ($request->hasFile('logo')) {
-        $logoPath = $request->file('logo')->store('logos', 'public');
-        $validated['logo'] = $logoPath; // yaha sahi path add kar rahe ho
-    } else {
-        // Assign default logo
-        $validated['logo'] = 'logos/default-business.png';
-    }
-
-    // Ab $validated use karo instead of $request->all()
-    $validated['enable_batch'] = $request->boolean('enable_batch');
-    DB::beginTransaction();
-
-    try {
-
-        $business = Business::create($validated);
-
-        DB::table('quantity_validations')->insert([
-            'business_id' => $business->id,
-        ]);
-
-        DB::table('fbr_tokens')->insert([
-            'business_id' => $business->id,
-        ]);
-
-        // Attach business to user
-        Auth::user()->businesses()->attach($business->id);
-
-            // ✅ Create UserBusiness record
-        $userBusiness = \App\Models\UserBusiness::where('user_id', Auth::id())
-            ->where('business_id', $business->id)
-            ->first();
-
-        if ($userBusiness) {
-            $userBusiness->assignRole(1);
+        // File Upload
+        if ($request->hasFile('logo')) {
+            $logoPath = $request->file('logo')->store('logos', 'public');
+            $validated['logo'] = $logoPath; // yaha sahi path add kar rahe ho
+        } else {
+            // Assign default logo
+            $validated['logo'] = 'logos/default-business.png';
         }
 
-        // Store selected business in session
-        session(['business_id' => $business->id]);
+        // Ab $validated use karo instead of $request->all()
+        $validated['enable_batch'] = $request->boolean('enable_batch');
+        DB::beginTransaction();
 
-        DB::commit();
+        try {
 
-    } catch (\Exception $e) {
-        DB::rollBack();
-        throw $e;
-    }
+            $business = Business::create($validated);
 
-    return redirect()->route('backend.admin.dashboard')
-        ->with('success', 'Business created successfully');
+            DB::table('quantity_validations')->insert([
+                'business_id' => $business->id,
+            ]);
+
+            DB::table('fbr_tokens')->insert([
+                'business_id' => $business->id,
+            ]);
+
+            // Attach business to user
+            Auth::user()->businesses()->attach($business->id);
+
+                // ✅ Create UserBusiness record
+            $userBusiness = \App\Models\UserBusiness::where('user_id', Auth::id())
+                ->where('business_id', $business->id)
+                ->first();
+
+            if ($userBusiness) {
+                $userBusiness->assignRole(1);
+            }
+
+            // Store selected business in session
+            session(['business_id' => $business->id]);
+
+            DB::commit();
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+
+        return redirect()->route('backend.admin.dashboard')
+            ->with('success', 'Business created successfully');
     }
 
     /**
@@ -205,55 +208,54 @@ class BusinessController extends Controller
      */
     public function update(Request $request, string $id)
     {
-    // abort_if(!auth()->user()->can('business_update'), 403);
 
-    $validated = $request->validate([
-        'business_name' => 'required|string|max:255',
-        'industry'      => 'nullable|string|max:255',
-        'ntn'           => 'nullable|string|max:50',
-        'country'       => 'nullable|string|max:100',
-        'city'          => 'nullable|string|max:100',
-        'email'           => 'nullable|email|max:255',
-        'phone'           => 'nullable|string|max:50',
-        'logo'            => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-        'currency'        => 'nullable|string|max:10',
-        'facebook_link'   => 'nullable|url|max:255',
-        'whatsapp_link'   => 'nullable|url|max:255',
-        'youtube_link'    => 'nullable|url|max:255',
-        'instagram_link'  => 'nullable|url|max:255',
-        'address' => 'nullable',
-        'enable_batch'    => 'nullable|boolean',
-    ]);
+        $validated = $request->validate([
+            'business_name' => 'required|string|max:255',
+            'industry'      => 'nullable|string|max:255',
+            'ntn' => ['nullable', 'string', 'regex:/^(?:[A-Za-z0-9]{7}|[A-Za-z0-9]{13})$/'],
+            'country'       => 'nullable|string|max:100',
+            'city'          => 'nullable|string|max:100',
+            'email'           => 'nullable|email|max:255',
+            'phone'           => 'nullable|string|max:50',
+            'logo'            => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'currency'        => 'nullable|string|max:10',
+            'facebook_link'   => 'nullable|url|max:255',
+            'whatsapp_link'   => 'nullable|url|max:255',
+            'youtube_link'    => 'nullable|url|max:255',
+            'instagram_link'  => 'nullable|url|max:255',
+            'address' => 'nullable',
+            'enable_batch'    => 'nullable|boolean',
+        ],  [
+            'ntn.regex' => 'NTN must contain exactly 7 or 13 characters.',
+        ]);
 
-    $business = Business::findOrFail($id);
-    
-    if ($request->hasFile('logo')) {
-    // Delete old logo if exists
-    if ($business->logo && Storage::disk('public')->exists($business->logo)) {
-        Storage::disk('public')->delete($business->logo);
-    }
+        $business = Business::findOrFail($id);
         
-        $logoPath = $request->file('logo')->store('logos', 'public');
-        $validated['logo'] = $logoPath;
-    } else {
-        // Keep the existing logo if no new file is uploaded
-        $validated['logo'] = $business->logo;
-    }
+        if ($request->hasFile('logo')) {
+        // Delete old logo if exists
+        if ($business->logo && Storage::disk('public')->exists($business->logo)) {
+            Storage::disk('public')->delete($business->logo);
+        }
+            
+            $logoPath = $request->file('logo')->store('logos', 'public');
+            $validated['logo'] = $logoPath;
+        } else {
+            // Keep the existing logo if no new file is uploaded
+            $validated['logo'] = $business->logo;
+        }
 
-    $validated['enable_batch'] = $request->boolean('enable_batch');
-    $business->update($validated);
+        $validated['enable_batch'] = $request->boolean('enable_batch');
+        $business->update($validated);
 
 
-        // ✅ Update session if this business is currently selected
-    if (session('business_id') == $business->id) {
-        session(['business_id' => $business->id]);
-        session(['business_name' => $business->business_name]);
-    }
+            // ✅ Update session if this business is currently selected
+        if (session('business_id') == $business->id) {
+            session(['business_id' => $business->id]);
+            session(['business_name' => $business->business_name]);
+        }
 
-    return redirect()->route('backend.admin.business.edit', $id)
-    ->with('success', 'Business updated successfully!');
-    // return redirect()->route('backend.admin.business.index')
-    //     ->with('success', 'Business updated successfully!');
+        return redirect()->route('backend.admin.business.edit', $id)
+        ->with('success', 'Business updated successfully!');
     }
 
     /**

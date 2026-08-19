@@ -214,7 +214,8 @@
                         <p class="text-muted">Billed Monthly</p>
 
                         <ul class="list-unstyled price-features mt-4">
-                            <li>✔ {{ $plan->limitLabel('max_invoices') }} Invoices</li>
+                            @php $combined = $plan->combinedInvoiceLimit(); @endphp
+                            <li>✔  {{ $combined === -1 ? 'Unlimited' : $combined }}  Invoices</li
                             {{-- <li>✔ POS Billing</li> --}}
                             {{-- <li>✔ Basic Reports</li> --}}
                             <li>
