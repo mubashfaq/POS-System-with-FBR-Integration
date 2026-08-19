@@ -77,7 +77,6 @@ class AuthController extends Controller
                 'name' => 'required',
                 'email' => 'email|required|unique:users',
                 'password' => 'required|confirmed|min:6',
-                'is_mobile' => 'nullable|boolean'
             ]);
 
             $newUser = User::create([
@@ -85,7 +84,6 @@ class AuthController extends Controller
                 'email' => $request->email,
                 'password' => bcrypt($request->password),
                 'username' => uniqid(),
-                'is_mobile' => $request->is_mobile ?? 0
             ]);
             
         if ($newUser) {
@@ -253,7 +251,6 @@ class AuthController extends Controller
     public function update(Request $request)
     {
         $user = User::find(auth()->id());
-        // dd($request->all());
         $request->validate([
             'name' => 'required',
             'email' => 'required|email|unique:users,email,' . $user->id,
@@ -273,7 +270,7 @@ class AuthController extends Controller
         if ($request->hasFile("profile_image")) {
             $user->profile_image = $this->fileHandler->fileUploadAndGetPath($request->file("profile_image"), "/public/media/users");
         }
-        if ($request->is_mobile) {
+        if ($user->hasRole('super_admin')) {
             $user->is_mobile = $request->is_mobile;
         }
 

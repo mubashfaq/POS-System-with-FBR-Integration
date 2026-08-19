@@ -32,7 +32,6 @@ class WebsiteSettingController extends Controller
             ->where('business_id', $businessId)
             ->latest('id')
             ->first();
-            // dd($fbrToken);
 
             $status = quantity_validation::select('product_quantity_validation')
             ->where('business_id', $businessId)
@@ -136,15 +135,6 @@ class WebsiteSettingController extends Controller
         return to_route('backend.admin.settings.website.general', ['active-tab' => 'website-status'])
             ->with('success', 'Updated successfully');
     }
-    // public function websiteInvoiceUpdate(Request $request)
-    // {
-    //     foreach ($request->except('_token') as $key => $value) {
-    //         writeConfig($key, $value);
-    //     }
-    //     Artisan::call('config:clear');
-    //     return to_route('backend.admin.settings.website.general', ['active-tab' => 'invoice-settings'])
-    //         ->with('success', 'Updated successfully');
-    // }
 
     public function websiteInvoiceUpdate(Request $request)
     {
@@ -162,6 +152,9 @@ class WebsiteSettingController extends Controller
         $invoiceSetting->email = $request->is_show_email_invoice ?? 0;
         $invoiceSetting->address = $request->is_show_address_invoice ?? 0;
         $invoiceSetting->customer = $request->is_show_customer_invoice ?? 0;
+        $invoiceSetting->invoice_number = $request->is_show_invoice_number_invoice ?? 0;
+        $invoiceSetting->imc_logo = $request->is_show_imc_logo_invoice ?? 0;
+        $invoiceSetting->thanks_for_shopping = $request->is_show_thanks_for_shopping_invoice ?? 0;
         $invoiceSetting->note_to_customer = $request->note_to_customer ?? 0;
         $invoiceSetting->note_msg = $request->note_msg ?? null;
         $invoiceSetting->post_invoice_width = $request->receiptMaxwidth;
@@ -185,13 +178,15 @@ class WebsiteSettingController extends Controller
         DB::table('fbr_tokens')->updateOrInsert(
             ['business_id' => $businessId], // condition to match existing record
             [
+                'fbr_integration' => $request->fbr_integration ?? 'disabled',
                 'pos_sandbox_token'        => $request->pos_sandbox_token ?? null,
                 'pos_production_token'     => $request->pos_production_token ?? null,
                 'digital_sandbox_token'    => $request->digital_sandbox_token ?? null,
                 'digital_production_token' => $request->digital_production_token ?? null,
+                'pral_sandbox_token'    => $request->pral_sandbox_token ?? null,
+                'pral_production_token' => $request->pral_production_token ?? null,
                 'environment'              => $request->environment ?? 0, // 0=sandbox, 1=production
                 'updated_at'               => now(),
-                'created_at'               => now(), // ignored if record exists
             ]
         );
 

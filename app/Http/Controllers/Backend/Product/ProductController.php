@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Backend\Product;
 use App\Exports\DemoProductsExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreProductRequest;
-use App\Http\Requests\ImportStockRequest;
 use App\Http\Requests\UpdateProductRequest;
 use App\Http\Resources\ProductResource;
 use App\Imports\ProductsImport;
@@ -19,10 +18,10 @@ use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\SaleType;
 use App\Models\SroItemCode;
-use App\Models\Unit;
 use App\Models\Uom;
 use App\Trait\FileHandler;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
@@ -214,7 +213,7 @@ class ProductController extends Controller
                     'status'         => 1,
                 ]);
 
-                PurchaseItem::create([
+                $purchaseItem = PurchaseItem::create([
                     'purchase_id'    => $purchase->id,
                     'product_id'     => $product->id,
                     'purchase_price' => $validated['purchase_price'],
@@ -222,6 +221,8 @@ class ProductController extends Controller
                     'quantity'       => $openingQty,
                     'remaining_qty'  => $openingQty,
                 ]);
+
+                \App\Services\StockReconciliationService::reconcileNewBatch($purchaseItem);
 
                 $product->increment('quantity', $openingQty);
 
@@ -896,14 +897,24 @@ class ProductController extends Controller
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_create'), 403);
 
         $businessId = session('business_id');
-        $business_type = Business::where('id', $businessId)->value('business_type');
+        $business_type = $currentBusiness->business->business_type
+            ?? Business::where('id', $businessId)->value('business_type');
 
-        $hsCodes = hsCode::all();
-        $units = Uom::all();
-        $saleTypes = SaleType::all();
-        $sroItems = SroItemCode::all();
+        $units = Cache::remember('form_data.units', now()->addHours(6), function () {
+            return Uom::select('id', 'description')->get();
+        });
+    
+        $hsCodes = Cache::remember('form_data.hs_codes', now()->addHours(6), function () {
+            return HsCode::select('id', 'hs_code')->get();
+        });
+    
+        $saleTypes = Cache::remember('form_data.sale_types', now()->addHours(6), function () {
+            return SaleType::select('id', 'transactioN_DESC')->get();
+        });
 
-        return response()->json(compact('units', 'hsCodes', 'saleTypes', 'sroItems', 'business_type'));
+        $fbrIntegration = FbrTokenService::isIntegrationEnabled();
+
+        return response()->json(compact('units', 'hsCodes', 'saleTypes', 'business_type', 'fbrIntegration'));
     }
 
     public function storeAjax(StoreProductRequest $request)
@@ -959,7 +970,7 @@ class ProductController extends Controller
                     'status'         => 1,
                 ]);
 
-                PurchaseItem::create([
+                $purchaseItem = PurchaseItem::create([
                     'purchase_id'    => $purchase->id,
                     'product_id'     => $product->id,
                     'purchase_price' => $validated['purchase_price'],
@@ -967,6 +978,8 @@ class ProductController extends Controller
                     'quantity'       => $openingQty,
                     'remaining_qty'  => $openingQty,
                 ]);
+
+                \App\Services\StockReconciliationService::reconcileNewBatch($purchaseItem);
 
                 // Now increment product stock
                 $product->increment('quantity', $openingQty);

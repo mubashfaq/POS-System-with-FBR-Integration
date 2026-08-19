@@ -32,7 +32,7 @@ class FbrTokenService
     {
         $settings = self::getSettings();
 
-        if (!$settings) {
+        if (!$settings || $settings->fbr_integration !== 'enabled') {
             return null;
         }
 
@@ -70,7 +70,7 @@ class FbrTokenService
     {
         $settings = self::getSettings();
 
-        if (!$settings) {
+        if (!$settings || $settings->fbr_integration !== 'enabled') {
             return null;
         }
 

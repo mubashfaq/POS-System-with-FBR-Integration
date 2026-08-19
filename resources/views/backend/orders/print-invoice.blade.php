@@ -1,7 +1,34 @@
 @extends('backend.master')
-@section('title', 'INV-' . $order->business_id . '-' . str_pad($order->invoice_number, 4, '0', STR_PAD_LEFT))
+@section('title', $order->display_invoice_number)
 @section('content')
 <div class="card">
+    @if(($invoiceSettings?->invoice_number ?? 0) == 1)
+        <div class="mt-n5 mb-3 d-flex justify-content-end align-items-center">
+            <form id="customInvoiceForm" class="d-flex align-items-center">
+                @csrf
+                <input type="hidden" id="order_id" value="{{ $order->id }}">
+
+                <div class="input-group input-group-sm" style="width: 340px;">
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="custom_invoice_number"
+                        name="custom_invoice_number"
+                        placeholder="Custom Invoice Number"
+                        value="{{ $order->custom_invoice_number }}"
+                    >
+
+                    <div class="input-group-append">
+                        <button type="submit" class="btn action-button">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                    </div>
+                </div>
+
+                <small id="invoice-message" class="text-success ml-2"></small>
+            </form>
+        </div>
+    @endif
     <div class="card-body">
         <!-- Main content -->
         <section class="invoice">
@@ -64,12 +91,9 @@
                     Info <br>
                     Sale ID #{{$order->id}}<br>
                     Sale Date: {{date('d/m/Y', strtotime($order->created_at))}}<br>
-                    @if (($fbrIntegration ?? null) == 'enabled')
-                    FBR Invoice: <div>{{ $order->fbr_invoice_no }}</div>
+                    @if (($fbrIntegration ?? null) == 'enabled' && $order->order_stage == 'submitted')
+                        FBR Invoice: <div>{{ $order->fbr_invoice_no }}</div>
                     @endif
-                    <!-- <br>
-          <b>Payment Due:</b> 2/22/2014<br>
-          <b>Account:</b> 968-34567 -->
                 </div>
                 <!-- /.col -->
             </div>
@@ -83,7 +107,6 @@
                             <tr>
                                 <th>SN</th>
                                 <th>Product</th>
-                                <!--<th>Description</th>-->
                                 @if ($order->type !== 'pos_invoice') 
                                 <th>HS Code</th>
                                 <th>UOM</th>
@@ -107,7 +130,6 @@
                             <tr>
                                 <td>{{$loop->index + 1}}</td>
                                 <td>{{$item->product->name}}</td>
-                                <!--<td>{{$item->product->hs_description}}</td>-->
                                 @if ($order->type !== 'pos_invoice') 
                                 <td>{{$item->product->hsCode}}</td>
                                 <td>{{$item->product->uom}}</td>
@@ -173,7 +195,6 @@
 
                 <!-- /.col -->
                 <div class="col-6">
-                    <!-- <p class="lead">Amount Due 2/22/2014</p> -->
 
                     <div class="table-responsive">
                         <table class="table">
@@ -228,15 +249,15 @@
             <div class="row">
                 <!-- accepted payments column -->
                 <div class="col-6">
-                    <!-- <p class="lead">Payment:Cash Paid</p> -->
-                    <!-- <small class="lead text-small text-bold">Payment:Cash Paid</small> -->
-                    <p class="text-muted well well-sm shadow-none" style="margin-top: 10px;">
-                        @if(readConfig('is_show_note_invoice')){{ readConfig('note_to_customer_invoice') }}@endif
-                    </p>
+                    @if(!empty($invoiceSettings->thanks_for_shopping) && $invoiceSettings->thanks_for_shopping == 1)
+                        <p class="text-muted well well-sm shadow-none" style="margin-top: 10px;">
+                            @if(readConfig('is_show_note_invoice')){{ readConfig('note_to_customer_invoice') }}@endif
+                        </p>
+                    @endif
                 </div>
             </div>
             <div class="row">
-                @if (($fbrIntegration ?? null) == 'enabled')
+                @if (($fbrIntegration ?? null) == 'enabled' && $order->order_stage == 'submitted')
 
                     <div class="col-md-1 mt-2">
                         <!-- <h3>FBR Dig</h3> -->
@@ -259,12 +280,14 @@
                     <div class="col-md-2"></div>
                 @endif
               <div class="col-md-8"></div>
-
-              <div class="col-md-2">
-                 <div class="img">
-                      <img src="{{ asset('assets/images/imc.jpeg') }}" style="width: 100%;" alt="">
-                  </div>
-              </div>
+              
+                @if(!empty($invoiceSettings->imc_logo) && $invoiceSettings->imc_logo == 1)
+                    <div class="col-md-2">
+                        <div class="img">
+                            <img src="{{ asset('assets/images/imc.jpeg') }}" style="width: 100%;" alt="">
+                        </div>
+                    </div>
+                @endif
 
             </div>
             <div class="row no-print">
@@ -292,12 +315,51 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
-window.addEventListener("load", window.print());
+    $(function () {
 
-new QRCode(document.getElementById("qrcode"), {
-    text: "{{ $order->fbr_invoice_no }}",
-    width: 60,
-    height: 60
-});
+        $('#customInvoiceForm').on('submit', function (e) {
+            e.preventDefault();
+
+            let btn = $(this).find('button[type="submit"]');
+
+            btn.prop('disabled', true);
+
+            $.ajax({
+                url: "{{ route('backend.admin.orders.custom-invoice', $order->id) }}",
+                type: "POST",
+                data: {
+                    _token: "{{ csrf_token() }}",
+                    custom_invoice_number: $('#custom_invoice_number').val()
+                },
+                success: function (response) {
+
+                    showToast(response.message, 'success');
+
+                },
+                error: function (xhr) {
+
+                    if (xhr.status === 422) {
+                        showToast(xhr.responseJSON.errors.custom_invoice_number[0], 'error');
+                    } else {
+                        showToast(xhr.responseJSON?.message ?? 'Something went wrong.', 'error');
+                    }
+
+                },
+                complete: function () {
+                    btn.prop('disabled', false);
+                }
+            });
+        });
+
+    });
+    
+
+    window.addEventListener("load", window.print());
+
+    new QRCode(document.getElementById("qrcode"), {
+        text: "{{ $order->fbr_invoice_no }}",
+        width: 60,
+        height: 60
+    });
 </script>
 @endpush

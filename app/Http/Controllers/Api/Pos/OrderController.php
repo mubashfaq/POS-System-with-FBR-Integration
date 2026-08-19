@@ -21,9 +21,16 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
 use App\Services\FbrTokenService;
+use App\Services\DuplicateOrderService;
 
 class OrderController extends Controller
 {
+    protected $duplicateOrderService;
+
+    public function __construct(DuplicateOrderService $duplicateOrderService)
+    {
+        $this->duplicateOrderService = $duplicateOrderService;
+    }
     /**
      * Display a listing of the resource.
      */
@@ -176,6 +183,9 @@ public function store(Request $request)
     if (!$businessId) {
         return response()->json(['error' => 'No business selected'], 422);
     }
+
+    $qtyVal = \App\Models\quantity_validation::where('business_id', $businessId)->first();
+    $isStockEnforced = $qtyVal && $qtyVal->product_quantity_validation === 'disabled';
     
 
     $customer = Customer::find($request->customer_id);
@@ -212,14 +222,11 @@ public function store(Request $request)
     /* ================= DUPLICATE CHECK ================= */
     if ($request->check_duplicate) {
 
-        $cartProductIds = $carts->pluck('product.id')->toArray();
-
-        $duplicateOrder = Order::where('customer_id', $request->customer_id)
-            ->where('business_id', $businessId)
-            ->whereHas('products', function ($q) use ($cartProductIds) {
-                $q->whereIn('product_id', $cartProductIds);
-            })
-            ->first();
+        $duplicateOrder = $this->duplicateOrderService->findDuplicate(
+            $request->customer_id,
+            $businessId,
+            $carts
+        );
 
         if ($duplicateOrder) {
             return response()->json([
@@ -228,7 +235,9 @@ public function store(Request $request)
             ]);
         }
 
-        return response()->json(['duplicate' => false]);
+        return response()->json([
+            'duplicate' => false,
+        ]);
     }
 
     /* ================= ORDER TRANSACTION ================= */
@@ -312,19 +321,34 @@ public function store(Request $request)
                 ->lockForUpdate()
                 ->get();
         
+            $lastProcessedPi = null;
             foreach ($purchaseItems as $pi) {
                 if ($qtyToConsume <= 0) break;
         
                 $consume = min($pi->remaining_qty, $qtyToConsume);
                 $pi->decrement('remaining_qty', $consume);
                 $qtyToConsume -= $consume;
+                $lastProcessedPi = $pi;
             }
         
             if ($qtyToConsume > 0) {
-                DB::rollBack();
-                return response()->json([
-                    'error' => "Insufficient stock for product: {$product->name}"
-                ], 422);
+                if ($isStockEnforced) {
+                    DB::rollBack();
+                    return response()->json([
+                        'error' => "Insufficient stock for product: {$product->name}"
+                    ], 422);
+                } else {
+                    if ($lastProcessedPi) {
+                        $lastProcessedPi->decrement('remaining_qty', $qtyToConsume);
+                    } else {
+                        $latestBatch = PurchaseItem::where('product_id', $product->id)
+                            ->orderBy('created_at', 'desc')
+                            ->first();
+                        if ($latestBatch) {
+                            $latestBatch->decrement('remaining_qty', $qtyToConsume);
+                        }
+                    }
+                }
             }
         }
 
@@ -521,6 +545,9 @@ public function storeDigital(Request $request)
         return response()->json(['error' => 'No business selected'], 422);
     }
 
+    $qtyVal = \App\Models\quantity_validation::where('business_id', $businessId)->first();
+    $isStockEnforced = $qtyVal && $qtyVal->product_quantity_validation === 'disabled';
+
     $customer = Customer::find($request->customer_id);
 
 
@@ -670,19 +697,34 @@ public function storeDigital(Request $request)
                 ->lockForUpdate()
                 ->get();
         
+            $lastProcessedPi = null;
             foreach ($purchaseItems as $pi) {
                 if ($qtyToConsume <= 0) break;
         
                 $consume = min($pi->remaining_qty, $qtyToConsume);
                 $pi->decrement('remaining_qty', $consume);
                 $qtyToConsume -= $consume;
+                $lastProcessedPi = $pi;
             }
         
             if ($qtyToConsume > 0) {
-                DB::rollBack();
-                return response()->json([
-                    'error' => "Insufficient stock for product: {$product->name}"
-                ], 422);
+                if ($isStockEnforced) {
+                    DB::rollBack();
+                    return response()->json([
+                        'error' => "Insufficient stock for product: {$product->name}"
+                    ], 422);
+                } else {
+                    if ($lastProcessedPi) {
+                        $lastProcessedPi->decrement('remaining_qty', $qtyToConsume);
+                    } else {
+                        $latestBatch = PurchaseItem::where('product_id', $product->id)
+                            ->orderBy('created_at', 'desc')
+                            ->first();
+                        if ($latestBatch) {
+                            $latestBatch->decrement('remaining_qty', $qtyToConsume);
+                        }
+                    }
+                }
             }
         }
 
