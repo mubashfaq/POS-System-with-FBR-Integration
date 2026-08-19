@@ -51,12 +51,14 @@
                             <img class="img-fluid thumbnail-preview" src="{{ nullImg() }}" alt="preview-image">
                         </div>
                     </div>
-                    <div class="col-lg-6">
-                        <div class="form-group">
-                            <label for="is_mobile">Is Mobile User</label>
-                            <input type="checkbox" style="width: 20px;" class="form-control" value="1" id="is_mobile" name="is_mobile">
+                    @if (auth()->user()->hasRole('super_admin'))
+                        <div class="col-lg-6">
+                            <div class="form-group">
+                                <label for="is_mobile">Is Mobile User</label>
+                                <input type="checkbox" style="width: 20px;" class="form-control" value="1" id="is_mobile" name="is_mobile">
+                            </div>
                         </div>
-                    </div>
+                    @endif
                 </div>
                 <button type="submit" class="btn btn-block action-button">Create</button>
             </form>

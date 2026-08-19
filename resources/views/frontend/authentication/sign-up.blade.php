@@ -157,35 +157,8 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- is mobile user -->
-                        <div class="col-sm-6 col-lg-12 col-xl-6">
-                            <div class="form-group">
-                                <div class="form-check">
-                                    <input type="hidden" name="is_mobile" value="0">
-                                    
-                                    <input class="form-check-input"
-                                           type="checkbox"
-                                           id="is_mobile"
-                                           name="is_mobile"
-                                           value="1">
-                                           
-                                    <label class="form-check-label" for="is_mobile">
-                                        Is Mobile User
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- remember me -->
+                        <!-- Terms -->
                         <div class="col-12">
-                            {{-- <div class="single-row mb-2">
-                                <div class="rememberbox">
-                                    <div class="customcheck ">
-                                        <input type="checkbox" id="rememberMe" class="customcheck-box"
-                                            name="remember" hidden>
-                                        <label for="rememberMe" class="customcheck-label">Remember me</label>
-                                    </div>
-                                </div>
-                            </div> --}}
                             <div class="single-row">
                                 <div class="agreebox">
                                     <div class="customcheck ">

@@ -37,6 +37,7 @@ class PurchaseController extends Controller
                 $query->where('business_id', $businessId);
             })
             ->with('supplier')
+            ->orderByDesc('id')
             ->get();
 
 
@@ -135,7 +136,7 @@ class PurchaseController extends Controller
                     // Step 3: Create purchase items
                     foreach ($validatedData['products'] as $product) {
                         $existingProduct = Product::findOrFail($product['id']);
-                        PurchaseItem::create([
+                        $purchaseItem = PurchaseItem::create([
                             'purchase_id' => $purchase->id,
                             'product_id' => $product['id'],
                             'purchase_price' => $product['purchase_price'],
@@ -143,6 +144,8 @@ class PurchaseController extends Controller
                             'quantity' => $product['qty'],
                             'remaining_qty' => $product['qty'],
                         ]);
+
+                        \App\Services\StockReconciliationService::reconcileNewBatch($purchaseItem);
 
                         $existingProduct->increment('quantity', $product['qty']);
                     }
@@ -177,7 +180,7 @@ class PurchaseController extends Controller
                             ? ($oldPurchaseItem->remaining_qty + ($product['qty'] - $oldQuantity))
                             : $product['qty'];
 
-                        PurchaseItem::updateOrCreate(
+                        $purchaseItem = PurchaseItem::updateOrCreate(
                             [
                                 'id' => $product['item_id'] ?? null
                             ],
@@ -190,6 +193,10 @@ class PurchaseController extends Controller
                                 'remaining_qty' => $remainingQty,
                             ]
                         );
+
+                        if (empty($product['item_id'])) {
+                            \App\Services\StockReconciliationService::reconcileNewBatch($purchaseItem);
+                        }
 
                         // Adjust product stock: first add back the old quantity, then subtract the new
                         $existingProduct->decrement('quantity', $oldQuantity);
@@ -475,7 +482,7 @@ class PurchaseController extends Controller
                     $oldStock = $product->quantity ?? 0;
                     
                     // Create purchase item
-                    PurchaseItem::create([
+                    $purchaseItem = PurchaseItem::create([
                         'purchase_id' => $purchase->id,
                         'product_id' => $product->id,
                         'purchase_price' => $item['purchase_price'],
@@ -483,6 +490,8 @@ class PurchaseController extends Controller
                         'quantity' => $item['quantity'],
                         'remaining_qty' => $item['quantity'],
                     ]);
+
+                    \App\Services\StockReconciliationService::reconcileNewBatch($purchaseItem);
                     
                     // Update product stock
                     $product->increment('quantity', $item['quantity']);

@@ -126,7 +126,6 @@ class UserManagementController extends Controller
     {
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('user_create'), 403);
-        // abort_if(!auth()->user()->can('user_create'), 403);
         if ($request->isMethod('post')) {
             $request->validate([
                 'name' => 'required',
@@ -146,8 +145,9 @@ class UserManagementController extends Controller
                 $newUser->email = $request->email;
                 $newUser->password = bcrypt($request->password);
                 $newUser->username = uniqid();
-                $newUser->is_mobile = $request->is_mobile ?? 0;
-
+                if (auth()->user()->hasRole('super_admin')) {
+                    $newUser->is_mobile = $request->is_mobile ?? 0;
+                }
                 if ($request->hasFile("profile_image")) {
                     $newUser->profile_image = $this->fileHandler->fileUploadAndGetPath($request->file("profile_image"), "/public/media/users");
                 }
@@ -178,7 +178,9 @@ class UserManagementController extends Controller
 
             return to_route('backend.admin.users')->with('success', 'User added successfully');
         } else {
-            $roles = Role::all();
+            $roles = auth()->user()->hasRole('super_admin')
+                ? Role::all()
+                : Role::where('name', '!=', 'super_admin')->get();
             return view('backend.users.create', compact('roles'));
         }
     }
@@ -187,7 +189,6 @@ class UserManagementController extends Controller
     {
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('user_update'), 403);
-        // abort_if(!auth()->user()->can('user_update'), 403);
 
         $user = User::with('roles')->findOrFail($id);
 
@@ -200,6 +201,10 @@ class UserManagementController extends Controller
                 'profile_image' => ['file', new ValidImageType],
                 'is_mobile' => 'nullable|boolean'
             ]);
+
+            if (strtolower($request->role) == 4) {
+                return back()->with('error', 'This role cannot be assigned manually.');
+            }
 
             if ($request->name !== $user->name) {
                 $user->name = $request->name;
@@ -221,8 +226,8 @@ class UserManagementController extends Controller
                 $user->profile_image = $this->fileHandler->fileUploadAndGetPath($request->file("profile_image"), "/public/media/users");
             }
 
-            if ($request->is_mobile) {
-                $user->is_mobile = $request->is_mobile;
+            if (auth()->user()->hasRole('super_admin')) {
+                $user->is_mobile = $request->boolean('is_mobile');
             }
             
             $user->save();
@@ -236,7 +241,9 @@ class UserManagementController extends Controller
                 return to_route('backend.admin.profile');
             }
 
-            $roles = Role::all();
+            $roles = auth()->user()->hasRole('super_admin')
+                ? Role::all()
+                : Role::where('name', '!=', 'super_admin')->get();
             return view('backend.users.edit', compact('user', 'roles'));
         }
     }

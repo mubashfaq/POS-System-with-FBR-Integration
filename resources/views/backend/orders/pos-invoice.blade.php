@@ -107,6 +107,8 @@
               $pfinalLineTotal = $item->total - $currentProductTax;
               }
 
+              $pfinalPricePerUnit = (float) $pfinalPricePerUnit;
+              $pfinalLineTotal = (float) $pfinalLineTotal;
              
             @endphp
             <tr>
@@ -149,7 +151,7 @@
       </div>
       <hr>
       <div class="text-center">
-        @if (($fbrIntegration ?? null) == 'enabled')
+        @if (($fbrIntegration ?? null) == 'enabled' && $order->order_stage == 'submitted')
 
           <h6>FBR invoice #</h6>
           <h6>{{ $order->fbr_invoice_no }}</h6>
