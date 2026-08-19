@@ -247,14 +247,14 @@ const emptyCartOnCustomerChange = async () => {
                         return;
                     }
 
-                    if (batches.length === 1) {
-                        // Only one batch? Add directly
-                        submitToCart(id, batches[0].id);
+                    const batchEnabled = res.data.is_batch_enabled === true || res.data.is_batch_enabled == 1;
+
+                    if (!batchEnabled) {
+                        submitToCart(id, null);
                     } else {
-                        // Multi-batch? Check if batch selection is enabled
-                        if (res.data.is_batch_enabled != true || res.data.is_batch_enabled == 0) {
-                            // FIFO: Auto-select oldest batch
-                            submitToCart(id, batches[batches.length - 1].id);
+                        if (batches.length === 1) {
+                            // Only one batch? Add directly
+                            submitToCart(id, batches[0].id);
                         } else {
                             // Show selection modal
                             setTargetProduct(product);
@@ -837,6 +837,14 @@ function createOrder(redirect = false) {
                                     </table>
                                 </div>
                             </div>
+                            {quantityValidation === 'enabled' && (
+                                <div className="px-3 pb-2 mt-n4">
+                                    <small className="text-muted">
+                                        <i className="fas fa-info-circle mr-1"></i>
+                                        Batches with less than 1 quantity available can also be selected.
+                                    </small>
+                                </div>
+                            )}
                             <div className="modal-footer">
                                 <button type="button" className="btn btn-secondary" onClick={() => setShowBatchModal(false)}>Close</button>
                             </div>

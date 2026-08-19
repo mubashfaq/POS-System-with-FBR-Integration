@@ -5,6 +5,7 @@ import Swal from "sweetalert2";
 import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
+import ProductCreateDigitalModal from "./ProductCreateDigitalModal";
 
 const ORANGE = "#fd6802";
 
@@ -24,12 +25,14 @@ export default function Cart({
     isRegistered,
     customerTaxType,
     onPriceChange,
+    onQuantityChange,
     onTotalsChange,
     quantityValidation,
     // New props from PosDigital:
     products, // full product list for the picker dropdown
     onAddProduct, // fn(productId, customerId) — calls addProductToCart in PosDigital
     customerId, // needed so the picker can add directly
+    onProductCreated, // New prop
 }) {
     const [editingQuantity, setEditingQuantity] = useState({});
     const [cartItems, setCartItems] = useState([]);
@@ -37,6 +40,13 @@ export default function Cart({
     const [furtherTaxTotal, setFurtherTaxTotal] = useState(0);
     const [customerTaxTotal, setCustomerTaxTotal] = useState(0);
     const [grandTotal, setGrandTotal] = useState(0);
+    const [showProductModal, setShowProductModal] = useState(false);
+
+    const handleProductCreated = (newProductId) => {
+        if (onProductCreated) {
+            onProductCreated(newProductId);
+        }
+    };
 
     // Local-only blank rows (not yet submitted to Laravel)
     const [blankRows, setBlankRows] = useState([]);
@@ -50,13 +60,14 @@ export default function Cart({
     // ── Close picker on outside click ──────────────────────────────────────
     useEffect(() => {
         const onClick = (e) => {
+            if (showProductModal) return;
             if (!e.target.closest(".cart-pd-dropdown")) {
                 setOpenPickerKey(null);
             }
         };
         document.addEventListener("mousedown", onClick);
         return () => document.removeEventListener("mousedown", onClick);
-    }, []);
+    }, [showProductModal]);
 
     // ── Totals recalc ──────────────────────────────────────────────────────
     useEffect(() => {
@@ -86,7 +97,7 @@ export default function Cart({
             let furtherTax = 0;
             if (
                 item.product.sale_type?.trim().toLowerCase() !==
-                    "3rd schedule goods" &&
+                "3rd schedule goods" &&
                 registrationStatus?.trim().toLowerCase() === "unregistered"
             ) {
                 furtherTax = exTaxAmount * (4 / 100);
@@ -385,97 +396,23 @@ export default function Cart({
                                             )}
                                         </td>
 
-                                        {/* Qty +/- */}
+                                        {/* Qty */}
                                         <td>
-                                            <div className="d-flex align-items-center justify-content-start" style={{ gap: "4px"}}>
-                                                <button
-                                                    className="btn btn-warning btn-sm"
-                                                    onClick={() =>
-                                                        decrement(item.id)
+                                            <div className="d-flex align-items-center justify-content-center">
+                                                <input
+                                                    type="number"
+                                                    min="0.01"
+                                                    step="0.01"
+                                                    className="form-control form-control-sm text-center"
+                                                    style={{ width: 70 }}
+                                                    value={item.quantity}
+                                                    onChange={(e) =>
+                                                        onQuantityChange(
+                                                            item.id,
+                                                            e.target.value,
+                                                        )
                                                     }
-                                                    disabled={
-                                                        item.quantity <= 1
-                                                    }
-                                                    style={{
-                                                        padding: "1px 7px",
-                                                    }}
-                                                >
-                                                    <i className="fas fa-minus"></i>
-                                                </button>
-
-                                                {editingQuantity[item.id] ? (
-                                                    <input
-                                                        type="number"
-                                                        className="form-control form-control-sm text-center"
-                                                        defaultValue={
-                                                            item.quantity
-                                                        }
-                                                        min="0.01"
-                                                        step="0.01"
-                                                        max={
-                                                            item.product
-                                                                .quantity
-                                                        }
-                                                        autoFocus
-                                                        onBlur={(e) =>
-                                                            handleQuantityBlur(
-                                                                item.id,
-                                                                e.target.value,
-                                                            )
-                                                        }
-                                                        onKeyPress={(e) => {
-                                                            if (
-                                                                e.key ===
-                                                                "Enter"
-                                                            )
-                                                                handleQuantityBlur(
-                                                                    item.id,
-                                                                    e.target
-                                                                        .value,
-                                                                );
-                                                        }}
-                                                        style={{ width: 60 }}
-                                                    />
-                                                ) : (
-                                                    <div
-                                                        className="form-control form-control-sm text-center"
-                                                        style={{
-                                                            width: 60,
-                                                            cursor: "pointer",
-                                                            backgroundColor:
-                                                                "#f8f9fa",
-                                                        }}
-                                                        onClick={() =>
-                                                            setEditingQuantity(
-                                                                (prev) => ({
-                                                                    ...prev,
-                                                                    [item.id]: true,
-                                                                }),
-                                                            )
-                                                        }
-                                                    >
-                                                        {item.quantity}
-                                                    </div>
-                                                )}
-
-                                                <button
-                                                    className="btn btn-success btn-sm"
-                                                    onClick={() =>
-                                                        increment(item.id)
-                                                    }
-                                                    disabled={
-                                                        quantityValidation ==
-                                                            "disabled" &&
-                                                        item.quantity >=
-                                                            item.product
-                                                                .quantity
-                                                    }
-                                                    style={{
-                                                        padding: "1px 7px",
-                                                    }}
-                                                >
-                                                    <i className="fas fa-plus"></i>
-                                                </button>
+                                                />
                                             </div>
                                         </td>
 
@@ -644,8 +581,23 @@ export default function Cart({
                                                             overflowY: "auto",
                                                         }}
                                                     >
+                                                        {/* Always show Add Product as first line */}
+                                                        {/* <div className="border-bottom p-1">
+                                                            <button
+                                                                type="button"
+                                                                className="dropdown-item text-center fw-bold py-2"
+                                                                style={{ color: ORANGE }}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setShowProductModal(true);
+                                                                }}
+                                                            >
+                                                                + Add Product
+                                                            </button>
+                                                        </div> */}
+
                                                         {filteredProducts.length ===
-                                                        0 ? (
+                                                            0 ? (
                                                             <div
                                                                 className="text-center text-muted py-3"
                                                                 style={{
@@ -705,30 +657,30 @@ export default function Cart({
                                         </div>
                                     </td>
                                     <td>
-                                        <div className="d-flex align-items-center justify-content-end" style={{ gap: "4px" }}>
-                                            <button
+                                        <div className="d-flex align-items-center justify-content-center" style={{ gap: "4px" }}>
+                                            {/* <button
                                                 className="btn btn-warning btn-sm"
                                                 disabled
                                                 style={{ padding: "1px 7px" }}
                                             >
                                                 <i className="fas fa-minus"></i>
-                                            </button>
+                                            </button> */}
                                             <div
                                                 className="form-control form-control-sm text-center"
                                                 style={{
-                                                    width: 60,
+                                                    width: 70,
                                                     backgroundColor: "#f0f0f0",
                                                 }}
                                             >
                                                 —
                                             </div>
-                                            <button
+                                            {/* <button
                                                 className="btn btn-success btn-sm"
                                                 disabled
                                                 style={{ padding: "1px 7px" }}
                                             >
                                                 <i className="fas fa-plus"></i>
-                                            </button>
+                                            </button> */}
                                         </div>
                                     </td>
                                     <td>
@@ -824,27 +776,50 @@ export default function Cart({
                 </table>
             </div>
 
-            {/* ── Add More button ── */}
-            <button
-                type="button"
-                onClick={addBlankRow}
-                className="btn btn-sm mt-3 rounded-pill"
-                style={{
-                    border: `1px solid ${ORANGE}`,
-                    color: ORANGE,
-                    backgroundColor: "transparent",
-                }}
-                onMouseOver={(e) => {
-                    e.currentTarget.style.backgroundColor = ORANGE;
-                    e.currentTarget.style.color = "#fff";
-                }}
-                onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor = "transparent";
-                    e.currentTarget.style.color = ORANGE;
-                }}
-            >
-                + Add More
-            </button>
+            {/* ── Add More and Add Product buttons ── */}
+            <div className="d-flex align-items-center mt-3" style={{ gap: "10px" }}>
+                <button
+                    type="button"
+                    onClick={addBlankRow}
+                    className="btn btn-sm rounded-pill"
+                    style={{
+                        border: `1px solid ${ORANGE}`,
+                        color: ORANGE,
+                        backgroundColor: "transparent",
+                    }}
+                    onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = ORANGE;
+                        e.currentTarget.style.color = "#fff";
+                    }}
+                    onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                        e.currentTarget.style.color = ORANGE;
+                    }}
+                >
+                    + Add More
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => setShowProductModal(true)}
+                    className="btn btn-sm rounded-pill"
+                    style={{
+                        border: `1px solid ${ORANGE}`,
+                        color: ORANGE,
+                        backgroundColor: "transparent",
+                    }}
+                    onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = ORANGE;
+                        e.currentTarget.style.color = "#fff";
+                    }}
+                    onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                        e.currentTarget.style.color = ORANGE;
+                    }}
+                >
+                    + Add Product
+                </button>
+            </div>
 
             {/* Unregistered notice */}
             {cartItems.length > 0 && isUnregistered && (
@@ -855,6 +830,13 @@ export default function Cart({
                     </small>
                 </div>
             )}
+
+            {/* ── Product create modal ───────────────────────────────────── */}
+            <ProductCreateDigitalModal
+                show={showProductModal}
+                onClose={() => setShowProductModal(false)}
+                onCreated={handleProductCreated}
+            />
 
             <Toaster position="top-right" reverseOrder={false} />
         </>

@@ -140,13 +140,15 @@ class ProductsImport implements ToModel, WithStartRow
         ]);
 
         // Create purchase item record
-        PurchaseItem::create([
+        $purchaseItem = PurchaseItem::create([
             'purchase_id' => $purchase->id,
             'product_id' => $product->id,
             'purchase_price' => $purchasePrice,
             'price' => $purchasePrice,
             'quantity' => $qty,
         ]);
+
+        \App\Services\StockReconciliationService::reconcileNewBatch($purchaseItem);
 
         return $product;
     }

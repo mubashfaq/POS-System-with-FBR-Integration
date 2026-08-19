@@ -9,7 +9,32 @@ $hasSupplierPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermiss
 $hasProductPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(['product_view', 'product_create']);
 $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(['user_view', 'user_create']);
 @endphp
+<style>
+    .current-business {
+        background-color: #fd7e14 !important; /* Orange */
+        color: #fff !important;
+        flex: wrap;
+    }
 
+    .current-business:hover,
+    .current-business:focus {
+        background-color: #e96b02 !important;
+        color: #fff !important;
+    }
+
+    @media (max-width: 767.98px) {
+        .dropdown-menu {
+            min-width: 260px;
+            max-width: 90vw;
+        }
+        
+        .business-item {
+            white-space: normal !important;
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+    }
+</style>
 <nav class="main-header navbar navbar-expand navbar-white navbar-light">
     <!-- Left navbar links -->
     <ul class="navbar-nav">
@@ -18,29 +43,27 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
         </li>
     </ul>
 
-    <ul class="navbar-nav ml-auto" >
-        <?php
+    <ul class="navbar-nav ml-auto">
+        @php
+            use App\Services\FbrTokenService;
+            use Illuminate\Support\Facades\DB;
 
-use App\Services\FbrTokenService;
-use Illuminate\Support\Facades\DB;
+            $tokens = FbrTokenService::getToken();
 
-        $token = env('FBR_TOKEN');
-        $tokens = FbrTokenService::getToken();
+            $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
 
-        if (is_array($tokens)) {
-            $token = $tokens['digital_token']; 
-        } else {
-            $token = $tokens;
-        }
-        $fbrTokenDetail = DB::table('fbr_tokens')->where('business_id', session('business_id'))->first();
-        if ($fbrTokenDetail->environment == '0') {
-            echo '<li class="nav-item text-danger fw-bold"> Sandbox</li>';
-        }else{
-            echo "<li class='nav-item text-danger fw-bold'> Production</li>>";
+            $fbrTokenDetail = DB::table('fbr_tokens')
+                ->where('business_id', session('business_id'))
+                ->first();
+        @endphp
 
-        }
-       
-        ?>
+        @if($fbrTokenDetail)
+            <li class="nav-item">
+                <span class="badge badge-danger d-none d-md-inline">
+                    {{ $fbrTokenDetail->environment == '0' ? 'Sandbox' : 'Production' }}
+                </span>
+            </li>
+        @endif
     </ul>
 
     <!-- Right navbar links -->
@@ -51,7 +74,9 @@ use Illuminate\Support\Facades\DB;
         <li class="nav-item dropdown mr-2">
             <a class="nav-link dropdown-toggle" href="#" id="businessDropdown" role="button" data-toggle="dropdown">
                 <i class="fas fa-store"></i>
-                {{ optional(\App\Models\Business::find(session('business_id')))->business_name ?? 'Select Business' }}
+                <span class="d-none d-md-inline">
+                    {{ optional(\App\Models\Business::find(session('business_id')))->business_name ?? 'Select Business' }}
+                </span>
             </a>
             <div class="dropdown-menu dropdown-menu-right" aria-labelledby="businessDropdown">
                 @php
@@ -75,7 +100,8 @@ use Illuminate\Support\Facades\DB;
          @if ($canSaleCreate && $business_type === 'pos')
             <li class="nav-item dropdown">
                 <a class="nav-link btn pos-btn text-white" href="{{ route('backend.admin.cart.index') }}">
-                    <i class="fas fa-cart-plus"></i> POS
+                    <i class="fas fa-cart-plus"></i>
+                    <span class="d-none d-md-inline">POS</span> 
                 </a>
             </li>
          @endif
@@ -85,7 +111,8 @@ use Illuminate\Support\Facades\DB;
         @if ($canSaleCreate && $business_type === 'pral')
             <li class="nav-item dropdown">
                 <a class="nav-link btn pos-btn text-white" href="{{ route('backend.admin.cart.pral') }}">
-                    <i class="fas fa-cart-plus"></i> Pral Cart
+                    <i class="fas fa-cart-plus"></i>
+                    <span class="d-none d-md-inline">PRAL Cart</span> 
                 </a>
             </li>
          @endif
@@ -93,39 +120,12 @@ use Illuminate\Support\Facades\DB;
           @if ($canSaleCreate && $business_type === 'digital')
             <li class="nav-item dropdown">
                 <a class="nav-link btn pos-btn text-white" href="{{ route('backend.admin.cart.digitalInvoice') }}">
-                    <i class="fas fa-cart-plus"></i> Digital Invoice
+                    <i class="fas fa-cart-plus"></i>
+                    <span class="d-none d-md-inline">Digital Invoice</span> 
                 </a>
             </li>
          @endif
 
-
-        <!-- Notifications Dropdown Menu -->
-        <!-- <li class="nav-item dropdown">
-            <a class="nav-link" data-toggle="dropdown" href="#">
-                <i class="far fa-bell"></i>
-                <span class="badge badge-warning navbar-badge">15</span>
-            </a>
-            <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
-                <span class="dropdown-item dropdown-header">15 Notifications</span>
-                <div class="dropdown-divider"></div>
-                <a href="#" class="dropdown-item">
-                    <i class="fas fa-envelope mr-2"></i> 4 new messages
-                    <span class="float-right text-muted text-sm">3 mins</span>
-                </a>
-                <div class="dropdown-divider"></div>
-                <a href="#" class="dropdown-item">
-                    <i class="fas fa-users mr-2"></i> 8 friend requests
-                    <span class="float-right text-muted text-sm">12 hours</span>
-                </a>
-                <div class="dropdown-divider"></div>
-                <a href="#" class="dropdown-item">
-                    <i class="fas fa-file mr-2"></i> 3 new reports
-                    <span class="float-right text-muted text-sm">2 days</span>
-                </a>
-                <div class="dropdown-divider"></div>
-                <a href="#" class="dropdown-item dropdown-footer">See All Notifications</a>
-            </div>
-        </li> -->
         <li class="nav-item">
             <a class="nav-link" data-widget="fullscreen" href="#" role="button">
                 <i class="fas fa-expand-arrows-alt"></i>

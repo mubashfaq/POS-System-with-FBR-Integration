@@ -63,18 +63,16 @@
                 &nbsp;Invoice Settings
             </a>
             @endcan
-            @can('invoice_settings')
             <a class="nav-link {{ @$_GET['active-tab'] == 'fbr-token-settings' ? 'active' : '' }}" id="vert-tabs-9"
                 data-toggle="pill" href="#tabs-9" role="tab" aria-controls="tabs-9" aria-selected="false">
                 <i class="fas fa-key"></i>
                 &nbsp;Token Settings
             </a>
-            @endcan
 
             <a class="nav-link {{ @$_GET['active-tab'] == 'turn_off_stock_restriction' ? 'active' : '' }}"
                 id="vert-tabs-10" data-toggle="pill" href="#tabs-10" role="tab" aria-controls="tabs-10"
                 aria-selected="false">
-                <i class="fas fa-key"></i>
+                <i class="fas fa-toggle-off"></i>
                 &nbsp; Turn off Stock Restriction
             </a>
 
@@ -603,6 +601,39 @@
                         <span class="ml-3">Show Customer Details</span>
                     </div>
 
+                    <!-- Invoice Number Switch -->
+                    <div class="form-group d-flex align-items-center">
+                        <label class="switch">
+                            <input type="hidden" name="is_show_invoice_number_invoice" value="0">
+                            <input type="checkbox" name="is_show_invoice_number_invoice" value="1"
+                                {{ isset($invoiceSetting) && $invoiceSetting->invoice_number == 1 ? 'checked' : '' }}>
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="ml-3">Show Custom Invoice Number</span>
+                    </div>
+
+                    <!-- Imc Logo Switch -->
+                    <div class="form-group d-flex align-items-center">
+                        <label class="switch">
+                            <input type="hidden" name="is_show_imc_logo_invoice" value="0">
+                            <input type="checkbox" name="is_show_imc_logo_invoice" value="1"
+                                {{ isset($invoiceSetting) && $invoiceSetting->imc_logo == 1 ? 'checked' : '' }}>
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="ml-3">Show IMC Logo</span>
+                    </div>
+
+                    <!-- Thanks for Shopping Switch -->
+                    <div class="form-group d-flex align-items-center">
+                        <label class="switch">
+                            <input type="hidden" name="is_show_thanks_for_shopping_invoice" value="0">
+                            <input type="checkbox" name="is_show_thanks_for_shopping_invoice" value="1"
+                                {{ isset($invoiceSetting) && $invoiceSetting->thanks_for_shopping == 1 ? 'checked' : '' }}>
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="ml-3">Show Thanks for Shopping</span>
+                    </div>
+
                     <!-- Note to Customer Switch -->
                     <div class="form-group d-flex align-items-center">
                         <label class="switch">
@@ -653,60 +684,105 @@
 
                 <div class="col-md-12 mt-3">
 
-                    {{-- POS Tokens --}}
+                    {{-- FBR Integration --}}
                     <div class="card p-3 mb-3">
-                        <h6 class="mb-3"><strong>POS Tokens</strong></h6>
+                        <div class="form-group mb-0">
+                            <label>
+                                <strong>FBR Integration</strong>
+                            </label>
 
-                        <div class="form-group">
-                            <label>POS Sandbox Token</label>
-                            <input type="text" name="pos_sandbox_token" class="form-control"
-                                value="{{ $fbrToken->pos_sandbox_token ?? '' }}" placeholder="Enter POS sandbox token">
-                        </div>
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox"
+                                    class="custom-control-input"
+                                    id="fbr_integration"
+                                    name="fbr_integration"
+                                    value="enabled"
+                                    {{ ($fbrToken->fbr_integration ?? 'disabled') === 'enabled' ? 'checked' : '' }}>
 
-                        <div class="form-group">
-                            <label>POS Production Token</label>
-                            <input type="text" name="pos_production_token" class="form-control"
-                                value="{{ $fbrToken->pos_production_token ?? '' }}"
-                                placeholder="Enter POS production token">
-                        </div>
-                    </div>
+                                <label class="custom-control-label" for="fbr_integration">
+                                    Enable FBR Integration
+                                </label>
+                            </div>
 
-                    {{-- Digital Tokens --}}
-                    <div class="card p-3 mb-3">
-                        <h6 class="mb-3"><strong>Digital Invoice Tokens</strong></h6>
-
-                        <div class="form-group">
-                            <label>Digital Sandbox Token</label>
-                            <input type="text" name="digital_sandbox_token" class="form-control"
-                                value="{{ $fbrToken->digital_sandbox_token ?? '' }}"
-                                placeholder="Enter Digital sandbox token">
-                        </div>
-
-                        <div class="form-group">
-                            <label>Digital Production Token</label>
-                            <input type="text" name="digital_production_token" class="form-control"
-                                value="{{ $fbrToken->digital_production_token ?? '' }}"
-                                placeholder="Enter Digital production token">
+                            <small class="text-muted">
+                                Enable FBR integration to configure FBR tokens.
+                            </small>
                         </div>
                     </div>
+                    <div id="fbr-token-fields"
+                        style="{{ ($fbrToken->fbr_integration ?? 'disabled') === 'enabled' ? '' : 'display: none;' }}">
+                        {{-- POS Tokens --}}
+                        <div class="card p-3 mb-3">
+                            <h6 class="mb-3"><strong>POS Tokens</strong></h6>
 
-                    {{-- Environment Selector --}}
-                    <div class="form-group col-md-6">
-                        <label>Select Environment</label>
-                        <select name="environment" class="form-control">
-                            <option value="0" {{ (isset($fbrToken) && $fbrToken->environment == 0) ? 'selected' : '' }}>
-                                Sandbox
-                            </option>
+                            <div class="form-group">
+                                <label>POS Sandbox Token</label>
+                                <input type="text" name="pos_sandbox_token" class="form-control"
+                                    value="{{ $fbrToken->pos_sandbox_token ?? '' }}" placeholder="Enter POS sandbox token">
+                            </div>
 
-                            <option value="1" {{ (isset($fbrToken) && $fbrToken->environment == 1) ? 'selected' : '' }}>
-                                Production
-                            </option>
-                        </select>
-                        <small class="text-muted">
-                            System will automatically use selected environment token.
-                        </small>
+                            <div class="form-group">
+                                <label>POS Production Token</label>
+                                <input type="text" name="pos_production_token" class="form-control"
+                                    value="{{ $fbrToken->pos_production_token ?? '' }}"
+                                    placeholder="Enter POS production token">
+                            </div>
+                        </div>
+
+                        {{-- PRAL Tokens --}}
+                        <div class="card p-3 mb-3">
+                            <h6 class="mb-3"><strong>PRAL Tokens</strong></h6>
+
+                            <div class="form-group">
+                                <label>PRAL Sandbox Token</label>
+                                <input type="text" name="pral_sandbox_token" class="form-control"
+                                    value="{{ $fbrToken->pral_sandbox_token ?? '' }}" placeholder="Enter PRAL Sandbox Token">
+                            </div>
+
+                            <div class="form-group">
+                                <label>PRAL Production Token</label>
+                                <input type="text" name="pral_production_token" class="form-control"
+                                    value="{{ $fbrToken->pral_production_token ?? '' }}"
+                                    placeholder="Enter PRAL Production Token">
+                            </div>
+                        </div>
+
+                        {{-- Digital Tokens --}}
+                        <div class="card p-3 mb-3">
+                            <h6 class="mb-3"><strong>Digital Invoice Tokens</strong></h6>
+
+                            <div class="form-group">
+                                <label>Digital Sandbox Token</label>
+                                <input type="text" name="digital_sandbox_token" class="form-control"
+                                    value="{{ $fbrToken->digital_sandbox_token ?? '' }}"
+                                    placeholder="Enter Digital sandbox token">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Digital Production Token</label>
+                                <input type="text" name="digital_production_token" class="form-control"
+                                    value="{{ $fbrToken->digital_production_token ?? '' }}"
+                                    placeholder="Enter Digital production token">
+                            </div>
+                        </div>
+
+                        {{-- Environment Selector --}}
+                        <div class="form-group col-md-6">
+                            <label>Select Environment</label>
+                            <select name="environment" class="form-control">
+                                <option value="0" {{ (isset($fbrToken) && $fbrToken->environment == 0) ? 'selected' : '' }}>
+                                    Sandbox
+                                </option>
+
+                                <option value="1" {{ (isset($fbrToken) && $fbrToken->environment == 1) ? 'selected' : '' }}>
+                                    Production
+                                </option>
+                            </select>
+                            <small class="text-muted">
+                                System will automatically use selected environment token.
+                            </small>
+                        </div>
                     </div>
-
                  </div>
             </form>
         </div>
@@ -776,39 +852,19 @@ function updateCheckboxValue(checkbox) {
 }
 
 $(document).ready(function(){
-    function showToast(message, type = 'success') {
-
-        let bgClass = 'bg-success';
-
-        if (type === 'error') bgClass = 'bg-danger';
-        if (type === 'warning') bgClass = 'bg-warning';
-
-        let toastHTML = `
-            <div style="position: fixed; top: 1rem; right: 1rem; z-index: 9999;">
-                <div class="toast align-items-center ${bgClass} border-0 text-white" role="alert" data-delay="2000">
-                    <div class="toast-body">
-                        ${message}
-                    </div>
-                </div>
-            </div>
-        `;
-
-        let wrapper = document.createElement('div');
-        wrapper.innerHTML = toastHTML;
-
-        document.body.appendChild(wrapper);
-
-        let toastEl = wrapper.querySelector('.toast');
-        let toast = new bootstrap.Toast(toastEl);
-
-        toast.show();
-
-        toastEl.addEventListener('hidden.bs.toast', function () {
-            wrapper.remove();
-        });
-    }
+    
 
     $('#customSwitch1').on('change', function() {
+
+        $('#fbr_integration').on('change', function () {
+
+            if ($(this).is(':checked')) {
+                $('#fbr-token-fields').slideDown();
+            } else {
+                $('#fbr-token-fields').slideUp();
+            }
+
+        });
 
         let status = $(this).is(':checked') ? 'enabled' : 'disabled';
 
