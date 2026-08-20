@@ -71,7 +71,7 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                         <a href="{{ route('backend.admin.cart.pral') }}"
                             class="nav-link {{ $route === 'backend.admin.cart.pral' ? 'active' : '' }}">
                             <i class="nav-icon fas fa-cart-plus"></i>
-                            <p>PRAL Cart</p>
+                            <p>PRA Cart</p>
                         </a>
                     </li>
                 @endif

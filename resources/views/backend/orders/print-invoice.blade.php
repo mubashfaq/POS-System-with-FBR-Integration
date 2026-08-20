@@ -268,7 +268,7 @@
                     <div class="col-md-1">
                         <div class="img">
                             @if ($business->business_type == 'pral')
-                                <img src="{{ asset('assets/images/pral-pos-component.png') }}" style="width: 120%;" alt="PRAL Invoice">
+                                <img src="{{ asset('assets/images/pral-pos-component.png') }}" style="width: 120%;" alt="PRA Invoice">
                             @elseif($order->type == 'pos_invoice')
                                 <img src="{{ asset('assets/images/fbr_pos_invoice_system.png') }}" style="width: 100%;" alt="POS Invoice">
                             @else

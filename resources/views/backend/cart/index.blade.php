@@ -2,7 +2,7 @@
 @section('title')
     @switch($businessType)
         @case('pral')
-            PRAL Cart
+            PRA Cart
             @break
 
         @case('pos')
