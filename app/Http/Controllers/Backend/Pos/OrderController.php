@@ -99,7 +99,7 @@ class OrderController extends Controller
                 ->addColumn('type', function ($data) use ($business) {
 
                     if ($business && $business->business_type === 'pral') {
-                        return '<span class="badge bg-warning">PRAL</span>';
+                        return '<span class="badge bg-warning">PRA</span>';
                     }
 
                     return $data->type == 'pos_invoice'

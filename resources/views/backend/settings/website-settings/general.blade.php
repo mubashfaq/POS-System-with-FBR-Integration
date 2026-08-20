@@ -731,19 +731,19 @@
 
                         {{-- PRAL Tokens --}}
                         <div class="card p-3 mb-3">
-                            <h6 class="mb-3"><strong>PRAL Tokens</strong></h6>
+                            <h6 class="mb-3"><strong>PRA Tokens</strong></h6>
 
                             <div class="form-group">
-                                <label>PRAL Sandbox Token</label>
+                                <label>PRA Sandbox Token</label>
                                 <input type="text" name="pral_sandbox_token" class="form-control"
-                                    value="{{ $fbrToken->pral_sandbox_token ?? '' }}" placeholder="Enter PRAL Sandbox Token">
+                                    value="{{ $fbrToken->pral_sandbox_token ?? '' }}" placeholder="Enter PRA Sandbox Token">
                             </div>
 
                             <div class="form-group">
-                                <label>PRAL Production Token</label>
+                                <label>PRA Production Token</label>
                                 <input type="text" name="pral_production_token" class="form-control"
                                     value="{{ $fbrToken->pral_production_token ?? '' }}"
-                                    placeholder="Enter PRAL Production Token">
+                                    placeholder="Enter PRA Production Token">
                             </div>
                         </div>
 
