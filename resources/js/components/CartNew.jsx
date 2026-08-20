@@ -6,6 +6,7 @@ import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
 import ProductCreateDigitalModal from "./ProductCreateDigitalModal";
+import ReactDOM from "react-dom";
 
 const ORANGE = "#fd6802";
 
@@ -50,10 +51,11 @@ export default function Cart({
 
     // Local-only blank rows (not yet submitted to Laravel)
     const [blankRows, setBlankRows] = useState([]);
-    // Which blank row's dropdown is open
     const [openPickerKey, setOpenPickerKey] = useState(null);
-    // Search text per blank row picker
     const [pickerSearch, setPickerSearch] = useState({});
+    const [pickerPos, setPickerPos] = useState(null); // {top, left, width}
+    const dropdownRef = useRef(null);
+    const triggerRef = useRef(null);
 
     const registrationStatus = isRegistered || "Registered";
 
@@ -61,7 +63,9 @@ export default function Cart({
     useEffect(() => {
         const onClick = (e) => {
             if (showProductModal) return;
-            if (!e.target.closest(".cart-pd-dropdown")) {
+            const clickedTrigger = triggerRef.current?.contains(e.target);
+            const clickedMenu = dropdownRef.current?.contains(e.target);
+            if (!clickedTrigger && !clickedMenu) {
                 setOpenPickerKey(null);
             }
         };
@@ -523,137 +527,82 @@ export default function Cart({
                                         <div className="cart-pd-dropdown position-relative">
                                             <button
                                                 type="button"
+                                                ref={isOpen ? triggerRef : null}
                                                 className="form-control form-control-sm d-flex justify-content-between align-items-center text-left"
                                                 style={{ cursor: "pointer" }}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    setOpenPickerKey(
-                                                        isOpen ? null : row.key,
-                                                    );
+                                                    if (isOpen) {
+                                                        setOpenPickerKey(null);
+                                                    } else {
+                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                        setPickerPos({
+                                                            top: rect.bottom,
+                                                            left: rect.left,
+                                                            width: Math.max(rect.width, 300),
+                                                        });
+                                                        setOpenPickerKey(row.key);
+                                                    }
                                                 }}
                                             >
-                                                <span className="text-muted">
-                                                    Select product…
-                                                </span>
-                                                <span style={{ color: ORANGE }}>
-                                                    ▾
-                                                </span>
+                                                <span className="text-muted">Select product…</span>
+                                                <span style={{ color: ORANGE }}>▾</span>
                                             </button>
 
-                                            {isOpen && (
-                                                <div
-                                                    className="position-absolute bg-white border rounded shadow"
-                                                    style={{
-                                                        zIndex: 1060,
-                                                        width: 300,
-                                                        top: "100%",
-                                                        left: 0,
-                                                    }}
-                                                >
-                                                    {/* Search inside picker */}
-                                                    <div className="p-2 border-bottom">
-                                                        <input
-                                                            type="text"
-                                                            className="form-control form-control-sm"
-                                                            placeholder="Search product…"
-                                                            autoFocus
-                                                            value={searchVal}
-                                                            onChange={(e) =>
-                                                                setPickerSearch(
-                                                                    (prev) => ({
-                                                                        ...prev,
-                                                                        [row.key]:
-                                                                            e
-                                                                                .target
-                                                                                .value,
-                                                                    }),
-                                                                )
-                                                            }
-                                                            onClick={(e) =>
-                                                                e.stopPropagation()
-                                                            }
-                                                        />
-                                                    </div>
-
-                                                    <div
-                                                        style={{
-                                                            maxHeight: 240,
-                                                            overflowY: "auto",
-                                                        }}
-                                                    >
-                                                        {/* Always show Add Product as first line */}
-                                                        {/* <div className="border-bottom p-1">
-                                                            <button
-                                                                type="button"
-                                                                className="dropdown-item text-center fw-bold py-2"
-                                                                style={{ color: ORANGE }}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setShowProductModal(true);
-                                                                }}
-                                                            >
-                                                                + Add Product
-                                                            </button>
-                                                        </div> */}
-
-                                                        {filteredProducts.length ===
-                                                            0 ? (
-                                                            <div
-                                                                className="text-center text-muted py-3"
-                                                                style={{
-                                                                    fontSize: 13,
-                                                                }}
-                                                            >
-                                                                No products
-                                                                found
-                                                            </div>
-                                                        ) : (
-                                                            filteredProducts.map(
-                                                                (p) => (
-                                                                    <button
-                                                                        key={
-                                                                            p.id
-                                                                        }
-                                                                        type="button"
-                                                                        className="dropdown-item d-flex justify-content-between align-items-center py-2"
-                                                                        onClick={() =>
-                                                                            pickProductForBlankRow(
-                                                                                row.key,
-                                                                                p,
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        <span
-                                                                            style={{
-                                                                                fontSize: 13,
-                                                                            }}
-                                                                        >
-                                                                            {
-                                                                                p.name
-                                                                            }
-                                                                        </span>
-                                                                        <small
-                                                                            className="text-muted ml-2"
-                                                                            style={{
-                                                                                whiteSpace:
-                                                                                    "nowrap",
-                                                                            }}
-                                                                        >
-                                                                            {
-                                                                                p.unit
-                                                                            }{" "}
-                                                                            ·{" "}
-                                                                            {fmt(
-                                                                                p.discounted_price,
-                                                                            )}
-                                                                        </small>
-                                                                    </button>
-                                                                ),
-                                                            )
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
+                                            {isOpen && pickerPos &&
+    ReactDOM.createPortal(
+        <div
+            ref={dropdownRef}
+            className="cart-pd-dropdown bg-white border rounded shadow"
+            style={{
+                position: "fixed",
+                zIndex: 2000,
+                top: pickerPos.top,
+                left: pickerPos.left,
+                width: pickerPos.width,
+            }}
+        >
+            <div className="p-2 border-bottom">
+                <input
+                    type="text"
+                    className="form-control form-control-sm"
+                    placeholder="Search product…"
+                    autoFocus
+                    value={searchVal}
+                    onChange={(e) =>
+                        setPickerSearch((prev) => ({
+                            ...prev,
+                            [row.key]: e.target.value,
+                        }))
+                    }
+                    onClick={(e) => e.stopPropagation()}
+                />
+            </div>
+            <div style={{ maxHeight: 320, overflowY: "auto" }}>
+                {filteredProducts.length === 0 ? (
+                    <div className="text-center text-muted py-3" style={{ fontSize: 13 }}>
+                        No products found
+                    </div>
+                ) : (
+                    filteredProducts.map((p) => (
+                        <button
+                            key={p.id}
+                            type="button"
+                            className="dropdown-item d-flex justify-content-between align-items-center py-2"
+                            onClick={() => pickProductForBlankRow(row.key, p)}
+                        >
+                            <span style={{ fontSize: 13 }}>{p.name}</span>
+                            <small className="text-muted ml-2" style={{ whiteSpace: "nowrap" }}>
+                                {p.unit} · {fmt(p.discounted_price)}
+                            </small>
+                        </button>
+                    ))
+                )}
+            </div>
+        </div>,
+        document.body
+    )
+}
                                         </div>
                                     </td>
                                     <td>

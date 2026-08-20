@@ -100,30 +100,33 @@
       </div>
       <hr>
       <div class="text-center">
-        @if (($fbrIntegration ?? null) == 'enabled' && $order->order_stage == 'submitted')
-          <h6>FBR invoice #</h6>
-          <h6>{{ $order->fbr_invoice_no }}</h6>
-          <!-- Qr and image -->
-          <div class="row justify-content-center">
-            <div class="col-6 col-md-3 mt-2">
-              <!-- <h3>FBR Dig</h3> -->
-              <div id="qrcode"></div>
+        @if (($fbrIntegration ?? null) == 'enabled')
+          @if ($order->order_stage == 'submitted')
+            
+            <h6>FBR invoice #</h6>
+            <h6>{{ $order->fbr_invoice_no }}</h6>
+            <!-- Qr and image -->
+            <div class="row justify-content-center">
+              <div class="col-6 col-md-3 mt-2">
+                <!-- <h3>FBR Dig</h3> -->
+                <div id="qrcode"></div>
 
-            </div>
+              </div>
 
-            <div class="col-6 col-md-2 mr-md-4 fbr-logo">
-              <div class="img">
-                @if($order->type == 'pos_invoice')
-                  <img src="{{ asset('assets/images/fbr_pos_invoice_system.png') }}" alt="POS Invoice">
-                @else
-                  <img src="{{ asset('assets/images/fbr_logo-icon.png') }}" alt="Digital Invoice">
-                @endif
+              <div class="col-6 col-md-2 mr-md-4 fbr-logo">
+                <div class="img">
+                  @if($order->type == 'pos_invoice')
+                    <img src="{{ asset('assets/images/fbr_pos_invoice_system.png') }}" alt="POS Invoice">
+                  @else
+                    <img src="{{ asset('assets/images/fbr_logo-icon.png') }}" alt="Digital Invoice">
+                  @endif
+                </div>
               </div>
             </div>
-          </div>
 
-          <p class="mt-2">Verify this invoice through FBR TaxAsaan MobileApp or SMS at 9966 and win exciting prizes in draw
-          </p>
+            <p class="mt-2">Verify this invoice through FBR TaxAsaan MobileApp or SMS at 9966 and win exciting prizes in draw
+            </p>
+          @endif
         @else
           <p class="mt-2">FBR is not integrated.</p>
         @endif

@@ -84,32 +84,37 @@
           @php $totalTaxAmount = 0; @endphp
           @foreach ($order->products->where('is_accessory', 0) as $item)
             @php
-              // Ensure numeric values
-              $unitPrice = (float) $item->discounted_price;
-              $quantity = (float) $item->quantity;
-              $total = (float) $item->total;
-              if(!is_null($item->sale_tax)){
-                $totalTaxAmount += $item->sale_tax;
-                $pfinalPricePerUnit = $item->discounted_price;
-                $pfinalLineTotal = $item->total - $item->sale_tax;
-              }else{
-              // Har product ka apna tax rate
-              $taxRateRaw = $item->product->pos_sale_tax ?? '0'; // fallback if null
-              $taxRateNumeric = (float) str_replace('%', '', $taxRateRaw);
+              $unitPrice = (float) str_replace(',', '', $item->discounted_price);
+              $quantity  = (float) $item->quantity;
+              $total     = (float) str_replace(',', '', $item->total);
 
-              // Is product ka tax amount
-              $currentProductTax = ($unitPrice * $quantity * $taxRateNumeric) / 100;
+              if (!is_null($item->sale_tax)) {
 
-              // Poore order ka total tax jama karna
-              $totalTaxAmount += $currentProductTax;
+                  $totalTaxAmount += (float) str_replace(',', '', $item->sale_tax);
 
-              $pfinalPricePerUnit = $item->discounted_price;
-              $pfinalLineTotal = $item->total - $currentProductTax;
+                  $pfinalPricePerUnit = $item->discounted_price;
+
+                  $pfinalLineTotal = $item->total - $item->sale_tax;
+
+              } else {
+
+                  $taxRateRaw = $item->product->pos_sale_tax ?? '0';
+
+                  $taxRateNumeric = (float) str_replace('%', '', $taxRateRaw);
+
+                  $currentProductTax = ($unitPrice * $quantity * $taxRateNumeric) / 100;
+
+                  $totalTaxAmount += $currentProductTax;
+
+                  $pfinalPricePerUnit = $item->discounted_price;
+
+                  $pfinalLineTotal = $item->total - $currentProductTax;
               }
 
-              $pfinalPricePerUnit = (float) $pfinalPricePerUnit;
-              $pfinalLineTotal = (float) $pfinalLineTotal;
-             
+              // Remove comma before numeric conversion
+              $pfinalPricePerUnit = (float) str_replace(',', '', $pfinalPricePerUnit);
+              $pfinalLineTotal    = (float) str_replace(',', '', $pfinalLineTotal);
+
             @endphp
             <tr>
               <td>{{ $item->product->name }} </td>
@@ -151,33 +156,35 @@
       </div>
       <hr>
       <div class="text-center">
-        @if (($fbrIntegration ?? null) == 'enabled' && $order->order_stage == 'submitted')
+        @if (($fbrIntegration ?? null) == 'enabled')
+          @if ($order->order_stage == 'submitted')
+  
+            <h6>FBR invoice #</h6>
+            <h6>{{ $order->fbr_invoice_no }}</h6>
+            <!-- Qr and image -->
+            <div class="row justify-content-center">
+              <div class="col-6 col-md-3 mt-2">
+                <!-- <h3>FBR Dig</h3> -->
+                <div id="qrcode"></div>
 
-          <h6>FBR invoice #</h6>
-          <h6>{{ $order->fbr_invoice_no }}</h6>
-          <!-- Qr and image -->
-          <div class="row justify-content-center">
-            <div class="col-6 col-md-3 mt-2">
-              <!-- <h3>FBR Dig</h3> -->
-              <div id="qrcode"></div>
+              </div>
 
-            </div>
-
-            <div class="col-6 col-md-2 mr-md-4 fbr-logo">
-              <div class="img ">
-                @if ($business->business_type == 'pral')
-                  <img src="{{ asset('assets/images/pral-pos-component.png') }}" style="width: 300%;" alt="PRAL Invoice">
-                @elseif($order->type == 'pos_invoice')
-                  <img src="{{ asset('assets/images/fbr_pos_invoice_system.png') }}" alt="">
-                @else
-                  <img src="{{ asset('assets/images/fbr_logo-icon.png') }}" alt="">
-                @endif
+              <div class="col-6 col-md-2 mr-md-4 fbr-logo">
+                <div class="img ">
+                  @if ($business->business_type == 'pral')
+                    <img src="{{ asset('assets/images/pral-pos-component.png') }}" style="width: 300%;" alt="PRA Invoice">
+                  @elseif($order->type == 'pos_invoice')
+                    <img src="{{ asset('assets/images/fbr_pos_invoice_system.png') }}" alt="">
+                  @else
+                    <img src="{{ asset('assets/images/fbr_logo-icon.png') }}" alt="">
+                  @endif
+                </div>
               </div>
             </div>
-          </div>
 
-          <p class="mt-2">Verify this invoice through FBR TaxAsaan MobileApp or SMS at 9966 and win exciting prizes in draw
-          </p>
+            <p class="mt-2">Verify this invoice through FBR TaxAsaan MobileApp or SMS at 9966 and win exciting prizes in draw
+            </p>
+          @endif
         @else
           <p class="mt-2">FBR is not integrated.</p>
         @endif
