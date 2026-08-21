@@ -451,6 +451,7 @@ class OrderController extends Controller
             'customer_id' => ['required', 'exists:customers,id', 'integer'],
             'order_discount' => ['nullable', 'numeric', 'min:0'],
             'paid' => ['nullable', 'numeric', 'min:0'],
+            'order_stage' => ['required', 'in:draft,submitted']
         ]);
 
         $userId =  auth()->id();
@@ -465,6 +466,8 @@ class OrderController extends Controller
         $isStockEnforced = $qtyVal && $qtyVal->product_quantity_validation === 'disabled';
 
         $customer = Customer::find($request->customer_id);
+
+        $order_stage = $request->order_stage;
 
 
         $carts = PosCart::with(['product', 'purchaseItem'])
@@ -710,8 +713,6 @@ class OrderController extends Controller
         $total = $totalAmountOrder - $orderDiscount;
         $due = $total - ($request->paid ?? 0);
 
-        $isIntegrated = FbrTokenService::isIntegrationEnabled();
-
         $order->update([
             'sub_total' => $totalAmountOrder,
             'discount' => $orderDiscount,
@@ -722,19 +723,234 @@ class OrderController extends Controller
             'total' => round($total, 2),
             'due' => round($due, 2),
             'status' => round($due, 2) <= 0,
-            'order_stage' => $isIntegrated ? 'draft' : 'submitted',
+            'order_stage' => $order_stage,
             'type' => 'pos_invoice',
         ]);
 
-        DB::commit();
+        if ($order_stage == 'submitted') {
 
-        PosCart::where('user_id', auth()->id())->delete(); // hamesha clear, chahe draft ho ya final
+            /* ================= FBR ITEMS ================= */
+            $fbrItems = [];
+            $lineTotal = 0;
+            foreach ($carts as $cart) {
+                $product = $cart->product;
 
-        return response()->json([
-            'message' => $isIntegrated ? 'Order saved as draft' : 'Order completed successfully (FBR Not Integrated)',
-            'order' => $order,
-        ], 200);
 
+                $qty = round($cart->quantity, 2);
+                $unitPrice = $cart->price_override ?? $product->discounted_price;
+                $lineTotal = round($unitPrice * $qty, 2);
+
+                $rateText = trim($product->pos_sale_tax); // 18%
+                $taxRate = (float) str_replace('%', '', $rateText); // 18
+                $salesTax = 0;
+                $valueExTax = $lineTotal; // already ex-tax
+                if (str_ends_with($rateText, '%')) {
+                    $rate = floatval(str_replace('%', '', $rateText));
+                    $salesTax = round($valueExTax * ($rate / 100), 2);
+                } else {
+                    $ratePerUnit = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+                    $salesTax = round($ratePerUnit * $qty, 2);
+                }
+
+
+
+                $fbrItems[] = [
+                    "ItemCode" => $product->sku,
+                    "ItemName" => $product->name,
+                    "quantity" => $qty,
+                    "PCTCode" => $product->PCTCode,
+                    "TaxRate" => $taxRate,
+                    "SaleValue" => $valueExTax,
+                    "TotalAmount" => $lineTotal + $salesTax,
+                    "TaxCharged" => $salesTax,
+                    "discount" => 0,
+                    "InvoiceType" => 1,
+                ];
+            }
+
+            $customer = Customer::find($request->customer_id);
+            $business = Business::find($businessId);
+
+            $fbrPayload = [
+                // "POSID" => 819045,
+                "POSID" => $business->ntn,
+                "USIN" => "USIN-" . $order->business_id . "-" . str_pad($order->invoice_number, 4, '0', STR_PAD_LEFT),
+                "DateTime" => now()->format('Y-m-d'),
+                "buyerNTN" => $customer->ntn_cnic,
+                "buyerCNIC" => $customer->ntn_cnic,
+                "BuyerName" => $customer->name,
+                "BuyerPhoneNumber" => $customer->phone,
+                "items" => $fbrItems,
+                "TotalBillAmount" => $lineTotal + $salesTax,
+                "TotalQuantity" => $qty,
+                "TotalSaleValue" => $valueExTax,
+                "TotalTaxCharged" => $salesTax,
+                "PaymentMode" => 2,
+                "InvoiceType" => 1
+            ];
+
+
+            if (!FbrTokenService::isIntegrationEnabled()) {
+
+                DB::commit();
+
+                PosCart::where('user_id', auth()->id())->delete();
+
+                return response()->json([
+                    'message' => 'Order completed successfully (FBR Not Integrated)',
+                    'order' => $order,
+                ], 200);
+
+            } else {
+                $tokens = FbrTokenService::getToken();
+
+                if (is_array($tokens)) {
+                    $token = $tokens['pos_token'];
+                } else {
+                    $token = $tokens;
+                }
+                $tokenUrlEnd = FbrTokenService::getTokenUrl();
+                $post_api_response = null;
+
+                if ($business->business_type == 'pral') {
+                    try {
+                                $post_api_response = Http::withOptions([
+                                    'timeout' => 620,
+                                    'connect_timeout' => 620,
+                                    'verify' => false,
+                                ])->withHeaders([
+                                    'Authorization' => "Bearer $token",
+                                    'Content-Type' => 'application/json',
+                                    'Accept-Encoding' => 'gzip, deflate, br',
+                                    'Accept' => '*/*'
+                                ])->withBody(json_encode($fbrPayload), 'application/json')
+                                    ->post("https://ims.pral.com.pk/ims/sandbox/api/Live/PostData"); 
+
+                            } catch (\Throwable $e) {
+                                DB::rollBack();
+
+                                return response()->json([
+                                    'error' => 'FBR request failed',
+                                    'message' => $e->getMessage(),
+                                ], 500);
+                            }
+                } else {
+
+                    try {
+                        $post_api_response = Http::withOptions([
+                            'timeout' => 620,
+                            'connect_timeout' => 620,
+                            'verify' => false,
+                        ])
+                            ->withToken($token)
+                            ->acceptJson()
+                            ->post("https://ims.pral.com.pk/ims/sandbox/api/Live/PostData",
+                                $fbrPayload
+                            );
+                    } catch (\Throwable $e) {
+                        dd([
+                            'message' => $e->getMessage(),
+                            'file' => $e->getFile(),
+                            'line' => $e->getLine(),
+                        ]);
+                    }
+                }
+
+
+
+                $postResponseJson = $post_api_response->json();
+
+                /* ================= FBR API CALL ================= */
+                Log::info('FBR Payload', [
+                    'order_id' => $order->id ?? null,
+                    'payload' => $fbrPayload,
+                    'post_response_pos' => $postResponseJson,
+                ]);
+
+                $fbr_invoice_number = data_get($postResponseJson, 'InvoiceNumber');
+
+
+                if ($postResponseJson['Response'] == "Invoice received successfully") {
+                    DB::commit(); // save order data in db now 
+
+                    Order::where('id', $order->id)->update([
+                        'fbr_invoice_no' => $fbr_invoice_number,
+                        'api_status' => $post_api_response->status(),
+                        'api_message' => 1,
+                    ]);
+
+                    Log::channel('fbr')->info('FBR Payload', [
+                        'order_id' => $order->id ?? null,
+                        'user_id' => $userId,
+                        'business_id' => $businessId,
+                        'payload' => $fbrPayload,
+                        'post_response_pos' => $postResponseJson['Response'],
+                    ]);
+
+                    OrderLog::create([
+                        'order_id' => $order->id,
+                        'user_id' => $userId,
+                        'business_id' => $businessId,
+                        'request_payload' => $fbrPayload,
+                        'response' => $postResponseJson['Response'],
+                        'error_code' => $postResponseJson['Code'] ?? null,
+                        'error_message' => $postResponseJson['Response'] ?? null,
+                    ]);
+                } else {
+
+
+                    Log::channel('fbr')->info('FBR Payload', [
+                        'order_id' => $order->id ?? null,
+                        'user_id' => $userId,
+                        'business_id' => $businessId,
+                        'payload' => $fbrPayload,
+                        'post_response_pos' => $postResponseJson['Response'],
+                    ]);
+
+                    OrderLog::create([
+                        'order_id' => $order->id,
+                        'user_id' => $userId,
+                        'business_id' => $businessId,
+                        'request_payload' => $fbrPayload,
+                        'response' => $postResponseJson['Response'],
+                        'error_code' => $postResponseJson['Code'] ?? null,
+                        'error_message' => $postResponseJson['Response'] ?? null,
+                    ]);
+
+                    DB::rollBack();
+
+                    return response()->json([
+                        'error' => $postResponseJson['Response'],
+                        'error_code' => $postResponseJson->Code ?? null,
+                        'error_message' => $postResponseJson['Response'] ?? null,
+                        'fbr_api_response' => $postResponseJson,
+                    ]);
+                }
+
+
+                PosCart::where('user_id', auth()->id())->delete();
+
+                return response()->json([
+                    'message' => 'Order completed successfully!',
+                    'fbr_payload_sent' => $fbrPayload,
+                    'fbr_api_response' => $postResponseJson,
+                    'order' => $order
+                ], 200);
+            }
+
+        } else {
+
+
+            DB::commit();
+
+            PosCart::where('user_id', auth()->id())->delete(); // hamesha clear, chahe draft ho ya final
+
+            return response()->json([
+                'message' => 'Order saved as draft',
+                'order' => $order,
+            ], 200);
+
+        }
        
     }
 
@@ -1046,10 +1262,10 @@ class OrderController extends Controller
             "BuyerName" => $customer->name,
             "BuyerPhoneNumber" => $customer->phone,
             "items" => $fbrItems,
-            "TotalBillAmount" => $lineTotal + $salesTax,
-            "TotalQuantity" => $qty,
-            "TotalSaleValue" => $valueExTax,
-            "TotalTaxCharged" => $salesTax,
+            "TotalBillAmount" => $totalBillAmount,
+            "TotalQuantity" => $totalQty,
+            "TotalSaleValue" => $totalSaleValue,
+            "TotalTaxCharged" => $totalTaxCharged,
             "PaymentMode" => 2,
             "InvoiceType" => 1,
         ];
@@ -1184,6 +1400,7 @@ class OrderController extends Controller
             'order_discount' => ['nullable', 'numeric', 'min:0'],
             'paid' => ['nullable', 'numeric', 'min:0'],
             'orderDate' => ['required', 'date', 'date_format:Y-m-d'],
+            'order_stage' => ['required', 'in:draft,submitted']
         ]);
 
         $userId = auth()->id();
@@ -1197,6 +1414,7 @@ class OrderController extends Controller
         $isStockEnforced = $qtyVal && $qtyVal->product_quantity_validation === 'disabled';
 
         $customer = Customer::find($request->customer_id);
+        $order_stage = $request->order_stage;
 
         $carts = PosCart::with(['product', 'purchaseItem'])
             ->where('user_id', auth()->id())
@@ -1439,8 +1657,6 @@ class OrderController extends Controller
         $total = $totalAmountOrder - $orderDiscount;
         $due = $total - ($request->paid ?? 0);
 
-        $isIntegrated = FbrTokenService::isIntegrationEnabled();
-
         $order->update([
             'sub_total'          => $totalAmountOrder,
             'discount'           => $orderDiscount,
@@ -1451,18 +1667,285 @@ class OrderController extends Controller
             'total'              => round($total, 2),
             'due'                => round($due, 2),
             'status'             => round($due, 2) <= 0,
-            'order_stage'        => $isIntegrated ? 'draft' : 'submitted',
+            'order_stage'        => $order_stage,
             'type'               => 'digital_invoice',
         ]);
 
-        DB::commit();
+        if ($order_stage == 'submitted') { 
 
-        PosCart::where('user_id', auth()->id())->delete();
+            /* ================= FBR ITEMS (parent products only) ================= */
+            $fbrItems = [];
+            $furtherTax = 0;
+            $lineTotal = 0;
+            foreach ($parentCarts as $cart) {
+                $product = $cart->product;
 
-        return response()->json([
-            'message' => $isIntegrated ? 'Order saved as draft' : 'Order completed successfully (FBR Not Integrated)',
-            'order' => $order,
-        ], 200);
+                $qty = round($cart->quantity, 2);
+                $unitPrice = $cart->price_override ?? $product->discounted_price;
+                $lineTotal = round($unitPrice * $qty, 2);
+
+                $rateText = trim($product->rate_of_tax);
+
+                if (str_ends_with($rateText, '%')) {
+                    $rate = floatval(str_replace('%', '', $rateText));
+                    $valueExTax = $lineTotal;
+                    $salesTax = round($valueExTax * ($rate / 100), 2);
+
+                    if ($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods') {
+                        $furtherTax = round($valueExTax * (4 / 100), 2);
+                    } else {
+                        $furtherTax = 0;
+                    }
+                } else {
+                    $ratePerUnit = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+                    $salesTax = round($ratePerUnit * $qty, 2);
+                    $valueExTax = $lineTotal;
+
+                    if ($customer->is_registered && strtolower($customer->is_registered) === 'unregistered' && $product->sale_type != '3rd Schedule Goods') {
+                        $furtherTax = round($valueExTax * (4 / 100), 2);
+                    } else {
+                        $furtherTax = 0;
+                    }
+                }
+
+                $fbrItems[] = [
+                    "hsCode" => $product->hsCode,
+                    "productDescription" => $product->name,
+                    "rate" => $rateText,
+                    "uoM" => $product->uom,
+
+                    // FLOAT banane ke liye (1.0, 50.0)
+                    "quantity" => number_format((float) $qty, 2, '.', ''),
+                    "totalValues" => number_format(($lineTotal + $salesTax + $furtherTax), 2, '.', ''),
+                    "valueSalesExcludingST" => number_format((float) $valueExTax, 2, '.', ''),
+                    "fixedNotifiedValueOrRetailPrice" => 0,
+                    "salesTaxApplicable" => number_format((float) $salesTax, 2, '.', ''),
+
+                    "salesTaxWithheldAtSource" => 0,
+                    "extraTax" => 0,
+                    "furtherTax" => number_format((float) $furtherTax, 2, '.', ''),
+
+                    // NULL handling
+                    "sroScheduleNo" => $product->sro_schedule ?: null,
+                    "fedPayable" => 0,
+                    "discount" => 0,
+                    "saleType" => $product->sale_type,
+                    "sroItemSerialNo" => $product->sro_item ?: null
+                ];
+            }
+
+            $customer = Customer::find($request->customer_id);
+            $business = Business::find($businessId);
+
+            $buyerRegType = null;
+
+            if (strtolower($customer->is_registered) === 'registered') {
+                $buyerRegType = 'Registered';
+                $SN = "SN001";
+            } else {
+                $buyerRegType = 'Unregistered';
+                $SN = "SN002";
+            }
+
+
+            $fbrPayload = [
+                "buyerRegistrationType" => $buyerRegType,
+                "invoiceType" => "Sale Invoice",
+                "invoiceDate" => $request ->orderDate,
+                "sellerNTNCNIC" => $business->ntn,
+                "sellerBusinessName" => $business->business_name,
+                "sellerProvince" => strtolower($business->state),
+                "sellerAddress" => $business->address ?: null,
+                "buyerNTNCNIC" => $customer->ntn_cnic,
+                "buyerBusinessName" => $customer->name,
+                "buyerProvince" => $customer->province,
+                "buyerAddress" => $customer->address,
+                "invoiceRefNo" => "INV-" . $order->business_id . "-" . str_pad($order->invoice_number, 4, '0', STR_PAD_LEFT),
+                "scenarioId" => $SN,
+                "items" => $fbrItems
+            ];
+
+
+            if (!FbrTokenService::isIntegrationEnabled()) {
+
+                DB::commit();
+
+                PosCart::where('user_id', auth()->id())->delete();
+
+                return response()->json([
+                    'message' => 'Order completed successfully (FBR Not Integrated)',
+                    'order' => $order,
+                ], 200);
+            } else {
+
+                $tokens = FbrTokenService::getToken();
+                if (is_array($tokens)) {
+                    $token = $tokens['digital_token'];
+                } else {
+                    $token = $tokens;
+                }
+
+                $tokenUrlEnd = FbrTokenService::getTokenUrl();
+
+                try {
+
+                    $response = Http::withOptions([
+                        'timeout' => 2420,
+                        'connect_timeout' => 2420,
+                    ])->withHeaders([
+                                'Authorization' => "Bearer $token",
+                                'Content-Type' => 'application/json',
+                                'Accept-Encoding' => 'gzip, deflate, br',
+                                'Accept' => '*/*'
+                            ])->withBody(json_encode($fbrPayload), 'application/json')
+                        ->post("https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata$tokenUrlEnd");
+
+
+                } catch (\Illuminate\Http\Client\ConnectionException $e) {
+                    info('Connection Exception: ' . $e->getMessage());
+                }
+                $body = $response->body();
+
+                // fix FBR invalid JSON (trailing comma)
+                $cleanBody = preg_replace('/,\s*([}\]])/', '$1', $body);
+
+                $responseJson = json_decode($cleanBody, true);
+
+
+                /* ================= FBR API CALL ================= */
+                Log::info('FBR Payload', [
+                    'order_id' => $order->id ?? null,
+                    'payload' => $fbrPayload,
+                    'validation_response_digital' => $responseJson,
+                ]);
+
+                Log::channel('fbr')->info('FBR Payload', [
+                    'order_id' => $order->id ?? null,
+                    'user_id' => $userId,
+                    'business_id' => $businessId,
+                    'payload' => $fbrPayload,
+                    'validation_response_digital' => $responseJson,
+                ]);
+
+                OrderLog::create([
+                    'order_id' => $order->id,
+                    'user_id' => $userId,
+                    'business_id' => $businessId,
+                    'request_payload' => $fbrPayload,
+                    'response' => $responseJson,
+                    'status_code' => $response->status(),
+                    'success' => $response->ok(),
+                ]);
+
+
+                $statusCode = data_get($responseJson, 'validationResponse.statusCode');
+                $errorCode = data_get($responseJson, 'validationResponse.errorCode');
+
+
+                $errorMessage = data_get($responseJson, 'validationResponse.error')
+                    ?? data_get($responseJson, 'error');
+
+                /* ================= SAVE API STATUS & LOGS (NO ROLLBACK) ================= */
+                Order::where('id', $order->id)->update([
+                    'api_status' => $response->status(),
+                    'error_code' => $errorCode,
+                    'error_message' => $errorMessage,
+                    'api_message' => $response->ok(),
+                ]);
+
+
+                /* ================= FINAL DECISION ================= */
+                if ($statusCode != "00") {
+
+                    DB::rollBack();
+
+                    return response()->json([
+                        'error' => 'FBR validation failed',
+                        'error_code' => $errorCode,
+                        'error_message' => $errorMessage,
+                        'fbr_api_response' => $responseJson,
+                    ]);
+                }
+
+
+                DB::commit();
+                try {
+                    $post_api_response = Http::withOptions([
+                        'timeout' => 2420,
+                        'connect_timeout' => 2420,
+
+                    ])->withHeaders([
+                                'Authorization' => "Bearer $token",
+                                'Content-Type' => 'application/json',
+                                'Accept-Encoding' => 'gzip, deflate, br',
+                                'Accept' => '*/*'
+                            ])->withBody(json_encode($fbrPayload), 'application/json')
+                        ->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata$tokenUrlEnd");
+
+
+                } catch (\Illuminate\Http\Client\ConnectionException $e) {
+                    info('Connection Exception: ' . $e->getMessage());
+                }
+
+                $postResponseJson = $post_api_response->json();
+                $fbr_invoice_number = data_get($postResponseJson, 'invoiceNumber');
+
+
+                Log::info('FBR Payload', [
+                    'order_id' => $order->id ?? null,
+                    'post_response_digital' => $postResponseJson,
+                ]);
+
+                Log::channel('fbr')->info('FBR Payload', [
+                    'order_id' => $order->id ?? null,
+                    'user_id' => $userId,
+                    'business_id' => $businessId,
+                    'post_response_digital' => $postResponseJson,
+                    'fbr_invoice_number' => $fbr_invoice_number,
+                ]);
+
+                OrderLog::create([
+                    'order_id' => $order->id,
+                    'user_id' => $userId,
+                    'business_id' => $businessId,
+                    'request_payload' => "POST API Response",
+                    'response' => $postResponseJson,
+                    'status_code' => $response->status(),
+                    'error_code' => $errorCode,
+                    'error_message' => $errorMessage,
+                    'success' => $response->ok(),
+                    'fbr_invoice_number' => $fbr_invoice_number,
+                ]);
+
+
+                /* ================= SAVE API STATUS & LOGS (NO ROLLBACK) ================= */
+                Order::where('id', $order->id)->update([
+                    'fbr_invoice_no' => $fbr_invoice_number,
+                ]);
+
+
+
+                PosCart::where('user_id', auth()->id())->delete();
+
+                return response()->json([
+                    'message' => 'Order completed successfully!',
+                    'fbr_payload_sent' => $fbrPayload,
+                    'fbr_api_response' => $responseJson,
+                    'order' => $order
+                ], 200);
+            }
+        } else {
+
+            DB::commit();
+
+            PosCart::where('user_id', auth()->id())->delete();
+
+            return response()->json([
+                'message' => 'Order saved as draft',
+                'order' => $order,
+            ], 200);
+
+        }
     }
 
     public function submitDigitalOrder(Request $request, $orderId)

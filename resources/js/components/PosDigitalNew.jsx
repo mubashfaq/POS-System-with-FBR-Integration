@@ -38,7 +38,7 @@ const fmt = (n) =>
         maximumFractionDigits: 2,
     });
 
-export default function PosDigital() {
+export default function PosDigital({ draftButtonEnabled }) {
     // ── Submission guard ───────────────────────────────────────────────────
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -453,7 +453,7 @@ export default function PosDigital() {
     }
 
     // Order creation
-    function orderCreate() {
+    function orderCreate(orderStage = "submitted") {
         if (isSubmitting) return;
         if (carts.length === 0) {
             toast.error("Cart is empty");
@@ -477,6 +477,7 @@ export default function PosDigital() {
                     check_duplicate: true,
                     note: notes,
                     orderDate: orderDate,
+                    order_stage: orderStage,
                 },
                 { headers: { "Content-Type": "application/json" } },
             )
@@ -489,14 +490,14 @@ export default function PosDigital() {
                         denyButtonText: "No, cancel",
                     }).then((result) => {
                         if (result.isConfirmed) {
-                            createOrder(true);
+                            createOrder(true, orderStage);
                         } else {
                             toast.info("Order not created.");
                             setIsSubmitting(false);
                         }
                     });
                 } else {
-                    createOrder(true);
+                    createOrder(true, orderStage);
                 }
             })
             .catch((err) => {
@@ -509,7 +510,7 @@ export default function PosDigital() {
             });
     }
 
-    function createOrder(redirect = false) {
+    function createOrder(redirect = false, orderStage = "submitted") {
         axios
             .put(
                 "/admin/order/createDigital",
@@ -521,6 +522,7 @@ export default function PosDigital() {
                     cart: carts,
                     note: notes,
                     orderDate: orderDate,
+                    order_stage: orderStage,
                 },
                 { headers: { "Content-Type": "application/json" } },
             )
@@ -832,6 +834,7 @@ export default function PosDigital() {
 
                 {/* ── Action buttons ───────────────────────────────────────── */}
                 <div className="row mt-3 mb-4">
+                    {/* Clear Cart */}
                     <div className="col-6 col-md-3">
                         <button
                             onClick={cartEmpty}
@@ -845,9 +848,29 @@ export default function PosDigital() {
                             Clear Cart
                         </button>
                     </div>
+
+                    {/* Save Draft */}
+                    {draftButtonEnabled && (
+                        <div className="col-6 col-md-3">
+                            <button
+                                onClick={() => orderCreate("draft")}
+                                type="button"
+                                className="btn btn-block fw-bold text-white w-100"
+                                disabled={carts.length === 0 || isSubmitting}
+                                style={{
+                                    backgroundColor: "#6c757d",
+                                    borderColor: "#6c757d",
+                                }}
+                            >
+                                {isSubmitting ? "Processing…" : "Save Draft"}
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Checkout Digital */}
                     <div className="col-6 col-md-3">
                         <button
-                            onClick={orderCreate}
+                            onClick={() => orderCreate("submitted")}
                             type="button"
                             className="btn checkout-btn btn-block fw-bold text-white w-100"
                             disabled={carts.length === 0 || isSubmitting}

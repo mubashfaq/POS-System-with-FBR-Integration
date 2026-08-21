@@ -75,6 +75,18 @@
                 <i class="fas fa-toggle-off"></i>
                 &nbsp; Turn off Stock Restriction
             </a>
+            
+            <a class="nav-link {{ @$_GET['active-tab'] == 'cart-settings' ? 'active' : '' }}"
+                id="vert-tabs-11"
+                data-toggle="pill"
+                href="#tabs-11"
+                role="tab"
+                aria-controls="tabs-11"
+                aria-selected="false">
+
+                <i class="fas fa-shopping-cart"></i>
+                &nbsp;Cart Settings
+            </a>
 
         </div>
     </div>
@@ -800,6 +812,52 @@
                         <label class="custom-control-label" for="customSwitch1">switch to turn off stock restriction</label>
                     </div>
                 </div>
+            
+        </div>
+
+        <div class="tab-pane fade {{ @$_GET['active-tab'] == 'cart-settings' ? 'active show' : '' }}"
+            id="tabs-11" role="tabpanel" aria-labelledby="vert-tabs-11">
+
+           
+               <form action="{{ route('backend.admin.settings.website.cart.update') }}" method="post">
+                    @csrf
+
+                    <div class="col-md-12 d-flex justify-content-between">
+                        <h5>
+                            <i class="fas fa-shopping-cart"></i>
+                            &nbsp;&nbsp;Cart Settings
+                        </h5>
+
+                        <button type="submit" class="btn action-button">
+                            <i class="fas fa-save"></i>
+                            &nbsp;Save Changes
+                        </button>
+                    </div>
+
+                    <div class="col-md-12 mt-3">
+                        <!-- Draft Button -->
+                        <div class="form-group d-flex align-items-center">
+                            <label class="switch">
+                                <input type="hidden" name="draft_btn" value="0">
+
+                                <input
+                                    type="checkbox"
+                                    name="draft_btn"
+                                    value="1"
+                                    {{ $cartSetting == 1 ? 'checked' : '' }}
+                                >
+
+                                <span class="slider round"></span>
+                            </label>
+
+                            <span class="ml-3">
+                                <i class="fas fa-file-alt"></i>
+                                &nbsp;Show Save Draft Button
+                            </span>
+                        </div>
+
+                    </div>
+                </form>
             
         </div>
 
