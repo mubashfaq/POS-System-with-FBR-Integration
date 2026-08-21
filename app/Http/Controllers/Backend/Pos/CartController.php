@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Backend\Pos;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductResource;
 use App\Models\Business;
+use App\Models\CartSetting;
 use App\Models\PosCart;
 use App\Models\Product;
 use App\Models\PurchaseItem;
@@ -17,7 +18,9 @@ class CartController extends Controller
 
     public function index(Request $request)
     {
-        $businesstype = Business::where('id', session('business_id'))->value('business_type');
+        $businessId = session('business_id');
+        $businesstype = Business::where('id', $businessId)->value('business_type');
+        $cartSetting = CartSetting::where('business_id', $businessId)->value('draft_btn');
 
         if ($request->wantsJson()) {
             // Get customer registration status from session 
@@ -82,7 +85,10 @@ class CartController extends Controller
         }
         // clear cart
         PosCart::where('user_id', auth()->id())->delete();
-        return view('backend.cart.index', ['businessType' => $businesstype]);
+        return view('backend.cart.index', [
+            'businessType' => $businesstype, 
+            'draftButtonEnabled' => $cartSetting
+        ]);
     }
 
     // public function index(Request $request)
@@ -470,13 +476,15 @@ public function digitalInvoice(Request $request)
             'total'             => round($grandTotal, 2)
         ]);
     }
+    $cartSetting = CartSetting::where('business_id', session('business_id'))->value('draft_btn');
+
     // clear cart
     PosCart::where('user_id', auth()->id())->delete();
 
     if ($request->route()->getName() === 'backend.admin.cart.digitalInvoiceNew') {
-        return view('backend.cart.digital-invoice-new');
+        return view('backend.cart.digital-invoice-new', ['draftButtonEnabled' => $cartSetting]);
     }
-    return view('backend.cart.digital-invoice');
+    return view('backend.cart.digital-invoice', ['draftButtonEnabled' => $cartSetting]);
 
 }
 

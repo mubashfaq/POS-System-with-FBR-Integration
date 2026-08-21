@@ -236,6 +236,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
                 Route::post('update-website-status', 'websiteStatusUpdate')->name('settings.website.status.update');
                 Route::post('update-invoice-settings', 'websiteInvoiceUpdate')->name('settings.website.invoice.update');
                 Route::post('update-fbr-tokens', 'websiteFbrTokenUpdate')->name('settings.website.fbr.token.update');
+                Route::post('website-cart-settings', 'updateCartSettings')->name('settings.website.cart.update');
 
                 Route::post('/website/invoice/update', [WebsiteSettingController::class, 'websiteInvoiceUpdate'])
                 ->name('backend.admin.settings.website.invoice.update');
