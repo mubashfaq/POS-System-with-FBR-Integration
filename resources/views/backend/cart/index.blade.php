@@ -14,7 +14,10 @@
     @endswitch
 @endsection
 @section('content')
-<div id="cart" data-business-type="{{ $businessType }}"></div>
+<div 
+    id="cart" 
+    data-business-type="{{ $businessType }}"
+    data-draft-button="{{ $draftButtonEnabled ? '1' : '0' }}"></div>
 @push('style')
 <style>
     .products-card-container {
