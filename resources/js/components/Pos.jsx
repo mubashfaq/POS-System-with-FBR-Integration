@@ -9,7 +9,7 @@ import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
 
-export default function Pos({ businessType }) {
+export default function Pos({ businessType, draftButtonEnabled }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [products, setProducts] = useState([]);
@@ -345,63 +345,70 @@ console.log("CART FROM API", data?.carts);
         });
     }
  
-function orderCreate() {
-    // document.getElementsByClassName("checkout-btn")[0].disabled = true;
-    // if (total <= 0) return;
-    if (isSubmitting) return;
-    if (carts.length === 0) {
-        toast.error("Cart is empty");
-        return;
-    }
-    if (!customerId) {
-        toast.error("Please select customer");
-        return;
-    }
+    function orderCreate(orderStage = "submitted") {
+        if (isSubmitting) return;
 
-    setIsSubmitting(true); // disable button
-
-    // Step 1: Pehle server se duplicate check
-    axios.put(api(
-        "/order/create"),
-        {
-            customer_id: customerId,
-            is_registered: isRegistered, // ✅ IMPORTANT: Send registration status
-            order_discount: parseFloat(orderDiscount) || 0,
-            paid: parseFloat(paid) || 0,
-            cart: carts,
-            check_duplicate: true,
-        },
-        { headers: { "Content-Type": "application/json" } }
-    )
-    .then((res) => {
-        if (res.data.duplicate) {
-            Swal.fire({
-                title: res.data.message,
-                showDenyButton: true,
-                confirmButtonText: "Yes, create it",
-                denyButtonText: "No, cancel",
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    createOrder(true);
-                    // createOrderWithRedirect();
-                    
-                } else {
-                    toast.info("Order not created.");
-                    setIsSubmitting(false);
-                }
-            });
-        } else {
-            createOrder(true);
-            // createOrderWithRedirect();  
+        if (carts.length === 0) {
+            toast.error("Cart is empty");
+            return;
         }
-    })
-    .catch((err) => {
-        console.error(err);
-        const message = err?.response?.data?.message || "Something went wrong while checking order.";
-        toast.error(message);
-        setIsSubmitting(false);
-    });
-}
+
+        if (!customerId) {
+            toast.error("Please select customer");
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        axios.put(
+            api("/order/create"),
+            {
+                customer_id: customerId,
+                is_registered: isRegistered,
+                order_discount: parseFloat(orderDiscount) || 0,
+                paid: parseFloat(paid) || 0,
+                cart: carts,
+                check_duplicate: true,
+
+                // Send draft/submitted
+                order_stage: orderStage,
+            },
+            {
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            }
+        )
+        .then((res) => {
+            if (res.data.duplicate) {
+                Swal.fire({
+                    title: res.data.message,
+                    showDenyButton: true,
+                    confirmButtonText: "Yes, create it",
+                    denyButtonText: "No, cancel",
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        createOrder(true, orderStage);
+                    } else {
+                        toast.info("Order not created.");
+                        setIsSubmitting(false);
+                    }
+                });
+            } else {
+                createOrder(true, orderStage);
+            }
+        })
+        .catch((err) => {
+            console.error(err);
+
+            const message =
+                err?.response?.data?.message ||
+                "Something went wrong while checking order.";
+
+            toast.error(message);
+            setIsSubmitting(false);
+        });
+    }
 
 
 const handleCartTotals = (subTotalCalc, saleTaxCalc, furtherTaxCalc, customerTaxCalc, grandTotalCalc) => {
@@ -416,7 +423,7 @@ const handleCartTotals = (subTotalCalc, saleTaxCalc, furtherTaxCalc, customerTax
 
 
 
-function createOrder(redirect = false) {
+function createOrder(redirect = false, orderStage = "submitted") {
     const cartForOrder = carts.map(item => ({
         id: item.id,
         product_id: item.product.id,
@@ -432,6 +439,7 @@ function createOrder(redirect = false) {
             order_discount: parseFloat(orderDiscount) || 0,
             paid: parseFloat(paid) || 0,
             cart: carts,
+            order_stage: orderStage,
         },
         { headers: { "Content-Type": "application/json" } }
     )
@@ -665,24 +673,41 @@ function createOrder(redirect = false) {
                                 </div>
                             </div>
                             <div className="row">
+                                {/* Clear Cart */}
                                 <div className="col">
                                     <button
-                                        onClick={() => cartEmpty()}
+                                        onClick={cartEmpty}
                                         type="button"
-                                        className="btn bg-gradient-danger btn-block text-white text-bold"
+                                        className="btn bg-gradient-danger btn-block text-white text-bold w-100"
                                     >
                                         Clear Cart
                                     </button>
                                 </div>
+
+                                {/* Save Draft */}
+                                {draftButtonEnabled && (
+                                    <div className="col">
+                                        <button
+                                            onClick={() => orderCreate("draft")}
+                                            type="button"
+                                            className="btn btn-secondary btn-block text-white text-bold w-100"
+                                            disabled={carts.length === 0 || isSubmitting}
+                                        >
+                                            {isSubmitting ? "Processing..." : "Save Draft"}
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Checkout */}
                                 <div className="col">
-                                <button
-                                    onClick={orderCreate}
-                                    type="button"
-                                    className="btn checkout-btn btn-block text-white text-bold"
-                                    disabled={carts.length === 0 || isSubmitting}
-                                >
-                                    {isSubmitting ? "Processing..." : "Checkout"}
-                                </button>
+                                    <button
+                                        onClick={() => orderCreate("submitted")}
+                                        type="button"
+                                        className="btn checkout-btn btn-block text-white text-bold w-100"
+                                        disabled={carts.length === 0 || isSubmitting}
+                                    >
+                                        {isSubmitting ? "Processing..." : "Checkout"}
+                                    </button>
                                 </div>
                             </div>
                         </div>
