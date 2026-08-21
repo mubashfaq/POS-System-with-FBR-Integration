@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Backend;
 
+use App\Models\CartSetting;
 use Illuminate\Http\Request;
 use App\Rules\ValidImageType;
 use App\Http\Controllers\Controller;
@@ -39,9 +40,11 @@ class WebsiteSettingController extends Controller
 
             $quantityValidationStatus = $status ? $status->product_quantity_validation : 'disabled'; // default
 
+            $cartSetting = CartSetting::where('business_id', $businessId)->value('draft_btn');
+
 
         }
-        return view('backend.settings.website-settings.general', compact('invoiceSetting', 'fbrToken', 'quantityValidationStatus'));
+        return view('backend.settings.website-settings.general', compact('invoiceSetting', 'fbrToken', 'quantityValidationStatus', 'cartSetting'));
     }
 
     public function websiteInfoUpdate(Request $request)
@@ -192,5 +195,30 @@ class WebsiteSettingController extends Controller
 
         return to_route('backend.admin.settings.website.general', ['active-tab' => 'fbr-token-settings'])
             ->with('success', 'FBR Tokens updated successfully');
+    }
+
+    public function updateCartSettings(Request $request)
+    {
+        $businessId = session('business_id');
+
+        if (!$businessId) {
+            return redirect()->back()->with('error', 'No business selected.');
+        }
+
+        $validated = $request->validate([
+            'draft_btn' => ['required', 'boolean'],
+        ]);
+
+         CartSetting::updateOrCreate(
+            [
+                'business_id' => $businessId,
+            ],
+            [
+                'draft_btn' => $request->boolean('draft_btn'),
+            ]
+        );
+        
+        return to_route('backend.admin.settings.website.general', ['active-tab' => 'cart-settings'])
+        ->with('success', 'Cart settings updated successfully');
     }
 }

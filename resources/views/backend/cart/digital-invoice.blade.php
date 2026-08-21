@@ -1,7 +1,7 @@
 @extends('backend.master')
 @section('title', 'Digital Invoice')
 @section('content')
-<div id="cartDigitalInvoice"></div>
+<div id="cartDigitalInvoice"  data-draft-button="{{ $draftButtonEnabled ? '1' : '0' }}"></div>
 @push('style')
 <style>
     .products-card-container {
