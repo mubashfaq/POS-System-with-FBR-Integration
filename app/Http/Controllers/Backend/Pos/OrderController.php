@@ -451,7 +451,7 @@ class OrderController extends Controller
             'customer_id' => ['required', 'exists:customers,id', 'integer'],
             'order_discount' => ['nullable', 'numeric', 'min:0'],
             'paid' => ['nullable', 'numeric', 'min:0'],
-            'order_stage' => ['required', 'in:draft,submitted']
+            'order_stage' => ['nullable', 'in:draft,submitted']
         ]);
 
         $userId =  auth()->id();
@@ -1400,7 +1400,7 @@ class OrderController extends Controller
             'order_discount' => ['nullable', 'numeric', 'min:0'],
             'paid' => ['nullable', 'numeric', 'min:0'],
             'orderDate' => ['required', 'date', 'date_format:Y-m-d'],
-            'order_stage' => ['required', 'in:draft,submitted']
+            'order_stage' => ['nullable', 'in:draft,submitted']
         ]);
 
         $userId = auth()->id();
