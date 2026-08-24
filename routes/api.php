@@ -21,6 +21,10 @@ use Illuminate\Support\Facades\Route;
 
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('forget-password', [AuthController::class, 'forgetPassword']);
+Route::post('resend-otp', [AuthController::class, 'resendOtp']);
+Route::post('verify-otp', [AuthController::class, 'verifyOtp']);
+Route::post('new-password', [AuthController::class, 'newPassword']);
 
 Route::middleware('auth:sanctum')->group(function () {
     // Route::get('/user', [AuthController::class, 'show']);
