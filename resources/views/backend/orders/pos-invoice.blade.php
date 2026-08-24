@@ -157,7 +157,7 @@
       <hr>
       <div class="text-center">
         @if (($fbrIntegration ?? null) == 'enabled')
-          @if ($order->order_stage == 'submitted')
+          @if ($order->order_stage !== 'draft')
   
             <h6>FBR invoice #</h6>
             <h6>{{ $order->fbr_invoice_no }}</h6>
