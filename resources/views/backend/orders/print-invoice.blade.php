@@ -91,7 +91,7 @@
                     Info <br>
                     Sale ID #{{$order->id}}<br>
                     Sale Date: {{date('d/m/Y', strtotime($order->created_at))}}<br>
-                    @if (($fbrIntegration ?? null) == 'enabled' && $order->order_stage == 'submitted')
+                    @if (($fbrIntegration ?? null) == 'enabled' && $order->order_stage !== 'draft')
                         FBR Invoice: <div>{{ $order->fbr_invoice_no }}</div>
                     @endif
                 </div>
@@ -257,7 +257,7 @@
                 </div>
             </div>
             <div class="row">
-                @if (($fbrIntegration ?? null) == 'enabled' && $order->order_stage == 'submitted')
+                @if (($fbrIntegration ?? null) == 'enabled' && $order->order_stage !== 'draft')
 
                     <div class="col-md-1 mt-2">
                         <!-- <h3>FBR Dig</h3> -->
