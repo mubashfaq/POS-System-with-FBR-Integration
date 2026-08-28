@@ -22,6 +22,7 @@
               <tr>
                 <th data-orderable="false">#</th>
                 <th>Supplier</th>
+                <th style="max-width: 320px;">Products</th>
                 <th>ID</th>
                 <th>Total {{currency()->symbol??''}}</th>
                 <th>Date</th>
@@ -57,6 +58,10 @@
         {
           data: 'supplier',
           name: 'supplier'
+        },
+        {
+          data: 'products',
+          name: 'products'
         },
 
         {

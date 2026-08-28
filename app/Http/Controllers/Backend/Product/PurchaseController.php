@@ -22,23 +22,22 @@ class PurchaseController extends Controller
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('purchase_view'), 403);
 
-        // abort_if(!auth()->user()->can('purchase_view'), 403);
         $businessId = session('business_id');
         if (!$businessId) {
             return response()->json(['error' => 'No business selected'], 422);
         }
         if ($request->ajax()) {
-            // $purchases = Purchase::with('supplier')
-            // ->where('business_id', $businessId)
-            // ->get();
 
             $purchases = Purchase::where('business_id', $businessId)
-            ->whereHas('supplier', function($query) use ($businessId) {
-                $query->where('business_id', $businessId);
-            })
-            ->with('supplier')
-            ->orderByDesc('id')
-            ->get();
+                ->whereHas('supplier', function ($query) use ($businessId) {
+                    $query->where('business_id', $businessId);
+                })
+                ->with([
+                    'supplier',
+                    'items.product'
+                ])
+                ->orderByDesc('id')
+                ->get();
 
 
             return DataTables::of($purchases)
@@ -46,6 +45,18 @@ class PurchaseController extends Controller
                 ->addColumn('supplier', fn($data) => $data->supplier->name)
                 ->addColumn('id', function ($data) {
                     return '#' . $data->id;
+                })
+                ->addColumn('products', function ($data) {
+                    return $data->items
+                        ->map(function ($item) {
+                            if (!$item->product) {
+                                return '';
+                            }
+
+                            return $item->product->name . ' (' . $item->quantity . ')';
+                        })
+                        ->filter()
+                        ->implode(', ');
                 })
                 ->addColumn('total', fn($data) => $data->grand_total)
                 ->addColumn('created_at', fn($data) => \Carbon\Carbon::parse($data->date)->format('d M, Y')) // Using Carbon for formatting
@@ -65,7 +76,7 @@ class PurchaseController extends Controller
                     </div>
                   </div>';
                 })
-                ->rawColumns(['supplier', 'id', 'total', 'created_at', 'action'])
+                ->rawColumns(['supplier', 'id', 'products', 'total', 'created_at', 'action'])
                 ->toJson();
         }
 
