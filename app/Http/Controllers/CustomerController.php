@@ -89,7 +89,6 @@ class CustomerController extends Controller
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('customer_create'), 403);
 
-        // abort_if(!auth()->user()->can('customer_create'), 403);
         return view('backend.customers.create');
     }
 
@@ -108,7 +107,7 @@ class CustomerController extends Controller
             $request->validate([
                 'name' => 'required|string',
                 'phone' => [
-                    'nullable',
+                    'required',
                     'string',
                     'max:20',
                     Rule::unique('customers')->where(function ($query) use ($businessId) {
@@ -116,14 +115,14 @@ class CustomerController extends Controller
                     }),
                 ],
                 'ntn_cnic' => [
-                    'nullable',
+                    'required',
                     'string',
                     Rule::unique('customers')->where(function ($query) use ($businessId) {
                         return $query->where('business_id', $businessId);
                     }),
                 ],
-                'province' => 'nullable|string|max:255',
-                'address' => 'nullable|string|max:255',
+                'province' => 'required|string|max:255',
+                'address' => 'required|string|max:255',
                 'is_registered' => 'nullable|string|max:255',
                 'customer_tax_type' => 'nullable|in:retailer,distributor',
             ]);

@@ -138,18 +138,21 @@ export default function CustomerCreateModal({
                                     />
                                 </div>
                                 <div className="mb-3 col-md-6">
-                                    <label className="form-label">Phone</label>
+                                    <label className="form-label">
+                                        Phone <span className="text-danger">*</span>
+                                    </label>
                                     <input
                                         type="text"
                                         className="form-control"
                                         name="phone"
                                         value={formData.phone}
                                         onChange={handleChange}
+                                        required
                                     />
                                 </div>
                                 <div className="mb-3 col-md-6">
                                     <label className="form-label">
-                                        NTN/CNIC
+                                        NTN/CNIC <span className="text-danger">*</span>
                                     </label>
                                     <input
                                         type="text"
@@ -157,11 +160,12 @@ export default function CustomerCreateModal({
                                         name="ntn_cnic"
                                         value={formData.ntn_cnic}
                                         onChange={handleChange}
+                                        required
                                     />
                                 </div>
                                 <div className="mb-3 col-md-6">
                                     <label className="form-label">
-                                        Province
+                                        Province <span className="text-danger">*</span>
                                     </label>
                                     <input
                                         type="text"
@@ -169,11 +173,12 @@ export default function CustomerCreateModal({
                                         name="province"
                                         value={formData.province}
                                         onChange={handleChange}
+                                        required
                                     />
                                 </div>
                                 <div className="mb-3 col-md-12">
                                     <label className="form-label">
-                                        Address
+                                        Address <span className="text-danger">*</span>
                                     </label>
                                     <input
                                         type="text"
@@ -181,6 +186,7 @@ export default function CustomerCreateModal({
                                         name="address"
                                         value={formData.address}
                                         onChange={handleChange}
+                                        required
                                     />
                                 </div>
                                 <div className="mb-3 col-md-6">

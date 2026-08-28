@@ -95,6 +95,7 @@
                 <th>Paid {{currency()->symbol??''}}</th>
                 <th>Due {{currency()->symbol??''}}</th>
                 <th>Type</th>
+                <th>Environment</th>
                 <th>Date</th>
                 <th>Status</th>
                 @if ($fbr)
@@ -179,6 +180,7 @@
                 { data: 'paid',        name: 'paid' },
                 { data: 'due',         name: 'due' },
                 { data: 'type',        name: 'type' },
+                { data: 'environment', name: 'environment', className: 'text-center' },
                 { data: 'date',        name: 'date' },
                 { data: 'status',      name: 'status' },
                 @if ($fbr)
