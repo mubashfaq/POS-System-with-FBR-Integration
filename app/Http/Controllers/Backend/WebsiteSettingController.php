@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Backend;
 
+use App\Models\Business;
 use App\Models\CartSetting;
 use Illuminate\Http\Request;
 use App\Rules\ValidImageType;
@@ -42,9 +43,11 @@ class WebsiteSettingController extends Controller
 
             $cartSetting = CartSetting::where('business_id', $businessId)->value('draft_btn');
 
+            $businessType = Business::where('id', $businessId)->value('business_type');
+
 
         }
-        return view('backend.settings.website-settings.general', compact('invoiceSetting', 'fbrToken', 'quantityValidationStatus', 'cartSetting'));
+        return view('backend.settings.website-settings.general', compact('invoiceSetting', 'fbrToken', 'quantityValidationStatus', 'cartSetting', 'businessType'));
     }
 
     public function websiteInfoUpdate(Request $request)
@@ -186,8 +189,10 @@ class WebsiteSettingController extends Controller
                 'pos_production_token'     => $request->pos_production_token ?? null,
                 'digital_sandbox_token'    => $request->digital_sandbox_token ?? null,
                 'digital_production_token' => $request->digital_production_token ?? null,
-                'pral_sandbox_token'    => $request->pral_sandbox_token ?? null,
-                'pral_production_token' => $request->pral_production_token ?? null,
+                'pral_sandbox_token'       => $request->pral_sandbox_token ?? null,
+                'pral_production_token'    => $request->pral_production_token ?? null,
+                'POSID_sandbox'            => $request->POSID_sandbox ?? null,
+                'POSID_production'         => $request->POSID_production ?? null,
                 'environment'              => $request->environment ?? 0, // 0=sandbox, 1=production
                 'updated_at'               => now(),
             ]
