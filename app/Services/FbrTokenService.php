@@ -66,6 +66,24 @@ class FbrTokenService
         }
     }
 
+    public static function getPOSID()
+    {
+        $settings = self::getSettings();
+
+        return $settings->environment == 1 ? $settings->POSID_production : $settings->POSID_sandbox;
+    }
+
+    public static function getURLEnvironment()
+    {
+        $settings = self::getSettings();
+
+        // if (!$settings || $settings->fbr_integration !== 'enabled') {
+        //     return null;
+        // }
+
+        return $settings->environment == 1 ? 'production' : 'sandbox';
+    }
+
     public static function getTokenURL()
     {
         $settings = self::getSettings();
