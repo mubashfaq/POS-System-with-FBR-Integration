@@ -11,7 +11,7 @@ class Order extends Model
 {
     use HasFactory;
 
-    protected $fillable=['business_id', 'invoice_number', 'custom_invoice_number', 'user_id','customer_id','discount', 'total_sale_tax', 'total_customer_tax', 'total_further_tax', 'sub_total','total','paid','due','note', 'order_date', 'is_retured','status', 'order_stage', 'is_cancelled', 'cancelled_by', 'cancelled_at', 'api_status','error_code','error_message','api_message', 'fbr_invoice_no', 'type'];
+    protected $fillable=['business_id', 'invoice_number', 'custom_invoice_number', 'user_id','customer_id','discount', 'total_sale_tax', 'total_customer_tax', 'total_further_tax', 'sub_total','total','paid','due','note', 'order_date', 'is_retured','status', 'order_stage', 'is_cancelled', 'cancelled_by', 'cancelled_at', 'api_status','error_code','error_message','api_message', 'fbr_invoice_no', 'invoice_environment', 'type'];
 
     protected $guarded = [];
     protected $appends = ['total_item'];

@@ -724,59 +724,86 @@
                     <div id="fbr-token-fields"
                         style="{{ ($fbrToken->fbr_integration ?? 'disabled') === 'enabled' ? '' : 'display: none;' }}">
                         {{-- POS Tokens --}}
-                        <div class="card p-3 mb-3">
-                            <h6 class="mb-3"><strong>POS Tokens</strong></h6>
+                        @if ($businessType == 'pos' | $businessType == 'both')
+                            <div class="card p-3 mb-3">
+                                <h6 class="mb-3"><strong>POS Tokens</strong></h6>
 
-                            <div class="form-group">
-                                <label>POS Sandbox Token</label>
-                                <input type="text" name="pos_sandbox_token" class="form-control"
-                                    value="{{ $fbrToken->pos_sandbox_token ?? '' }}" placeholder="Enter POS sandbox token">
-                            </div>
+                                <div class="form-group">
+                                    <label>POS Sandbox Token</label>
+                                    <input type="text" name="pos_sandbox_token" class="form-control"
+                                        value="{{ $fbrToken->pos_sandbox_token ?? '' }}" placeholder="Enter POS sandbox token">
+                                </div>
 
-                            <div class="form-group">
-                                <label>POS Production Token</label>
-                                <input type="text" name="pos_production_token" class="form-control"
-                                    value="{{ $fbrToken->pos_production_token ?? '' }}"
-                                    placeholder="Enter POS production token">
+                                <div class="form-group">
+                                    <label>POS Production Token</label>
+                                    <input type="text" name="pos_production_token" class="form-control"
+                                        value="{{ $fbrToken->pos_production_token ?? '' }}"
+                                        placeholder="Enter POS production token">
+                                </div>
                             </div>
-                        </div>
+                        @endif
 
                         {{-- PRAL Tokens --}}
-                        <div class="card p-3 mb-3">
-                            <h6 class="mb-3"><strong>PRA Tokens</strong></h6>
+                        @if ($businessType == 'pral')
+                            <div class="card p-3 mb-3">
+                                <h6 class="mb-3"><strong>PRA Tokens</strong></h6>
 
-                            <div class="form-group">
-                                <label>PRA Sandbox Token</label>
-                                <input type="text" name="pral_sandbox_token" class="form-control"
-                                    value="{{ $fbrToken->pral_sandbox_token ?? '' }}" placeholder="Enter PRA Sandbox Token">
-                            </div>
+                                <div class="form-group">
+                                    <label>PRA Sandbox Token</label>
+                                    <input type="text" name="pral_sandbox_token" class="form-control"
+                                        value="{{ $fbrToken->pral_sandbox_token ?? '' }}" placeholder="Enter PRA Sandbox Token">
+                                </div>
 
-                            <div class="form-group">
-                                <label>PRA Production Token</label>
-                                <input type="text" name="pral_production_token" class="form-control"
-                                    value="{{ $fbrToken->pral_production_token ?? '' }}"
-                                    placeholder="Enter PRA Production Token">
+                                <div class="form-group">
+                                    <label>PRA Production Token</label>
+                                    <input type="text" name="pral_production_token" class="form-control"
+                                        value="{{ $fbrToken->pral_production_token ?? '' }}"
+                                        placeholder="Enter PRA Production Token">
+                                </div>
                             </div>
-                        </div>
+                        @endif
 
                         {{-- Digital Tokens --}}
-                        <div class="card p-3 mb-3">
-                            <h6 class="mb-3"><strong>Digital Invoice Tokens</strong></h6>
+                        @if ($businessType == 'digital' | $businessType == 'both')
+                            <div class="card p-3 mb-3">
+                                <h6 class="mb-3"><strong>Digital Invoice Tokens</strong></h6>
 
-                            <div class="form-group">
-                                <label>Digital Sandbox Token</label>
-                                <input type="text" name="digital_sandbox_token" class="form-control"
-                                    value="{{ $fbrToken->digital_sandbox_token ?? '' }}"
-                                    placeholder="Enter Digital sandbox token">
-                            </div>
+                                <div class="form-group">
+                                    <label>Digital Sandbox Token</label>
+                                    <input type="text" name="digital_sandbox_token" class="form-control"
+                                        value="{{ $fbrToken->digital_sandbox_token ?? '' }}"
+                                        placeholder="Enter Digital sandbox token">
+                                </div>
 
-                            <div class="form-group">
-                                <label>Digital Production Token</label>
-                                <input type="text" name="digital_production_token" class="form-control"
-                                    value="{{ $fbrToken->digital_production_token ?? '' }}"
-                                    placeholder="Enter Digital production token">
+                                <div class="form-group">
+                                    <label>Digital Production Token</label>
+                                    <input type="text" name="digital_production_token" class="form-control"
+                                        value="{{ $fbrToken->digital_production_token ?? '' }}"
+                                        placeholder="Enter Digital production token">
+                                </div>
                             </div>
-                        </div>
+                        @endif
+
+                        {{-- POSID --}}
+                        @if ($businessType == 'pos' | $businessType == 'pral' | $businessType == 'both')
+                            <div class="card p-3 mb-3">
+                                <h6 class="mb-3"><strong>POSID field</strong></h6>
+
+                                <div class="form-group">
+                                    <label>POSID Sandbox</label>
+                                    <input type="text" name="POSID_sandbox" class="form-control"
+                                        value="{{ $fbrToken->POSID_sandbox ?? '' }}"
+                                        placeholder="Enter POSID sandbox">
+                                </div>
+
+                                <div class="form-group">
+                                    <label>POSID Production</label>
+                                    <input type="text" name="POSID_production" class="form-control"
+                                        value="{{ $fbrToken->POSID_production ?? '' }}"
+                                        placeholder="Enter POSID production">
+                                </div>
+                            </div>
+                        @endif
 
                         {{-- Environment Selector --}}
                         <div class="form-group col-md-6">

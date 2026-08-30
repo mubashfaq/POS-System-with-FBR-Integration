@@ -42,6 +42,14 @@ export default function Pos({ businessType, draftButtonEnabled }) {
     // ✅ Opt-4: Double-click guard — tracks product IDs currently being added
     const [addingProducts, setAddingProducts] = useState(new Set());
 
+    const today = new Date().toISOString().split("T")[0];
+
+    const minDateObj = new Date();
+    minDateObj.setDate(minDateObj.getDate() - 15);
+    const minDate = minDateObj.toISOString().split("T")[0];
+
+    const [orderDate, setOrderDate] = useState(today);
+
     useEffect(() => {
         axios.get("/admin/cart/quantity-validation")
             .then((res) => setQuantityValidation(res.data.quantity_validation))
@@ -369,8 +377,7 @@ console.log("CART FROM API", data?.carts);
                 paid: parseFloat(paid) || 0,
                 cart: carts,
                 check_duplicate: true,
-
-                // Send draft/submitted
+                orderDate: orderDate,
                 order_stage: orderStage,
             },
             {
@@ -439,6 +446,7 @@ function createOrder(redirect = false, orderStage = "submitted") {
             order_discount: parseFloat(orderDiscount) || 0,
             paid: parseFloat(paid) || 0,
             cart: carts,
+            orderDate: orderDate,
             order_stage: orderStage,
         },
         { headers: { "Content-Type": "application/json" } }
@@ -504,24 +512,40 @@ function createOrder(redirect = false, orderStage = "submitted") {
 
     // document.getElementsByClassName("checkout-btn")[0].disabled = false;
 }
+    const Field = ({ label, required, children, alignStart }) => (
+        <div
+            className={`d-flex ${alignStart ? "align-items-start" : "align-items-center"} mb-3`}
+        >
+            <label
+                style={{ width: "100px", flexShrink: 0, fontSize: 14, textAlign: "center" }}
+            >
+                {label}
+                {required && <span className="text-danger">*</span>}
+            </label>
+            <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+        </div>
+    );
 
     return (
         <>
             <div className="card">
-                {/* <div class="mt-n5 mb-3 d-flex justify-content-end">
-                    <a
-                        href="/admin"
-                        className="btn bg-gradient-primary mr-2"
-                    >
-                        Dashboard
-                    </a>
-                    <a
-                        href="/admin/ordersma"
-                        className="btn bg-gradient-primary"
-                    >
-                        Orders
-                    </a>
-                </div> */}
+               {businessType === 'pral' && (
+                    <div class="mt-n5 mb-3 d-flex justify-content-end">
+                        <div className="col-md-4">
+                            <Field label="Date" required>
+                                <input
+                                    type="date"
+                                    className="form-control form-control-sm"
+                                    value={orderDate}
+                                    min={minDate}     // User cannot select older than 15 days
+                                    max={today}       // User cannot select future dates
+                                    onChange={(e) => setOrderDate(e.target.value)}
+                                />
+                            </Field>
+                        </div>
+                    </div>
+                )}
+
 
                 <div className="card-body p-2 p-md-4 pt-0">
                     <div className="row">

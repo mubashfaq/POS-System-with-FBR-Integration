@@ -49,7 +49,7 @@ class OrderController extends Controller
 
             $start_date_input = $request->input('start_date', Carbon::today()->subDays(29)->format('Y-m-d')); 
 
-             $end_date_input = $request->input('end_date', Carbon::today()->format('Y-m-d'));
+            $end_date_input = $request->input('end_date', Carbon::today()->format('Y-m-d'));
 
             // Parse and set start date
             $start_date = Carbon::createFromFormat('Y-m-d', $start_date_input) ?: Carbon::today()->subDays(29)->startOfDay();
@@ -64,18 +64,8 @@ class OrderController extends Controller
                 ->whereBetween('created_at', [$start_date, $end_date])
                 ->get();
 
-            /*
-            |--------------------------------------------------------------------------
-            | Check FBR Integration
-            |--------------------------------------------------------------------------
-            */
             $fbr = FbrTokenService::isIntegrationEnabled();
 
-            /*
-            |--------------------------------------------------------------------------
-            | DataTable
-            |--------------------------------------------------------------------------
-            */
             $datatable = DataTables::of($orders)
                 ->addIndexColumn()
 
@@ -106,8 +96,21 @@ class OrderController extends Controller
                         ? '<span class="badge bg-info">POS</span>'
                         : '<span class="badge bg-secondary">Digital</span>';
                 })
+                
 
-                /*Status*/
+                ->addColumn('environment', function ($data) {
+                    if ($data->invoice_environment === 'sandbox') {
+                        return '<span class="badge bg-primary">Sandbox</span>';
+                    }
+
+                    if ($data->invoice_environment === 'production') {
+                        return '<span class="badge bg-danger">Production</span>';
+                    }
+
+                    return ' - ';
+
+                })
+
                 ->addColumn('status', fn($data) => $data->status
                         ? '<span class="badge bg-primary">Paid</span>'
                         : '<span class="badge bg-danger">Due</span>'
@@ -223,11 +226,6 @@ class OrderController extends Controller
                     ';
                 }
 
-                /*
-                |--------------------------------------------------------------------------
-                | Invoice / Receipt Links
-                |--------------------------------------------------------------------------
-                */
                 if ($data->type == 'pos_invoice') {
 
                     $buttons[] = '
@@ -285,11 +283,6 @@ class OrderController extends Controller
                     ';
                 }
 
-                /*
-                |--------------------------------------------------------------------------
-                | Due Collection
-                |--------------------------------------------------------------------------
-                */
                 if (!$data->is_cancelled && !$data->status) {
 
                     $buttons[] = '
@@ -306,11 +299,6 @@ class OrderController extends Controller
                     ';
                 }
 
-                /*
-                |--------------------------------------------------------------------------
-                | Transactions
-                |--------------------------------------------------------------------------
-                */
                 $buttons[] = '
                     <a
                         class="btn-expand btn-outline-primary"
@@ -324,11 +312,6 @@ class OrderController extends Controller
                     </a>
                 ';
 
-                /*
-                |--------------------------------------------------------------------------
-                | Cancel / Cancelled
-                |--------------------------------------------------------------------------
-                */
                 if (!$data->is_cancelled) {
 
                     $buttons[] = '
@@ -372,6 +355,7 @@ class OrderController extends Controller
                 'due',
                 'type',
                 'date',
+                'environment',
                 'status',
                 'action',
             ];
@@ -451,7 +435,8 @@ class OrderController extends Controller
             'customer_id' => ['required', 'exists:customers,id', 'integer'],
             'order_discount' => ['nullable', 'numeric', 'min:0'],
             'paid' => ['nullable', 'numeric', 'min:0'],
-            'order_stage' => ['nullable', 'in:draft,submitted']
+            'order_stage' => ['nullable', 'in:draft,submitted'],
+            'orderDate' => ['required', 'date', 'date_format:Y-m-d'],   
         ]);
 
         $userId =  auth()->id();
@@ -518,6 +503,7 @@ class OrderController extends Controller
             'user_id' => $userId,
             'business_id' => $businessId,
             'invoice_number' => $invoiceNumber,
+            'order_date' => $request->orderDate
         ]);
 
         $totalAmountOrder = 0;
@@ -770,12 +756,13 @@ class OrderController extends Controller
 
             $customer = Customer::find($request->customer_id);
             $business = Business::find($businessId);
+            $POSID = FbrTokenService::getPOSID();
 
             $fbrPayload = [
                 // "POSID" => 819045,
-                "POSID" => $business->ntn,
+                "POSID" => $POSID,
                 "USIN" => "USIN-" . $order->business_id . "-" . str_pad($order->invoice_number, 4, '0', STR_PAD_LEFT),
-                "DateTime" => now()->format('Y-m-d'),
+                "DateTime" => $request->orderDate,
                 "buyerNTN" => $customer->ntn_cnic,
                 "buyerCNIC" => $customer->ntn_cnic,
                 "BuyerName" => $customer->name,
@@ -809,7 +796,7 @@ class OrderController extends Controller
                 } else {
                     $token = $tokens;
                 }
-                $tokenUrlEnd = FbrTokenService::getTokenUrl();
+                $getURLEnvironment = FbrTokenService::getURLEnvironment();
                 $post_api_response = null;
 
                 if ($business->business_type == 'pral') {
@@ -824,7 +811,7 @@ class OrderController extends Controller
                                     'Accept-Encoding' => 'gzip, deflate, br',
                                     'Accept' => '*/*'
                                 ])->withBody(json_encode($fbrPayload), 'application/json')
-                                    ->post("https://ims.pral.com.pk/ims/sandbox/api/Live/PostData"); 
+                                    ->post("https://ims.pral.com.pk/ims/{$getURLEnvironment}/api/Live/PostData"); 
 
                             } catch (\Throwable $e) {
                                 DB::rollBack();
@@ -844,7 +831,7 @@ class OrderController extends Controller
                         ])
                             ->withToken($token)
                             ->acceptJson()
-                            ->post("https://ims.pral.com.pk/ims/sandbox/api/Live/PostData",
+                            ->post("https://ims.pral.com.pk/ims/{$getURLEnvironment}/api/Live/PostData",
                                 $fbrPayload
                             );
                     } catch (\Throwable $e) {
@@ -877,6 +864,7 @@ class OrderController extends Controller
                         'fbr_invoice_no' => $fbr_invoice_number,
                         'api_status' => $post_api_response->status(),
                         'api_message' => 1,
+                        'invoice_environment' => $getURLEnvironment,
                     ]);
 
                     Log::channel('fbr')->info('FBR Payload', [
@@ -1033,9 +1021,11 @@ class OrderController extends Controller
             $totalBillAmount += $lineTotal + $salesTax;
         }
 
+        $POSID = FbrTokenService::getPOSID();
+
         $fbrPayload = [
             // "POSID" => 819045,
-            "POSID" => $business->ntn,
+            "POSID" => $POSID,
             "USIN" => "USIN-" . $order->business_id . "-" . str_pad($order->invoice_number, 4, '0', STR_PAD_LEFT),
             "DateTime" => now()->format('Y-m-d'),
             "buyerNTN" => $customer->ntn_cnic,
@@ -1053,6 +1043,8 @@ class OrderController extends Controller
 
         $tokens = FbrTokenService::getToken();
         $token = is_array($tokens) ? $tokens['pos_token'] : $tokens;
+        $getURLEnvironment = FbrTokenService::getURLEnvironment();
+
 
         $post_api_response = null;
 
@@ -1065,7 +1057,7 @@ class OrderController extends Controller
                 ->withToken($token)
                 ->acceptJson()
                 ->post(
-                    "https://ims.pral.com.pk/ims/sandbox/api/Live/PostData", // <-- confirm: ye ya esp.fbr.gov.pk wala?
+                    "https://ims.pral.com.pk/ims/{$getURLEnvironment}/api/Live/PostData", // <-- confirm: ye ya esp.fbr.gov.pk wala?
                     $fbrPayload
                 );
         } catch (\Throwable $e) {
@@ -1113,6 +1105,7 @@ class OrderController extends Controller
                 'api_status' => $post_api_response->status(),
                 'api_message' => 1,
                 'order_stage' => 'submitted',
+                'invoice_environment' => $getURLEnvironment,
             ]);
 
             DB::commit();
@@ -1252,11 +1245,14 @@ class OrderController extends Controller
             $totalBillAmount += $lineTotal + $salesTax;
         }
 
+        $POSID = FbrTokenService::getPOSID();
+
+
         $fbrPayload = [
             // "POSID" => 819045,
-            "POSID" => $business->ntn,
+            "POSID" => $POSID,
             "USIN" => "USIN-" . $order->business_id . "-" . str_pad($order->invoice_number, 4, '0', STR_PAD_LEFT),
-            "DateTime" => now()->format('Y-m-d'),
+            "DateTime" => $order->order_date->format('Y-m-d'),
             "buyerNTN" => $customer->ntn_cnic,
             "buyerCNIC" => $customer->ntn_cnic,
             "BuyerName" => $customer->name,
@@ -1272,6 +1268,7 @@ class OrderController extends Controller
 
         $tokens = FbrTokenService::getToken();
         $token = is_array($tokens) ? $tokens['pos_token'] : $tokens;
+        $getURLEnvironment = FbrTokenService::getURLEnvironment();
 
         $post_api_response = null;
 
@@ -1286,7 +1283,7 @@ class OrderController extends Controller
                 'Accept-Encoding' => 'gzip, deflate, br',
                 'Accept' => '*/*'
             ])->withBody(json_encode($fbrPayload), 'application/json')
-                ->post("https://ims.pral.com.pk/ims/sandbox/api/Live/PostData"); 
+                ->post("https://ims.pral.com.pk/ims/{$getURLEnvironment}/api/Live/PostData"); 
 
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -1332,6 +1329,7 @@ class OrderController extends Controller
                 'api_status'     => $post_api_response->status(),
                 'api_message'    => 1,
                 'order_stage'    => 'submitted',
+                'invoice_environment' => $getURLEnvironment,
             ]);
 
             DB::commit();
@@ -1786,6 +1784,7 @@ class OrderController extends Controller
                 }
 
                 $tokenUrlEnd = FbrTokenService::getTokenUrl();
+                $invoiceEnvironment = FbrTokenService::getURLEnvironment();
 
                 try {
 
@@ -1851,6 +1850,7 @@ class OrderController extends Controller
                     'error_code' => $errorCode,
                     'error_message' => $errorMessage,
                     'api_message' => $response->ok(),
+                    'invoice_environment' => $invoiceEnvironment,
                 ]);
 
 
@@ -2038,6 +2038,7 @@ class OrderController extends Controller
         $tokens = FbrTokenService::getToken();
         $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
         $tokenUrlEnd = FbrTokenService::getTokenUrl();
+        $invoiceEnvironment = FbrTokenService::getURLEnvironment();
 
         /* ================= STEP 1: VALIDATE ================= */
         try {
@@ -2153,6 +2154,7 @@ class OrderController extends Controller
             'api_message'    => 1,
             'fbr_invoice_no' => $fbr_invoice_number,
             'order_stage'    => 'submitted',
+            'invoice_environment' => $invoiceEnvironment,
         ]);
 
         DB::commit();
