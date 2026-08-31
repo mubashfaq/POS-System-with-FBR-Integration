@@ -183,20 +183,59 @@
         </div>
     </div>
 
-    <!-- FBR STATUS MODAL  -->
-    <div id="fbrStatusModal" class="modal fade" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
+    <!-- FBR STATUS MODAL -->
+    <div id="fbrStatusModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="fbrStatusModalLabel"
+        aria-hidden="true">
+
+        <div class="modal-dialog modal-dialog-centered" role="document">
+
+            <div class="modal-content border-0 shadow">
+
                 <div class="modal-header">
-                    <h5 class="modal-title">FBR Status</h5>
-                    <button type="button" class="btn btn-light btn-sm rounded-circle shadow-sm" data-bs-dismiss="modal"
-                        aria-label="Close" style="position: absolute; top: 10px; right: 10px;">
+                    <h5 class="modal-title" id="fbrStatusModalLabel">
+                        <i class="fas fa-file-invoice mr-2"></i>
+                        FBR Status
+                    </h5>
+
+                    <button type="button" class="btn btn-light btn-sm rounded-circle shadow-sm fbr-modal-close"
+                        aria-label="Close">
                         <i class="fas fa-times text-dark"></i>
                     </button>
                 </div>
-                <div class="modal-body">
-                    <p id="fbrStatusMessage"></p>
+
+                <div class="modal-body p-4">
+
+                    <!-- Status -->
+                    <div class="mb-4">
+                        <div class="text-muted small mb-2"> Status </div>
+
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-info-circle text-primary mr-2"></i>
+
+                            <span id="fbrStatusMessage"></span>
+                        </div>
+                    </div>
+
+                    <!-- FBR Invoice Number -->
+                    <div id="fbrInvoiceNumberContainer" class="p-3 bg-light rounded">
+
+                        <div class="text-muted small mb-1"> FBR Invoice Number </div>
+
+                        <div class="d-flex align-items-center justify-content-between">
+
+                            <span id="fbrInvoiceNumber" class="font-weight-bold text-dark"></span>
+
+                        </div>
+                    </div>
+
                 </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm fbr-modal-close">
+                        Close
+                    </button>
+                </div>
+
             </div>
         </div>
     </div>
@@ -258,7 +297,7 @@
                     { data: 'date', name: 'date' },
                     { data: 'status', name: 'status' },
                     @if ($fbr)
-                                    {
+                                                                            {
                             data: 'fbr_status',
                             name: 'fbr_status',
                             orderable: false,
@@ -388,20 +427,55 @@
 
             // FBR STATUS MODAL
             $(document).on('click', '.fbr-status', function (e) {
+
                 e.preventDefault();
+
                 let id = $(this).data('id');
+
                 $.ajax({
-                    url: "{{ route('backend.admin.orders.fbr-status', ':id') }}".replace(':id', id),
+
+                    url: "{{ route('backend.admin.orders.fbr-status', ':id') }}"
+                        .replace(':id', id),
+
                     type: 'GET',
+
                     dataType: 'json',
+
                     success: function (response) {
-                        $('#fbrStatusMessage').html(response.message);
+
+                        $('#fbrStatusMessage').text(response.message);
+
+                        if (response.fbr_invoice_no) {
+
+                            $('#fbrInvoiceNumber')
+                                .text(response.fbr_invoice_no);
+
+                            $('#fbrInvoiceNumberContainer').show();
+
+                        } else {
+
+                            $('#fbrInvoiceNumber').text('');
+                            $('#fbrInvoiceNumberContainer').hide();
+
+                        }
+
                         $('#fbrStatusModal').modal('show');
                     },
+
                     error: function (xhr, status, error) {
+
                         console.error('Error fetching FBR status:', error);
+
                     }
+
                 });
+
+            });
+
+            $(document).on('click', '.fbr-modal-close', function () {
+
+                $('#fbrStatusModal').modal('hide');
+
             });
 
             $(document).on('click', '.btn-cancel-order', function () {
