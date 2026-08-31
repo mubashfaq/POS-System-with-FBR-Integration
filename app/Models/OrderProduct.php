@@ -23,13 +23,13 @@ class OrderProduct extends Model
         $orderType = $this->order->type ?? null;
 
         // Use stored tax values if available (new records)
-        if (!is_null($this->sale_tax) || !is_null($this->further_tax) || !is_null($this->customer_tax)) {
+        if (!is_null($this->sale_tax) || !is_null($this->further_tax)) {
 
             $salesRate = !is_null($this->sale_tax) ? floatval($this->sale_tax) : 0;
             $furtherRate = !is_null($this->further_tax) ? floatval($this->further_tax) : 0;
-            $customerRate = !is_null($this->customer_tax) ? floatval($this->customer_tax) : 0;
+            // $customerRate = !is_null($this->customer_tax) ? floatval($this->customer_tax) : 0;
 
-            $base = $total - ($salesRate + $furtherRate + $customerRate);
+            $base = $total - ($salesRate + $furtherRate);
         } else {
             // Fallback: calculate from rate fields (old/legacy records)
             if ($orderType === 'pos_invoice') {

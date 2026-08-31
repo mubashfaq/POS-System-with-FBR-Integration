@@ -67,7 +67,7 @@
                             <option value="Registered">
                                 Registered</option>
                             <option value="Unregistered">
-                                Unregistered</option>
+                                Unregistered (4% further tax)</option>
                             <option value="Endconsumer">
                                 End Consumer</option>
                         </select>

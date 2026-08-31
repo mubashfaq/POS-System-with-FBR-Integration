@@ -21,8 +21,8 @@ export default function Pos({ businessType, draftButtonEnabled }) {
     const [updateTotal, setUpdateTotal] = useState(0);
     const [customerId, setCustomerId] = useState();
     const customerIdRef = useRef(undefined); // ✅ always reflects latest customerId (fixes stale closure)
-    const [isRegistered, setIsRegistered] = useState("Registered"); 
-    const [customerTaxType, setCustomerTaxType] = useState(null);
+    const [isRegistered, setIsRegistered] = useState("Registered");
+    // const [customerTaxType, setCustomerTaxType] = useState(null);
     const [cartUpdated, setCartUpdated] = useState(false);
     const [productUpdated, setProductUpdated] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -33,7 +33,7 @@ export default function Pos({ businessType, draftButtonEnabled }) {
     const [loading, setLoading] = useState(false);
     const [furtherTaxTotal, setFurtherTaxTotal] = useState(0);
     const [saleTaxTotal, setSaleTaxTotal] = useState(0);
-    const [customerTaxTotal, setCustomerTaxTotal] = useState(0);
+    // const [customerTaxTotal, setCustomerTaxTotal] = useState(0);
 
     const [showBatchModal, setShowBatchModal] = useState(false);
     const [availableBatches, setAvailableBatches] = useState([]);
@@ -57,29 +57,52 @@ export default function Pos({ businessType, draftButtonEnabled }) {
     }, []); // empty array = runs once on mount
 
     const handlePriceChange = (cartId, newPrice) => {
-    const price = parseFloat(newPrice);
 
-    if (isNaN(price) || price < 0) return;
+        const price = parseFloat(newPrice);
 
-     // Update cart state (UI will reflect immediately)
-    setCarts(prev =>
-        prev.map(item =>
-            item.id === cartId
-                ? { ...item, unit_price: price }
-                : item
-        )
-    );
+        // Don't update if invalid
+        if (isNaN(price) || price < 0) {
+            return;
+        }
 
-    // 2️⃣ Backend API update
-    axios.put("/admin/cart/update-price", {
-        id: cartId,
-        price: price,
-    }).then(() => {
-        setCartUpdated(prev => !prev);
-    }).catch(err => {
-        console.error("Price update failed", err);
-    });
-};
+        // Update React cart state immediately
+        setCarts(prev =>
+            prev.map(item =>
+                item.id === cartId
+                    ? {
+                        ...item,
+                        unit_price: price
+                    }
+                    : item
+            )
+        );
+
+    };
+
+    const savePriceChange = (cartId, newPrice) => {
+
+        const price = parseFloat(newPrice);
+
+        if (isNaN(price) || price < 0) {
+            return;
+        }
+
+        axios.put("/admin/cart/update-price", {
+            id: cartId,
+            price: price,
+        })
+            .then(() => {
+
+                setCartUpdated(prev => !prev);
+
+            })
+            .catch(err => {
+
+                console.error("Price update failed", err);
+
+            });
+
+    };
 
     const api = (path) => {
         const prefix = businessType === "pral"
@@ -89,27 +112,26 @@ export default function Pos({ businessType, draftButtonEnabled }) {
         return `${prefix}${path}`;
     };
 
-    
+
 
     // POS.jsx ke andar, CustomerSelect ke pass karne ke liye
-const emptyCartOnCustomerChange = async () => {
-    try {
-        await axios.put("/admin/cart/empty"); // backend empty cart
-        setCarts([]); // frontend cart clear
-        setCartUpdated(prev => !prev); // Cart component ko update karne ke liye
-        playSound(SuccessSound);
-        toast.success("Cart emptied due to customer change");
-    } catch (err) {
-        playSound(WarningSound);
-        toast.error("Failed to empty cart");
-        console.error(err);
-    }
-};
+    const emptyCartOnCustomerChange = async () => {
+        try {
+            await axios.put("/admin/cart/empty"); // backend empty cart
+            setCarts([]); // frontend cart clear
+            setCartUpdated(prev => !prev); // Cart component ko update karne ke liye
+            playSound(SuccessSound);
+            toast.success("Cart emptied due to customer change");
+        } catch (err) {
+            playSound(WarningSound);
+            toast.error("Failed to empty cart");
+            console.error(err);
+        }
+    };
 
 
-    const fullDomainWithPort = `${protocol}//${hostname}${
-        port ? `:${port}` : ""
-    }`;
+    const fullDomainWithPort = `${protocol}//${hostname}${port ? `:${port}` : ""
+        }`;
     const getProducts = useCallback(
         async (search = "", page = 1, barcode = "") => {
             setLoading(true);
@@ -145,7 +167,7 @@ const emptyCartOnCustomerChange = async () => {
     useEffect(() => {
         getUpdatedProducts();
 
-        
+
         // Send to backend
         axios.post('/admin/set-customer-session', {
             is_registered: 'Registered'
@@ -160,7 +182,7 @@ const emptyCartOnCustomerChange = async () => {
             setTotal(data?.total);
             setUpdateTotal(data?.total - orderDiscount);
             setCarts(data?.carts);
-console.log("CART FROM API", data?.carts);
+            console.log("CART FROM API", data?.carts);
 
         } catch (error) {
             console.error("Error fetching carts:", error);
@@ -178,16 +200,16 @@ console.log("CART FROM API", data?.carts);
     useEffect(() => {
         const paid1 = paid === "" ? 0 : parseFloat(paid);
         const disc = orderDiscount === "" ? 0 : parseFloat(orderDiscount);
-    
+
         // ✅ Calculate grand total from source values, not from updateTotal
-        const grandTotal = parseFloat(total) + parseFloat(saleTaxTotal) + parseFloat(furtherTaxTotal) + parseFloat(customerTaxTotal);
+        const grandTotal = parseFloat(total) + parseFloat(saleTaxTotal) + parseFloat(furtherTaxTotal);
         const afterDiscount = grandTotal - disc;
         const dueAmount = afterDiscount - paid1;
-    
+
         setUpdateTotal(afterDiscount.toFixed(2));
         setDue(dueAmount.toFixed(2));
-    
-    }, [orderDiscount, paid, total, saleTaxTotal, furtherTaxTotal, customerTaxTotal]); // ✅ No updateTotal dependency
+
+    }, [orderDiscount, paid, total, saleTaxTotal, furtherTaxTotal]); // ✅ No updateTotal dependency
     // ✅ Opt-2: Debounce product name search — wait 300ms after last keystroke
     useEffect(() => {
         setSearchBarcode("");
@@ -352,7 +374,7 @@ console.log("CART FROM API", data?.carts);
             }
         });
     }
- 
+
     function orderCreate(orderStage = "submitted") {
         if (isSubmitting) return;
 
@@ -386,132 +408,132 @@ console.log("CART FROM API", data?.carts);
                 }
             }
         )
-        .then((res) => {
-            if (res.data.duplicate) {
-                Swal.fire({
-                    title: res.data.message,
-                    showDenyButton: true,
-                    confirmButtonText: "Yes, create it",
-                    denyButtonText: "No, cancel",
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        createOrder(true, orderStage);
-                    } else {
-                        toast.info("Order not created.");
-                        setIsSubmitting(false);
-                    }
-                });
-            } else {
-                createOrder(true, orderStage);
-            }
-        })
-        .catch((err) => {
-            console.error(err);
+            .then((res) => {
+                if (res.data.duplicate) {
+                    Swal.fire({
+                        title: res.data.message,
+                        showDenyButton: true,
+                        confirmButtonText: "Yes, create it",
+                        denyButtonText: "No, cancel",
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            createOrder(true, orderStage);
+                        } else {
+                            toast.info("Order not created.");
+                            setIsSubmitting(false);
+                        }
+                    });
+                } else {
+                    createOrder(true, orderStage);
+                }
+            })
+            .catch((err) => {
+                console.error(err);
 
-            const message =
-                err?.response?.data?.message ||
-                "Something went wrong while checking order.";
+                const message =
+                    err?.response?.data?.message ||
+                    "Something went wrong while checking order.";
 
-            toast.error(message);
-            setIsSubmitting(false);
-        });
+                toast.error(message);
+                setIsSubmitting(false);
+            });
     }
 
 
-const handleCartTotals = (subTotalCalc, saleTaxCalc, furtherTaxCalc, customerTaxCalc, grandTotalCalc) => {
-    // setTotal(grandTotalCalc); // ✅ include further tax
-    setTotal(subTotalCalc); // ✅ include further tax
-    setSaleTaxTotal(saleTaxCalc);
-    setCustomerTaxTotal(customerTaxCalc.toFixed(2));
-    setUpdateTotal(grandTotalCalc - orderDiscount); // after discount
-    setDue(grandTotalCalc - orderDiscount - paid); // due
-    setFurtherTaxTotal(furtherTaxCalc); // optional display
-};
+    const handleCartTotals = (subTotalCalc, saleTaxCalc, furtherTaxCalc, grandTotalCalc) => {
+        // setTotal(grandTotalCalc); // ✅ include further tax
+        setTotal(subTotalCalc); // ✅ include further tax
+        setSaleTaxTotal(saleTaxCalc);
+        // setCustomerTaxTotal(customerTaxCalc.toFixed(2));
+        setUpdateTotal(grandTotalCalc - orderDiscount); // after discount
+        setDue(grandTotalCalc - orderDiscount - paid); // due
+        setFurtherTaxTotal(furtherTaxCalc); // optional display
+    };
 
 
 
-function createOrder(redirect = false, orderStage = "submitted") {
-    const cartForOrder = carts.map(item => ({
-        id: item.id,
-        product_id: item.product.id,
-        quantity: item.quantity,
-        further_tax: item.further_tax,
-        price: item.product.discounted_price, // ✅ frontend updated price
-    }));
-    axios.put(
-        api("/order/create"),
-        {
-            customer_id: customerId,
-            is_registered: isRegistered, // ✅ IMPORTANT: Send registration status
-            order_discount: parseFloat(orderDiscount) || 0,
-            paid: parseFloat(paid) || 0,
-            cart: carts,
-            orderDate: orderDate,
-            order_stage: orderStage,
-        },
-        { headers: { "Content-Type": "application/json" } }
-    )
-    .then((res) => {
-        console.log("Order Creation Response:", res);
-        setCartUpdated(prev => !prev); // ✅ functional updater
-        setProductUpdated(!productUpdated);
-        const fbr = res?.data?.fbr_api_response;
+    function createOrder(redirect = false, orderStage = "submitted") {
+        const cartForOrder = carts.map(item => ({
+            id: item.id,
+            product_id: item.product.id,
+            quantity: item.quantity,
+            further_tax: item.further_tax,
+            price: item.product.discounted_price, // ✅ frontend updated price
+        }));
+        axios.put(
+            api("/order/create"),
+            {
+                customer_id: customerId,
+                is_registered: isRegistered, // ✅ IMPORTANT: Send registration status
+                order_discount: parseFloat(orderDiscount) || 0,
+                paid: parseFloat(paid) || 0,
+                cart: carts,
+                orderDate: orderDate,
+                order_stage: orderStage,
+            },
+            { headers: { "Content-Type": "application/json" } }
+        )
+            .then((res) => {
+                console.log("Order Creation Response:", res);
+                setCartUpdated(prev => !prev); // ✅ functional updater
+                setProductUpdated(!productUpdated);
+                const fbr = res?.data?.fbr_api_response;
 
-        // If FBR is disabled, there is no fbr_api_response — order is still successful
-        if (!fbr) {
-            toast.success(res?.data?.message || "Order completed successfully!", { duration: 4000 });
-        } else if (fbr.Code === "100" || fbr.Response === "Invoice received successfully") {
-            toast.success("Order completed successfully!", { duration: 4000 });
-        } else {
-            toast.error("Order Not Created", { duration: 4000 });
-        }
-
-        // FBR response check (only when FBR is enabled)
-        if (fbr) {
-            setTimeout(() => {
-                const fbrValidation = fbr?.validationResponse;
-
-                if (!fbrValidation) {
-                    return; // No validation response to show
-                }
-
-                if (fbrValidation.statusCode === "00") {
-                    toast.success(
-                        `FBR Invoice Validated\nStatus: ${fbrValidation.status}\nStatus Code: ${fbrValidation.statusCode}`,
-                        { duration: 7000 }
-                    );
+                // If FBR is disabled, there is no fbr_api_response — order is still successful
+                if (!fbr) {
+                    toast.success(res?.data?.message || "Order completed successfully!", { duration: 4000 });
+                } else if (fbr.Code === "100" || fbr.Response === "Invoice received successfully") {
+                    toast.success("Order completed successfully!", { duration: 4000 });
                 } else {
-                    toast.error(
-                        `FBR Validation Failed\nStatus: ${fbrValidation.status}\nMessage: ${fbrValidation.error}`,
-                        { duration: 9000 }
-                    );
+                    toast.error("Order Not Created", { duration: 4000 });
                 }
-            }, 800);
-        }
 
-        // After order API response, redirect to invoice
-        const orderId = res?.data?.order?.id;
+                // FBR response check (only when FBR is enabled)
+                if (fbr) {
+                    setTimeout(() => {
+                        const fbrValidation = fbr?.validationResponse;
 
-        if (!orderId) {
-            toast.error("Order ID not found, cannot redirect.");
-            return;
-        } else {
-            // FBR enabled → show invoice
-            window.location.href = `/admin/orders/pos-invoice/${orderId}`;
-        }
+                        if (!fbrValidation) {
+                            return; // No validation response to show
+                        }
 
-        console.log("API Full Response:", res.data);
-    })
-    .catch((err) => {
-        console.error(err);
-        toast.error("Order creation failed.");
-    })
-    .finally(() => {
-        setIsSubmitting(false); // enable button again
-    });
+                        if (fbrValidation.statusCode === "00") {
+                            toast.success(
+                                `FBR Invoice Validated\nStatus: ${fbrValidation.status}\nStatus Code: ${fbrValidation.statusCode}`,
+                                { duration: 7000 }
+                            );
+                        } else {
+                            toast.error(
+                                `FBR Validation Failed\nStatus: ${fbrValidation.status}\nMessage: ${fbrValidation.error}`,
+                                { duration: 9000 }
+                            );
+                        }
+                    }, 800);
+                }
 
-    // document.getElementsByClassName("checkout-btn")[0].disabled = false;
-}
+                // After order API response, redirect to invoice
+                const orderId = res?.data?.order?.id;
+
+                if (!orderId) {
+                    toast.error("Order ID not found, cannot redirect.");
+                    return;
+                } else {
+                    // FBR enabled → show invoice
+                    window.location.href = `/admin/orders/pos-invoice/${orderId}`;
+                }
+
+                console.log("API Full Response:", res.data);
+            })
+            .catch((err) => {
+                console.error(err);
+                toast.error("Order creation failed.");
+            })
+            .finally(() => {
+                setIsSubmitting(false); // enable button again
+            });
+
+        // document.getElementsByClassName("checkout-btn")[0].disabled = false;
+    }
     const Field = ({ label, required, children, alignStart }) => (
         <div
             className={`d-flex ${alignStart ? "align-items-start" : "align-items-center"} mb-3`}
@@ -529,7 +551,7 @@ function createOrder(redirect = false, orderStage = "submitted") {
     return (
         <>
             <div className="card">
-               {businessType === 'pral' && (
+                {businessType === 'pral' && (
                     <div class="mt-n5 mb-3 d-flex justify-content-end">
                         <div className="col-md-4">
                             <Field label="Date" required>
@@ -554,7 +576,7 @@ function createOrder(redirect = false, orderStage = "submitted") {
                                 <div className="col-12">
                                     <CustomerSelect
                                         setCustomerId={(id) => { setCustomerId(id); customerIdRef.current = id; }} // ✅ keep ref in sync
-                                        setCustomerTaxType={setCustomerTaxType}
+                                        // setCustomerTaxType={setCustomerTaxType}
                                         setIsRegistered={setIsRegistered}
                                         emptyCart={emptyCartOnCustomerChange}
                                     />
@@ -578,8 +600,9 @@ function createOrder(redirect = false, orderStage = "submitted") {
                                 setCartUpdated={setCartUpdated}
                                 cartUpdated={cartUpdated}
                                 isRegistered={isRegistered}
-                                customerTaxType={customerTaxType}
+                                // customerTaxType={customerTaxType}
                                 onPriceChange={handlePriceChange}
+                                onPriceSave={savePriceChange}
                                 onTotalsChange={handleCartTotals}
                                 quantityValidation={quantityValidation}
                             />
@@ -599,14 +622,14 @@ function createOrder(redirect = false, orderStage = "submitted") {
                                             {Number(saleTaxTotal).toFixed(2)}
                                         </div>
                                     </div>
-                                    { customerTaxTotal > 0 && (
+                                    {/* {customerTaxTotal > 0 && (
                                         <div className="row text-bold mb-1">
                                             <div className="col">Customer Tax:</div>
                                             <div className="col text-right mr-2">
                                                 {Number(customerTaxTotal).toFixed(2)}
                                             </div>
                                         </div>
-                                    )}
+                                    )} */}
                                     {/* <div className="row text-bold mb-1">
                                         <div className="col">Discount:</div>
                                         <div className="col text-right mr-2">
@@ -660,7 +683,7 @@ function createOrder(redirect = false, orderStage = "submitted") {
                                     <div className="row text-bold mb-1">
                                         <div className="col">Total:</div>
                                         <div className="col text-right mr-2">
-                                        {Number(updateTotal).toFixed(2)}
+                                            {Number(updateTotal).toFixed(2)}
                                         </div>
                                     </div>
                                     <div className="row text-bold mb-1">
@@ -679,7 +702,7 @@ function createOrder(redirect = false, orderStage = "submitted") {
                                                     if (
                                                         parseFloat(value) < 0 ||
                                                         parseFloat(value) >
-                                                            updateTotal
+                                                        updateTotal
                                                     ) {
                                                         return;
                                                     }
@@ -691,7 +714,7 @@ function createOrder(redirect = false, orderStage = "submitted") {
                                     <div className="row text-bold">
                                         <div className="col">Due:</div>
                                         <div className="col text-right mr-2">
-                                            {due}
+                                            {Number(due).toFixed(2)}
                                         </div>
                                     </div>
                                 </div>
@@ -846,7 +869,7 @@ function createOrder(redirect = false, orderStage = "submitted") {
                                                     <td>{batch.quantity}</td>
                                                     <td>{batch.purchase_price}</td>
                                                     <td>
-                                                        <button 
+                                                        <button
                                                             className="btn btn-sm btn-primary"
                                                             onClick={() => addProductToCart(targetProduct.id, customerId, batch.id)}
                                                         >
