@@ -83,7 +83,11 @@
                         @if(readConfig('is_show_address_invoice'))Address: {{ $business->address }}<br>@endif
                         @if(readConfig('is_show_phone_invoice'))Phone: {{ $business->phone }}<br>@endif
                         @if(readConfig('is_show_email_invoice'))Email: {{ $business->email }}<br>@endif
+                            @if ($business->business_type == 'pral')
+                            POSID: {{ ($business->ntn) ? $business->ntn :$business->cnic }}
+                            @else
                             NTN/CNIC: {{ ($business->ntn) ? $business->ntn :$business->cnic }}
+                            @endif
                     </address>
                 </div>
                 <!-- /.col -->
