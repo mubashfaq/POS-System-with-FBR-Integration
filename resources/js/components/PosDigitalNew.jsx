@@ -53,12 +53,12 @@ export default function PosDigital({ draftButtonEnabled }) {
     const [customerId, setCustomerId] = useState();
     const customerIdRef = useRef();
     const [isRegistered, setIsRegistered] = useState("Registered");
-    const [customerTaxType, setCustomerTaxType] = useState(null);
+    // const [customerTaxType, setCustomerTaxType] = useState(null);
     const [cartUpdated, setCartUpdated] = useState(false);
     const [productUpdated, setProductUpdated] = useState(false);
     const [furtherTaxTotal, setFurtherTaxTotal] = useState(0);
     const [SaleTax, setSaleTax] = useState(0);
-    const [customerTaxTotal, setCustomerTaxTotal] = useState(0);
+    // const [customerTaxTotal, setCustomerTaxTotal] = useState(0);
     const [subTotal, setSubTotal] = useState(0);
 
     // ── Search / pagination ────────────────────────────────────────────────
@@ -253,17 +253,51 @@ export default function PosDigital({ draftButtonEnabled }) {
     // ═══════════════════════════════════════════════════════════════════════
 
     const handlePriceChange = (cartId, newPrice) => {
+
         const price = parseFloat(newPrice);
-        if (isNaN(price) || price < 0) return;
-        setCarts((prev) =>
-            prev.map((item) =>
-                item.id === cartId ? { ...item, unit_price: price } : item,
-            ),
+
+        // Don't update if invalid
+        if (isNaN(price) || price < 0) {
+            return;
+        }
+
+        // Update React cart state immediately
+        setCarts(prev =>
+            prev.map(item =>
+                item.id === cartId
+                    ? {
+                        ...item,
+                        unit_price: price
+                    }
+                    : item
+            )
         );
-        axios
-            .put("/admin/cart/update-price", { id: cartId, price })
-            .then(() => setCartUpdated((prev) => !prev))
-            .catch((err) => console.error("Price update failed", err));
+
+    };
+
+    const savePriceChange = (cartId, newPrice) => {
+
+        const price = parseFloat(newPrice);
+
+        if (isNaN(price) || price < 0) {
+            return;
+        }
+
+        axios.put("/admin/cart/update-price", {
+            id: cartId,
+            price: price,
+        })
+            .then(() => {
+
+                setCartUpdated(prev => !prev);
+
+            })
+            .catch(err => {
+
+                console.error("Price update failed", err);
+
+            });
+
     };
 
     const handleQuantityChange = (cartId, newQty) => {
@@ -310,13 +344,13 @@ export default function PosDigital({ draftButtonEnabled }) {
         subTotalCalc,
         saleTaxCalc,
         furtherTaxCalc,
-        customerTaxCalc,
+        // customerTaxCalc,
         grandTotalCalc,
     ) => {
         const computedSubTotal = subTotalCalc + furtherTaxCalc;
         setSubTotal(computedSubTotal.toFixed(2));
         setSaleTax(saleTaxCalc.toFixed(2));
-        setCustomerTaxTotal(customerTaxCalc.toFixed(2));
+        // setCustomerTaxTotal(customerTaxCalc.toFixed(2));
         setTotal(grandTotalCalc);
         setUpdateTotal((grandTotalCalc - orderDiscount).toFixed(2));
         setDue((grandTotalCalc - orderDiscount - paid).toFixed(2));
@@ -375,7 +409,7 @@ export default function PosDigital({ draftButtonEnabled }) {
             if (existing) {
                 return prev.map((c) =>
                     c.product?.id === productId &&
-                    c.purchase_item_id === purchaseItemId
+                        c.purchase_item_id === purchaseItemId
                         ? { ...c, quantity: c.quantity + 1 }
                         : c,
                 );
@@ -445,7 +479,7 @@ export default function PosDigital({ draftButtonEnabled }) {
                         playSound(WarningSound);
                         toast.error(
                             err.response?.data?.message ||
-                                "Something went wrong",
+                            "Something went wrong",
                         );
                     });
             }
@@ -504,7 +538,7 @@ export default function PosDigital({ draftButtonEnabled }) {
                 console.error(err);
                 toast.error(
                     err?.response?.data?.message ||
-                        "Something went wrong while checking order.",
+                    "Something went wrong while checking order.",
                 );
                 setIsSubmitting(false);
             });
@@ -619,7 +653,7 @@ export default function PosDigital({ draftButtonEnabled }) {
                                     setCustomerId={setCustomerId}
                                     setIsRegistered={setIsRegistered}
                                     emptyCart={emptyCartOnCustomerChange}
-                                    setCustomerTaxType={setCustomerTaxType}
+                                    // setCustomerTaxType={setCustomerTaxType}
                                 />
                             </div>
                         </div>
@@ -627,16 +661,16 @@ export default function PosDigital({ draftButtonEnabled }) {
 
                     {/* Center Side */}
                     <div className="col-md-4">
-                    <Field label="Date" required>
-                        <input
-                            type="date"
-                            className="form-control form-control-sm"
-                            value={orderDate}
-                            min={minDate}     // User cannot select older than 3 days
-                            max={today}       // User cannot select future dates
-                            onChange={(e) => setOrderDate(e.target.value)}
-                        />
-                    </Field>
+                        <Field label="Date" required>
+                            <input
+                                type="date"
+                                className="form-control form-control-sm"
+                                value={orderDate}
+                                min={minDate}     // User cannot select older than 3 days
+                                max={today}       // User cannot select future dates
+                                onChange={(e) => setOrderDate(e.target.value)}
+                            />
+                        </Field>
                     </div>
 
                     {/* Right Side */}
@@ -655,8 +689,9 @@ export default function PosDigital({ draftButtonEnabled }) {
                     setCartUpdated={setCartUpdated}
                     cartUpdated={cartUpdated}
                     isRegistered={isRegistered}
-                    customerTaxType={customerTaxType}
+                    // customerTaxType={customerTaxType}
                     onPriceChange={handlePriceChange}
+                    onPriceSave={savePriceChange}
                     onQuantityChange={handleQuantityChange}
                     onTotalsChange={handleCartTotals}
                     quantityValidation={quantityValidation}
@@ -719,7 +754,7 @@ export default function PosDigital({ draftButtonEnabled }) {
                         </div>
 
                         {/* Customer Tax */}
-                        { customerTaxType && (
+                        {/* {customerTaxType && (
                             <div className="row mb-2 align-items-center">
                                 <div
                                     className="col-7 text-end"
@@ -735,7 +770,7 @@ export default function PosDigital({ draftButtonEnabled }) {
                                     />
                                 </div>
                             </div>
-                        )}
+                        )} */}
 
                         {/* Discount */}
                         <div className="row mb-2 align-items-center">

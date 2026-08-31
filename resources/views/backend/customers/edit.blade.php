@@ -64,7 +64,7 @@
             <select name="is_registered" id="is_registered" class="form-control" required >
               <option value="">Select Status</option>
               <option value="Registered" {{ $customer->is_registered == 'Registered' ? 'selected' : '' }}>Registered</option>
-              <option value="Unregistered" {{ $customer->is_registered == 'Unregistered' ? 'selected' : '' }}>Unregistered</option>
+              <option value="Unregistered" {{ $customer->is_registered == 'Unregistered' ? 'selected' : '' }}>Unregistered (4% further tax) </option>
               <option value="Endconsumer" {{ $customer->is_registered == 'Endconsumer' ? 'selected' : '' }}>End Consumer</option>
             </select>
           </div>

@@ -205,7 +205,7 @@ export default function CustomerCreateModal({
                                             Registered
                                         </option>
                                         <option value="Unregistered">
-                                            Unregistered
+                                            Unregistered (4% further tax)
                                         </option>
                                         <option value="Endconsumer">
                                         End Consumer
