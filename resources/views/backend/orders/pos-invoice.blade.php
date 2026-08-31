@@ -54,6 +54,7 @@
               Customer : {{ $order->customer->name ?? 'N/A' }}<br>
               <!-- Address: {{ $order->customer->address ?? 'N/A' }}<br> -->
               <!-- Phone: {{ $order->customer->phone ?? 'N/A' }}<br> -->
+              Sale Date: {{date('d/m/Y', strtotime($order->order_date ?? $order->created_at))}}<br>
 
             </address>
           @endif
