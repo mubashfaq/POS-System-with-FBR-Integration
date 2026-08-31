@@ -127,13 +127,6 @@ class OrderController extends Controller
 
                 ->addColumn('date', fn($data) => $data->created_at->format('Y-m-d'));
 
-            /*
-            |--------------------------------------------------------------------------
-            | FBR Status
-            |
-            | Only add this column when FBR integration is enabled.
-            |--------------------------------------------------------------------------
-            */
             if ($fbr) {
 
                 $datatable->addColumn('fbr_status', function ($d) {
@@ -551,16 +544,16 @@ class OrderController extends Controller
                 $saleTax = round($ratePerUnit * $qty, 2);
             }
 
+            $finalTotal = round($lineTotal + $saleTax, 2);
+
             // Customer Tax
             $customerTax = 0;
 
             if ($customer->customer_tax_type === 'retailer') {
-                $customerTax = round($lineTotal * 0.005, 2);
+                $customerTax = round($finalTotal * 0.005, 2);
             } elseif ($customer->customer_tax_type === 'distributor') {
-                $customerTax = round($lineTotal * 0.01, 2);
+                $customerTax = round($finalTotal * 0.01, 2);
             }
-
-            $finalTotal = round($lineTotal + $saleTax, 2);
 
             $totalAmountOrder += $finalTotal;
             $totalTaxOrder    += $saleTax;
@@ -1513,14 +1506,14 @@ class OrderController extends Controller
                 $furtherTax = round($valueExTax * (4 / 100), 2);
             }
 
+            $finalTotal = round($lineTotal + $salesTax + $furtherTax, 2);
+
             $customerTax = 0;
             if ($customer->customer_tax_type === 'retailer') {
-                $customerTax = round($lineTotal * 0.005, 2);
+                $customerTax = round($finalTotal * 0.005, 2);
             } elseif ($customer->customer_tax_type === 'distributor') {
-                $customerTax = round($lineTotal * 0.01, 2);
+                $customerTax = round($finalTotal * 0.01, 2);
             }
-
-            $finalTotal = round($lineTotal + $salesTax + $furtherTax, 2);
 
             $totalAmountOrder += $finalTotal;
             $totalSaleTax += $salesTax;
@@ -2419,23 +2412,35 @@ class OrderController extends Controller
 
         if (!$data) {
             return response()->json([
-                'message' => "Order not found"
+                'message' => "Order not found",
+                'fbr_invoice_no' => null
             ]);
         }
 
         if ($data->api_status != 200) {
+
             $message = "API Not Run Due to Some Issue From FBR";
-        } elseif ($data->api_status == 200 && empty($data->error_code) && ($data->fbr_invoice_no != null)) {
+
+        } elseif (
+            $data->api_status == 200 &&
+            empty($data->error_code) &&
+            $data->fbr_invoice_no != null
+        ) {
+
             $message = "Successfully Sent to FBR.";
+
         } else {
+
             $message = "Failed to send to FBR " . $data->error_code;
+
             if (!empty($data->error_message)) {
                 $message .= " - " . $data->error_message;
             }
         }
 
         return response()->json([
-            'message' => $message
+            'message' => $message,
+            'fbr_invoice_no' => $data->fbr_invoice_no
         ]);
     }
 
