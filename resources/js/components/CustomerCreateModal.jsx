@@ -226,10 +226,10 @@ export default function CustomerCreateModal({
                                             Select Tax Type
                                         </option>
                                         <option value="retailer">
-                                            Retailer
+                                            Retailer (0.005% Customer Tax)
                                         </option>
                                         <option value="distributor">
-                                            Distributor
+                                            Distributor (0.01% Customer Tax)
                                         </option>
                                     </select>
                                 </div>
