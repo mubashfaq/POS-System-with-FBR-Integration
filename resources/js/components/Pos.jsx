@@ -814,8 +814,8 @@ export default function Pos({ businessType, draftButtonEnabled }) {
                                                 />
                                                 <div className="product-details">
                                                     <p className="mb-0 text-bold product-name">
-                                                        {product.name.length > 22
-                                                            ? `${product.name.substring(0, 22)}...`
+                                                        {product.name.length > 18
+                                                            ? `${product.name.substring(0, 18)}...`
                                                             : product.name}{" "}
                                                         ({product.quantity})
                                                     </p>
