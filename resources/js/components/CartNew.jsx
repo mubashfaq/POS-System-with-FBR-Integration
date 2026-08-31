@@ -8,6 +8,72 @@ import playSound from "../utils/playSound";
 import ProductCreateDigitalModal from "./ProductCreateDigitalModal";
 import ReactDOM from "react-dom";
 
+const PriceInput = ({ item, onPriceChange, onPriceSave }) => {
+
+    const [value, setValue] = useState(
+        item.unit_price ??
+        item.product.discounted_price ??
+        ""
+    );
+
+    useEffect(() => {
+
+        setValue(
+            item.unit_price ??
+            item.product.discounted_price ??
+            ""
+        );
+
+    }, [item.id]);
+
+
+    const handleChange = (e) => {
+
+        const newValue = e.target.value;
+
+        setValue(newValue);
+
+        const price = parseFloat(newValue);
+
+        if (!isNaN(price) && price >= 0) {
+
+            onPriceChange(item.id, price);
+
+        }
+
+    };
+
+
+    const handleBlur = () => {
+
+        const price = parseFloat(value);
+
+        if (!isNaN(price) && price >= 0) {
+
+            onPriceSave(item.id, price);
+
+        }
+
+    };
+
+
+    return (
+
+        <input
+            type="number"
+            className="border text-center"
+            style={{ width: 95 }}
+            value={value}
+            step="any"
+            min="0"
+            onChange={handleChange}
+            onBlur={handleBlur}
+        />
+
+    );
+
+};
+
 const ORANGE = "#fd6802";
 
 const fmt = (n) =>
@@ -24,8 +90,9 @@ export default function Cart({
     setCartUpdated,
     cartUpdated,
     isRegistered,
-    customerTaxType,
+    // customerTaxType,
     onPriceChange,
+    onPriceSave,
     onQuantityChange,
     onTotalsChange,
     quantityValidation,
@@ -39,7 +106,7 @@ export default function Cart({
     const [cartItems, setCartItems] = useState([]);
     const [subTotal, setSubTotal] = useState(0);
     const [furtherTaxTotal, setFurtherTaxTotal] = useState(0);
-    const [customerTaxTotal, setCustomerTaxTotal] = useState(0);
+    // const [customerTaxTotal, setCustomerTaxTotal] = useState(0);
     const [grandTotal, setGrandTotal] = useState(0);
     const [showProductModal, setShowProductModal] = useState(false);
 
@@ -78,7 +145,7 @@ export default function Cart({
         let subTotalExTax = 0;
         let furtherTaxCalc = 0;
         let saleTaxCalc = 0;
-        let customerTaxCalc = 0;
+        // let customerTaxCalc = 0;
 
         const updatedCarts = carts.map((item) => {
             const price = Number(
@@ -107,19 +174,19 @@ export default function Cart({
                 furtherTax = exTaxAmount * (4 / 100);
             }
 
-            let customerTax = 0;
+            // let customerTax = 0;
 
-            if (customerTaxType === "retailer") {
-                customerTax = exTaxAmount * 0.005; // 0.5%
-            } else if (customerTaxType === "distributor") {
-                customerTax = exTaxAmount * 0.01; // 1%
-            }
+            // if (customerTaxType === "retailer") {
+            //     customerTax = exTaxAmount * 0.005; // 0.5%
+            // } else if (customerTaxType === "distributor") {
+            //     customerTax = exTaxAmount * 0.01; // 1%
+            // }
 
             if (!item.parent_cart_id && !item.is_accessory) {
                 subTotalExTax += exTaxAmount;
                 saleTaxCalc += saleTax;
                 furtherTaxCalc += furtherTax;
-                customerTaxCalc += customerTax;
+                // customerTaxCalc += customerTax;
             }
 
             return {
@@ -127,21 +194,21 @@ export default function Cart({
                 base_total: exTaxAmount.toFixed(2),
                 sale_tax: saleTax.toFixed(2),
                 further_tax: furtherTax.toFixed(2),
-                customer_tax: customerTax.toFixed(2),
-                total_with_tax: (exTaxAmount + furtherTax + saleTax + customerTax).toFixed(2),
+                // customer_tax: customerTax.toFixed(2),
+                total_with_tax: (exTaxAmount + furtherTax + saleTax).toFixed(2),
             };
         });
 
-        const gTotal = subTotalExTax + saleTaxCalc + furtherTaxCalc + customerTaxCalc;
+        const gTotal = subTotalExTax + saleTaxCalc + furtherTaxCalc;
 
         setCartItems(updatedCarts);
         setSubTotal(subTotalExTax.toFixed(2));
         setFurtherTaxTotal(furtherTaxCalc.toFixed(2));
-        setCustomerTaxTotal(customerTaxCalc.toFixed(2));
+        // setCustomerTaxTotal(customerTaxCalc.toFixed(2));
         setGrandTotal(gTotal.toFixed(2));
 
         if (onTotalsChange) {
-            onTotalsChange(subTotalExTax, saleTaxCalc, furtherTaxCalc, customerTaxCalc, gTotal);
+            onTotalsChange(subTotalExTax, saleTaxCalc, furtherTaxCalc, gTotal);
         }
     }, [carts, registrationStatus]);
 
@@ -295,12 +362,12 @@ export default function Cart({
             acc.qty += Number(item.quantity) || 0;
             acc.amount += Number(item.base_total) || 0;
             acc.saleTax += Number(item.sale_tax) || 0;
-            acc.customerTax += Number(item.customer_tax) || 0;
+            // acc.customerTax += Number(item.customer_tax) || 0;
             acc.furtherTax += Number(item.further_tax) || 0;
             acc.net += Number(item.total_with_tax) || 0;
             return acc;
         },
-        { qty: 0, amount: 0, saleTax: 0, furtherTax: 0, customerTax: 0, net: 0 },
+        { qty: 0, amount: 0, saleTax: 0, furtherTax: 0, net: 0 },
     );
 
     const isUnregistered = registrationStatus.toLowerCase() === "unregistered";
@@ -342,14 +409,14 @@ export default function Cart({
                                     Further Tax
                                 </th>
                             )}
-                            {customerTaxType && (
+                            {/* {customerTaxType && (
                                 <th
                                     className="text-center"
                                     style={{ minWidth: 100 }}
                                 >
                                     Customer Tax
                                 </th>
-                            )}
+                            )} */}
                             <th className="text-right" style={{ minWidth: 120 }}>
                                 Net
                             </th>
@@ -421,32 +488,16 @@ export default function Cart({
                                         </td>
 
                                         {/* Rate (editable) */}
-                                        <td>
-                                            <input
-                                                type="number"
-                                                className="form-control form-control-sm text-right"
-                                                style={{ width: 95 }}
-                                                value={
-                                                    item.unit_price ??
-                                                    item.product
-                                                        .discounted_price
-                                                }
-                                                onChange={(e) => {
-                                                    const newPrice = parseFloat(
-                                                        e.target.value,
-                                                    );
-                                                    if (
-                                                        !isNaN(newPrice) &&
-                                                        newPrice >= 0
-                                                    ) {
-                                                        onPriceChange(
-                                                            item.id,
-                                                            newPrice,
-                                                        );
-                                                    }
-                                                }}
+                                        <td className="text-right">
+
+                                            <PriceInput
+                                                item={item}
+                                                onPriceChange={onPriceChange}
+                                                onPriceSave={onPriceSave}
                                             />
+
                                         </td>
+
 
                                         {/* Amount */}
                                         <td className="text-center">
@@ -475,11 +526,11 @@ export default function Cart({
                                         )}
 
                                         {/* customer Tax */}
-                                        {customerTaxType && (
+                                        {/* {customerTaxType && (
                                             <td className="text-center fw-semibold">
                                                 {fmt(item.customer_tax)}
                                             </td>
-                                        )}
+                                        )} */}
 
                                         {/* Net */}
                                         <td className="text-right fw-bold">
@@ -550,59 +601,59 @@ export default function Cart({
                                             </button>
 
                                             {isOpen && pickerPos &&
-    ReactDOM.createPortal(
-        <div
-            ref={dropdownRef}
-            className="cart-pd-dropdown bg-white border rounded shadow"
-            style={{
-                position: "fixed",
-                zIndex: 2000,
-                top: pickerPos.top,
-                left: pickerPos.left,
-                width: pickerPos.width,
-            }}
-        >
-            <div className="p-2 border-bottom">
-                <input
-                    type="text"
-                    className="form-control form-control-sm"
-                    placeholder="Search product…"
-                    autoFocus
-                    value={searchVal}
-                    onChange={(e) =>
-                        setPickerSearch((prev) => ({
-                            ...prev,
-                            [row.key]: e.target.value,
-                        }))
-                    }
-                    onClick={(e) => e.stopPropagation()}
-                />
-            </div>
-            <div style={{ maxHeight: 320, overflowY: "auto" }}>
-                {filteredProducts.length === 0 ? (
-                    <div className="text-center text-muted py-3" style={{ fontSize: 13 }}>
-                        No products found
-                    </div>
-                ) : (
-                    filteredProducts.map((p) => (
-                        <button
-                            key={p.id}
-                            type="button"
-                            className="dropdown-item d-flex justify-content-between align-items-center py-2"
-                            onClick={() => pickProductForBlankRow(row.key, p)}
-                        >
-                            <span style={{ fontSize: 13 }}>{p.name}</span>
-                            <small className="text-muted ml-2" style={{ whiteSpace: "nowrap" }}>
-                                {p.unit} · {fmt(p.discounted_price)}
-                            </small>
-                        </button>
-                    ))
-                )}
-            </div>
-        </div>,
-        document.body
-    )
-}
+                                                ReactDOM.createPortal(
+                                                    <div
+                                                        ref={dropdownRef}
+                                                        className="cart-pd-dropdown bg-white border rounded shadow"
+                                                        style={{
+                                                            position: "fixed",
+                                                            zIndex: 2000,
+                                                            top: pickerPos.top,
+                                                            left: pickerPos.left,
+                                                            width: pickerPos.width,
+                                                        }}
+                                                    >
+                                                        <div className="p-2 border-bottom">
+                                                            <input
+                                                                type="text"
+                                                                className="form-control form-control-sm"
+                                                                placeholder="Search product…"
+                                                                autoFocus
+                                                                value={searchVal}
+                                                                onChange={(e) =>
+                                                                    setPickerSearch((prev) => ({
+                                                                        ...prev,
+                                                                        [row.key]: e.target.value,
+                                                                    }))
+                                                                }
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            />
+                                                        </div>
+                                                        <div style={{ maxHeight: 320, overflowY: "auto" }}>
+                                                            {filteredProducts.length === 0 ? (
+                                                                <div className="text-center text-muted py-3" style={{ fontSize: 13 }}>
+                                                                    No products found
+                                                                </div>
+                                                            ) : (
+                                                                filteredProducts.map((p) => (
+                                                                    <button
+                                                                        key={p.id}
+                                                                        type="button"
+                                                                        className="dropdown-item d-flex justify-content-between align-items-center py-2"
+                                                                        onClick={() => pickProductForBlankRow(row.key, p)}
+                                                                    >
+                                                                        <span style={{ fontSize: 13 }}>{p.name}</span>
+                                                                        <small className="text-muted ml-2" style={{ whiteSpace: "nowrap" }}>
+                                                                            {p.unit} · {fmt(p.discounted_price)}
+                                                                        </small>
+                                                                    </button>
+                                                                ))
+                                                            )}
+                                                        </div>
+                                                    </div>,
+                                                    document.body
+                                                )
+                                            }
                                         </div>
                                     </td>
                                     <td>
@@ -664,11 +715,11 @@ export default function Cart({
                                             —
                                         </td>
                                     )}
-                                    {customerTaxType && (
+                                    {/* {customerTaxType && (
                                         <td className="text-center text-muted">
                                             —
                                         </td>
-                                    )}
+                                    )} */}
                                     <td className="text-right text-muted">
                                         0.00
                                     </td>
@@ -712,11 +763,11 @@ export default function Cart({
                                         {fmt(totals.furtherTax)}
                                     </td>
                                 )}
-                                {customerTaxType && (
+                                {/* {customerTaxType && (
                                     <td className="text-center">
                                         {fmt(totals.customerTax)}
                                     </td>
-                                )}
+                                )} */}
                                 <td className="text-right">{fmt(totals.net)}</td>
                                 <td></td>
                             </tr>
