@@ -59,10 +59,19 @@ class OrderController extends Controller
             $end_date = Carbon::createFromFormat('Y-m-d', $end_date_input) ?: Carbon::today()->endOfDay();
             $end_date = $end_date->endOfDay();
 
-            $orders = Order::with('customer')
+            $ordersQuery = Order::with('customer')
                 ->where('business_id', $businessId)
-                ->whereBetween('created_at', [$start_date, $end_date])
-                ->get();
+                ->whereBetween('created_at', [$start_date, $end_date]);
+
+            // Environment Filter
+            if ($request->filled('environment')) {
+                $ordersQuery->where(
+                    'invoice_environment',
+                    $request->environment
+                );
+            }
+
+            $orders = $ordersQuery->get();
 
             $fbr = FbrTokenService::isIntegrationEnabled();
 
@@ -551,7 +560,7 @@ class OrderController extends Controller
                 $customerTax = round($lineTotal * 0.01, 2);
             }
 
-            $finalTotal = round($lineTotal + $saleTax + $customerTax, 2);
+            $finalTotal = round($lineTotal + $saleTax, 2);
 
             $totalAmountOrder += $finalTotal;
             $totalTaxOrder    += $saleTax;
@@ -1511,7 +1520,7 @@ class OrderController extends Controller
                 $customerTax = round($lineTotal * 0.01, 2);
             }
 
-            $finalTotal = round($lineTotal + $salesTax + $furtherTax + $customerTax, 2);
+            $finalTotal = round($lineTotal + $salesTax + $furtherTax, 2);
 
             $totalAmountOrder += $finalTotal;
             $totalSaleTax += $salesTax;

@@ -6,13 +6,80 @@ import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
 
+const PriceInput = ({ item, onPriceChange, onPriceSave }) => {
+
+    const [value, setValue] = useState(
+        item.unit_price ??
+        item.product.discounted_price ??
+        ""
+    );
+
+    useEffect(() => {
+
+        setValue(
+            item.unit_price ??
+            item.product.discounted_price ??
+            ""
+        );
+
+    }, [item.id]);
+
+
+    const handleChange = (e) => {
+
+        const newValue = e.target.value;
+
+        setValue(newValue);
+
+        const price = parseFloat(newValue);
+
+        if (!isNaN(price) && price >= 0) {
+
+            onPriceChange(item.id, price);
+
+        }
+
+    };
+
+
+    const handleBlur = () => {
+
+        const price = parseFloat(value);
+
+        if (!isNaN(price) && price >= 0) {
+
+            onPriceSave(item.id, price);
+
+        }
+
+    };
+
+
+    return (
+
+        <input
+            type="number"
+            className="border text-right"
+            style={{ width: "80px" }}
+            value={value}
+            step="any"
+            min="0"
+            onChange={handleChange}
+            onBlur={handleBlur}
+        />
+
+    );
+
+};
+
 export default function Cart({
     carts,
     setCartUpdated,
     cartUpdated,
     isRegistered,
-    customerTaxType,
+    // customerTaxType,
     onPriceChange,
+    onPriceSave,
     onTotalsChange,
     quantityValidation
 }) {
@@ -20,7 +87,7 @@ export default function Cart({
     const [cartItems, setCartItems] = useState([]);
     const [subTotal, setSubTotal] = useState(0);
     const [furtherTaxTotal, setFurtherTaxTotal] = useState(0);
-    const [customerTaxTotal, setCustomerTaxTotal] = useState(0);
+    // const [customerTaxTotal, setCustomerTaxTotal] = useState(0);
     const [grandTotal, setGrandTotal] = useState(0);
 
     const registrationStatus = isRegistered || "Registered";
@@ -29,7 +96,7 @@ export default function Cart({
         let subTotalExTax = 0;
         let furtherTaxCalc = 0;
         let saleTaxCalc = 0;
-        let customerTaxCalc = 0;
+        // let customerTaxCalc = 0;
 
         // Only parent items contribute to totals
         const parentCarts = carts.filter((i) => !i.parent_cart_id && !i.is_accessory);
@@ -58,20 +125,20 @@ export default function Cart({
                 furtherTax = exTaxAmount * (4 / 100);
             }
 
-            let customerTax = 0;
+            // let customerTax = 0;
 
-            if (customerTaxType === "retailer") {
-                customerTax = exTaxAmount * 0.005; // 0.5%
-            } else if (customerTaxType === "distributor") {
-                customerTax = exTaxAmount * 0.01; // 1%
-            }
+            // if (customerTaxType === "retailer") {
+            //     customerTax = exTaxAmount * 0.005; // 0.5%
+            // } else if (customerTaxType === "distributor") {
+            //     customerTax = exTaxAmount * 0.01; // 1%
+            // }
 
             // Only accumulate from parent items
             if (!item.parent_cart_id && !item.is_accessory) {
                 subTotalExTax += exTaxAmount;
                 saleTaxCalc += saleTax;
                 furtherTaxCalc += furtherTax;
-                customerTaxCalc += customerTax;
+                // customerTaxCalc += customerTax;
             }
 
             return {
@@ -79,21 +146,21 @@ export default function Cart({
                 base_total: exTaxAmount.toFixed(2),
                 sale_tax: saleTax.toFixed(2),
                 further_tax: furtherTax.toFixed(2),
-                customer_tax: customerTax.toFixed(2),
-                total_with_tax: (exTaxAmount + furtherTax + saleTax + customerTax).toFixed(2),
+                // customer_tax: customerTax.toFixed(2),
+                total_with_tax: (exTaxAmount + furtherTax + saleTax).toFixed(2),
             };
         });
 
-        const grandTotal = subTotalExTax + saleTaxCalc + furtherTaxCalc + customerTaxCalc;
+        const grandTotal = subTotalExTax + saleTaxCalc + furtherTaxCalc;
 
         setCartItems(updatedCarts);
         setSubTotal(subTotalExTax.toFixed(2));
         setFurtherTaxTotal(furtherTaxCalc.toFixed(2));
         setGrandTotal(grandTotal.toFixed(2));
-        setCustomerTaxTotal(customerTaxCalc.toFixed(2));
+        // setCustomerTaxTotal(customerTaxCalc.toFixed(2));
 
         if (onTotalsChange) {
-            onTotalsChange(subTotalExTax, saleTaxCalc, furtherTaxCalc, customerTaxCalc, grandTotal);
+            onTotalsChange(subTotalExTax, saleTaxCalc, furtherTaxCalc, grandTotal);
         }
     }, [carts, registrationStatus]);
 
@@ -122,12 +189,12 @@ export default function Cart({
         const isAccessory = !!item?.parent_cart_id || !!item?.is_accessory;
         const stockEnforced = quantityValidation == "disabled"; // disabled = enforce stock
         const newQuantity = parseFloat(value);
-    
+
         if (isNaN(newQuantity) || newQuantity < 0) {
             setEditingQuantity((prev) => ({ ...prev, [id]: false }));
             return;
         }
-    
+
         // Block only when: main product AND stock is being enforced AND exceeds stock
         if (!isAccessory && stockEnforced && newQuantity > item.product.quantity) {
             playSound(WarningSound);
@@ -135,17 +202,17 @@ export default function Cart({
             setEditingQuantity((prev) => ({ ...prev, [id]: false }));
             return;
         }
-    
+
         updateQuantity(id, newQuantity);
     }
 
     // function increment(id) {
     //     const item = carts.find((cart) => cart.id === id);
     //     if (!item) return;
-    
+
     //     const isAccessory = !!item.parent_cart_id || !!item.is_accessory;
     //     const stockEnforced = quantityValidation == "disabled"; // disabled = enforce stock
-    
+
     //     // Accessories: always allow
     //     // Main product + validation enabled: always allow (backend handles it)
     //     // Main product + validation disabled: respect stock limit
@@ -327,18 +394,13 @@ export default function Cart({
                                                         </td>
 
                                                         <td className="text-right">
-                                                            <input
-                                                                type="number"
-                                                                className="border text-right"
-                                                                style={{ width: "80px" }}
-                                                                value={item.unit_price ?? item.product.discounted_price}
-                                                                onChange={(e) => {
-                                                                    const newPrice = parseFloat(e.target.value);
-                                                                    if (!isNaN(newPrice) && newPrice >= 0) {
-                                                                        onPriceChange(item.id, newPrice);
-                                                                    }
-                                                                }}
+
+                                                            <PriceInput
+                                                                item={item}
+                                                                onPriceChange={onPriceChange}
+                                                                onPriceSave={onPriceSave}
                                                             />
+
                                                         </td>
 
                                                         <td className="text-right">
@@ -350,11 +412,11 @@ export default function Cart({
                                                                     <div className="small text-muted">
                                                                         <del>{item.base_total}</del>
                                                                     </div>
-                                                                    {parseFloat(item.customer_tax) > 0 && (
+                                                                    {/* {parseFloat(item.customer_tax) > 0 && (
                                                                         <div className="small text-primary">
                                                                             +{item.customer_tax} customer tax
                                                                         </div>
-                                                                    )}
+                                                                    )} */}
                                                                     <div className="small text-danger">
                                                                         +{item.further_tax} further tax
                                                                     </div>
@@ -367,11 +429,11 @@ export default function Cart({
                                                                     <div className="font-weight-bold">
                                                                         {item.base_total}
                                                                     </div>
-                                                                    {parseFloat(item.customer_tax) > 0 && (
+                                                                    {/* {parseFloat(item.customer_tax) > 0 && (
                                                                         <div className="small text-primary">
                                                                             +{item.customer_tax} customer tax
                                                                         </div>
-                                                                    )}
+                                                                    )} */}
                                                                     <div className="small text-warning">
                                                                         +{item.sale_tax} sale tax
                                                                     </div>
