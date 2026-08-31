@@ -208,7 +208,7 @@ export default function Purchase() {
     const totals = calculateTotals();
     const handleSubmit = async () => {
         if (totals.grandTotal <= 0) {
-            //    toast.error("Total must be greater than zero.");
+               toast.error("Total must be greater than zero.");
             return;
         }
         if (!date) {
