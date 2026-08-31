@@ -30,6 +30,10 @@
         @if(!empty($invoiceSettings->email) && $invoiceSettings->email == 1)
           {{ $business->email ?? '' }}<br>
         @endif
+
+        <div class="mt-1">
+          <p>{{ date('d-M-Y') }} {{ date('h:i:s A') }}</p>
+        </div>
       </div>
       {{ 'User: ' . auth()->user()->name}}<br>
       {{ 'Order: #' . $order->id}}<br>
@@ -40,16 +44,17 @@
             <address>
               Name: {{ $order->customer->name ?? 'N/A' }}<br>
               Address: {{ $order->customer->address ?? 'N/A' }}<br>
-              Phone: {{ $order->customer->phone ?? 'N/A' }}
+              Phone: {{ $order->customer->phone ?? 'N/A' }}<br>
+              Sale Date: {{date('d/m/Y', strtotime($order->order_date ?? $order->created_at))}}
             </address>
           @endif
         </div>
-        <div class="text-right">
+        {{-- <div class="text-right">
           <address class="text-right">
             <p>{{ date('d-M-Y') }}</p>
             <p>{{ date('h:i:s A') }}</p>
           </address>
-        </div>
+        </div> --}}
       </div>
       <hr>
       <table style="width: 100%;">

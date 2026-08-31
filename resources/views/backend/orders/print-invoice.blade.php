@@ -90,7 +90,7 @@
                 <div class="col-sm-4 invoice-col">
                     Info <br>
                     Sale ID #{{$order->id}}<br>
-                    Sale Date: {{date('d/m/Y', strtotime($order->created_at))}}<br>
+                    Sale Date: {{date('d/m/Y', strtotime($order->order_date ?? $order->created_at))}}<br>
                     @if (($fbrIntegration ?? null) == 'enabled' && $order->order_stage !== 'draft')
                         FBR Invoice: <div>{{ $order->fbr_invoice_no }}</div>
                     @endif
