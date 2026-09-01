@@ -185,11 +185,7 @@ class OrderController extends Controller
                 });
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | Action Buttons
-            |--------------------------------------------------------------------------
-            */
+            /* Action Buttons */
             $datatable->addColumn('action', function ($data) use ($business, $fbr) {
 
                 $isDraft =
@@ -284,6 +280,19 @@ class OrderController extends Controller
                         </a>
                     ';
                 }
+
+                $buttons[] = '
+                    <a
+                        class="btn-expand btn-outline-info"
+                        href="' . route(
+                            'backend.admin.orders.customer-tax-invoice',
+                            $data->id
+                        ) . '"
+                    >
+                        <i class="fas fa-file-invoice-dollar"></i>
+                        <span>Customer Tax Invoice</span>
+                    </a>
+                ';
 
                 if (!$data->is_cancelled && !$data->status) {
 
@@ -1512,7 +1521,7 @@ class OrderController extends Controller
             if ($customer->customer_tax_type === 'retailer') {
                 $customerTax = round($finalTotal * 0.005, 2);
             } elseif ($customer->customer_tax_type === 'distributor') {
-                $customerTax = round($finalTotal * 0.01, 2);
+                $customerTax = round($finalTotal * 0.01, 2); // 0.01 = (1/100) 1%
             }
 
             $totalAmountOrder += $finalTotal;
@@ -2322,6 +2331,42 @@ class OrderController extends Controller
 
         return view('backend.orders.print-invoice', compact('order', 'business', 'fbrIntegration', 'invoiceSettings'));
     }
+    
+    public function customerTaxInvoice($id)
+    {
+        $businessId = session('business_id');
+
+        $order = Order::with([
+            'customer',
+            'products.product',
+            'business.invoiceSetting',
+        ])->findOrFail($id);
+        $business = Business::findOrFail($businessId);
+        $fbrIntegration = FbrTokenService::isIntegrationEnabled();
+        $invoiceSettings = InvoiceSetting::where('business_id', $businessId)->first();
+
+        return view('backend.orders.customer-tax-invoice.print-invoice', compact('order', 'business', 'fbrIntegration', 'invoiceSettings'));
+    }
+
+    public function customerTaxReceiptDigital($id)
+    {
+        $businessId = session('business_id');
+
+        $order = Order::with(['customer', 'products.product'])
+            ->where('business_id', $businessId)
+            ->findOrFail($id);
+
+        $invoiceSettings = InvoiceSetting::where('business_id', $businessId)->first();
+
+        $business = Business::findOrFail($businessId);
+
+        $maxWidth = $invoiceSettings->post_invoice_width ?? '300px';
+
+        $fbrIntegration = FbrTokenService::isIntegrationEnabled();
+
+        return view('backend.orders.customer-tax-invoice.pos-invoice-digital', compact('order', 'maxWidth', 'invoiceSettings', 'business', 'fbrIntegration'));
+    }
+
     public function collection(Request $request, $id)
     {
 
