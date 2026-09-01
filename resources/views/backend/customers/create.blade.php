@@ -79,8 +79,8 @@
                         </label>
                         <select name="customer_tax_type" id="customer_tax_type" class="form-control" >
                             <option value="">Select Tax Type</option>
-                            <option value="retailer">Retailer (0.005% Customer Tax)</option>
-                            <option value="distributor">Distributor (0.01% Customer Tax)</option>
+                            <option value="retailer">Retailer (0.5% Customer Tax)</option>
+                            <option value="distributor">Distributor (1% Customer Tax)</option>
                         </select>
                     </div>
 
