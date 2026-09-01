@@ -208,7 +208,7 @@ export default function CustomerCreateModal({
                                             Unregistered (4% further tax)
                                         </option>
                                         <option value="Endconsumer">
-                                        End Consumer
+                                            End Consumer
                                         </option>
                                     </select>
                                 </div>
@@ -226,10 +226,10 @@ export default function CustomerCreateModal({
                                             Select Tax Type
                                         </option>
                                         <option value="retailer">
-                                            Retailer (0.005% Customer Tax)
+                                            Retailer (0.5% Customer Tax)
                                         </option>
                                         <option value="distributor">
-                                            Distributor (0.01% Customer Tax)
+                                            Distributor (1% Customer Tax)
                                         </option>
                                     </select>
                                 </div>
