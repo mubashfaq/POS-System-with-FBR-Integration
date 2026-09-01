@@ -99,6 +99,16 @@
             background: #dc3545;
             color: #fff;
         }
+
+        .btn-expand.btn-outline-info {
+            border-color: #17a2b8;
+            color: #17a2b8;
+        }
+
+        .btn-expand.btn-outline-info:hover {
+            background: #17a2b8;
+            color: #fff;
+        }
     </style>
     <div class="card">
         <div class="mt-n5 mb-3 d-flex justify-content-end align-items-center">
