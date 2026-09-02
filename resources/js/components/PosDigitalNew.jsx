@@ -78,7 +78,7 @@ export default function PosDigital({ draftButtonEnabled }) {
     const today = new Date().toISOString().split("T")[0];
 
     const minDateObj = new Date();
-    minDateObj.setDate(minDateObj.getDate() - 20);
+    minDateObj.setDate(minDateObj.getDate() - 30);
     const minDate = minDateObj.toISOString().split("T")[0];
 
     const [orderDate, setOrderDate] = useState(today);
@@ -666,9 +666,10 @@ export default function PosDigital({ draftButtonEnabled }) {
                                 type="date"
                                 className="form-control form-control-sm"
                                 value={orderDate}
-                                min={minDate}     // User cannot select older than 3 days
-                                max={today}       // User cannot select future dates
+                                min={minDate}     
+                                max={today}       
                                 onChange={(e) => setOrderDate(e.target.value)}
+                                onKeyDown={(e) => e.preventDefault()}
                             />
                         </Field>
                     </div>
