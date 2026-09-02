@@ -10,6 +10,20 @@ import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
 
+const Field = ({ label, required, children, alignStart }) => (
+    <div
+        className={`d-flex ${alignStart ? "align-items-start" : "align-items-center"} mb-3`}
+    >
+        <label
+            style={{ width: "100px", flexShrink: 0, fontSize: 14, textAlign: "center" }}
+        >
+            {label}
+            {required && <span className="text-danger">*</span>}
+        </label>
+        <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+    </div>
+);
+
 export default function Pos({ draftButtonEnabled }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -39,7 +53,7 @@ export default function Pos({ draftButtonEnabled }) {
     const today = new Date().toISOString().split("T")[0];
 
     const minDateObj = new Date();
-    minDateObj.setDate(minDateObj.getDate() - 20);
+    minDateObj.setDate(minDateObj.getDate() - 30);
     const minDate = minDateObj.toISOString().split("T")[0];
 
     const [orderDate, setOrderDate] = useState(today);
@@ -540,20 +554,6 @@ export default function Pos({ draftButtonEnabled }) {
 
     }
 
-    const Field = ({ label, required, children, alignStart }) => (
-        <div
-            className={`d-flex ${alignStart ? "align-items-start" : "align-items-center"} mb-3`}
-        >
-            <label
-                style={{ width: "100px", flexShrink: 0, fontSize: 14, textAlign: "center" }}
-            >
-                {label}
-                {required && <span className="text-danger">*</span>}
-            </label>
-            <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
-        </div>
-    );
-
     return (
         <>
             <div className="card">
@@ -564,9 +564,10 @@ export default function Pos({ draftButtonEnabled }) {
                                 type="date"
                                 className="form-control form-control-sm"
                                 value={orderDate}
-                                min={minDate}     // User cannot select older than 15 days
-                                max={today}       // User cannot select future dates
+                                min={minDate}
+                                max={today}
                                 onChange={(e) => setOrderDate(e.target.value)}
+                                onKeyDown={(e) => e.preventDefault()}
                             />
                         </Field>
                     </div>
