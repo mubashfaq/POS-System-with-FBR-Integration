@@ -168,73 +168,156 @@ class ProductController extends Controller
     {
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_create'), 403);
+
         $validated = $request->validated();
 
         $businessId = session('business_id');
 
         $validated['business_id'] = $businessId;
 
-        $openingQty = $validated['quantity'] ?? 0;
+        $openingQty = (float) ($validated['quantity'] ?? 0);
+
+        // Product table quantity starts from 0
         $validated['quantity'] = 0;
 
-        $product = Product::create($validated);
-        if ($request->hasFile("product_image")) {
-            $product->image = $this->fileHandler->fileUploadAndGetPath($request->file("product_image"), "/public/media/products");
-            $product->save();
-        }
+        DB::beginTransaction();
 
-        // Sync accessories
-        if ($request->has('accessories')) {
-            $accessoryData = [];
-            foreach ($request->accessories as $accId => $qty) {
-                if ((int)$accId !== $product->id) { // prevent self-reference
-                    $accessoryData[$accId] = ['quantity' => max(1, (float)$qty)];
+        try {
+
+            $product = Product::create($validated);
+
+            if ($request->hasFile('product_image')) {
+
+                $product->image =
+                    $this->fileHandler->fileUploadAndGetPath(
+                        $request->file('product_image'),
+                        '/public/media/products'
+                    );
+
+                $product->save();
+            }
+
+
+            if ($request->has('accessories')) {
+
+                $accessoryData = [];
+
+                foreach ($request->accessories as $accId => $qty) {
+
+                    // Prevent product from being its own accessory
+                    if ((int) $accId !== $product->id) {
+
+                        $accessoryData[$accId] = [
+                            'quantity' => max(1, (float) $qty)
+                        ];
+                    }
                 }
+
+                $product->accessories()->sync($accessoryData);
+
+            } else {
+
+                $product->accessories()->detach();
             }
-            $product->accessories()->sync($accessoryData);
-        } else {
-            $product->accessories()->detach();
-        }
 
-        // Auto-create opening stock purchase if quantity > 0
-        if ($openingQty > 0) {
-            DB::beginTransaction();
-            try {
-                $purchase = Purchase::create([
-                    'supplier_id'    => $validated['supplier_id'] ?? null,
-                    'user_id'        => auth()->id(),
-                    'business_id'    => $businessId,
-                    'sub_total'      => $validated['purchase_price'] * $openingQty,
-                    'tax'            => 0,
-                    'discount_value' => 0,
-                    'shipping'       => 0,
-                    'grand_total'    => $validated['purchase_price'] * $openingQty,
-                    'date'           => Carbon::now()->toDateString(),
-                    'status'         => 1,
-                ]);
 
-                $purchaseItem = PurchaseItem::create([
-                    'purchase_id'    => $purchase->id,
-                    'product_id'     => $product->id,
-                    'purchase_price' => $validated['purchase_price'],
-                    'price'          => $validated['price'],
-                    'quantity'       => $openingQty,
-                    'remaining_qty'  => $openingQty,
-                ]);
+            /*
+            |--------------------------------------------------------------------------
+            | ALWAYS CREATE OPENING PURCHASE BATCH
+            |--------------------------------------------------------------------------
+            |
+            | Even if quantity is 0.
+            |
+            | Example:
+            |
+            | quantity       = 0
+            | remaining_qty  = 0
+            |
+            | This allows the batch to become negative later
+            | when stock restriction is disabled.
+            |
+            */
 
-                \App\Services\StockReconciliationService::reconcileNewBatch($purchaseItem);
+            $purchasePrice = (float) ($validated['purchase_price'] ?? 0);
+            $price = (float) ($validated['price'] ?? 0);
 
-                $product->increment('quantity', $openingQty);
 
-                DB::commit();
-            } catch (\Exception $e) {
-                DB::rollBack();
-                $product->delete();
-                return redirect()->back()->with('error', 'Product created but opening stock failed!');
+            /* Create Purchase */
+
+            $purchase = Purchase::create([
+
+                'supplier_id' => $validated['supplier_id'] ?? null,
+
+                'user_id' => auth()->id(),
+
+                'business_id' => $businessId,
+
+                'sub_total' => $purchasePrice * $openingQty,
+
+                'tax' => 0,
+
+                'discount_value' => 0,
+
+                'shipping' => 0,
+
+                'grand_total' => $purchasePrice * $openingQty,
+
+                'date' => Carbon::now()->toDateString(),
+
+                'status' => 1,
+            ]);
+
+
+            /* Create Purchase Item / Batch */
+
+            $purchaseItem = PurchaseItem::create([
+
+                'purchase_id' => $purchase->id,
+
+                'product_id' => $product->id,
+
+                'purchase_price' => $purchasePrice,
+
+                'price' => $price,
+
+                'quantity' => $openingQty,
+
+                'remaining_qty' => $openingQty,
+            ]);
+
+
+            /* Reconcile Negative Stock */
+
+            \App\Services\StockReconciliationService::reconcileNewBatch(
+                $purchaseItem
+            );
+
+            if ($openingQty != 0) {
+
+                $product->increment(
+                    'quantity',
+                    $openingQty
+                );
             }
-        }
 
-        return redirect()->route('backend.admin.products.index')->with('success', 'Product created successfully!');
+
+            DB::commit();
+
+
+            return redirect()->route('backend.admin.products.index')->with('success', 'Product created successfully!');
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with(
+                    'error',
+                    'Product creation failed: ' . $e->getMessage()
+                );
+        }
     }
 
     /**
@@ -923,6 +1006,7 @@ class ProductController extends Controller
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_create'), 403);
 
         $validated = $request->validated();
+
         $businessId = session('business_id');
 
         if (!$businessId) {
@@ -936,71 +1020,139 @@ class ProductController extends Controller
 
         // ✅ Auto-generate SKU if not provided
         if (empty($validated['sku'])) {
-            $validated['sku'] = $this->generateUniqueSku($validated['name']);
-        }
-
-        // Remove quantity from product data — stock is managed via purchase
-        $openingQty = $validated['quantity'] ?? 0;
-        $validated['quantity'] = 0; // Start at 0; purchase will increment it
-
-        $product = Product::create($validated);
-
-        if ($request->hasFile("product_image")) {
-            $product->image = $this->fileHandler->fileUploadAndGetPath(
-                $request->file("product_image"),
-                "/public/media/products"
+            $validated['sku'] = $this->generateUniqueSku(
+                $validated['name']
             );
-            $product->save();
         }
 
-        // Auto-create opening stock purchase if quantity > 0
-        if ($openingQty > 0) {
-            DB::beginTransaction();
-            try {
-                $purchase = Purchase::create([
-                    'supplier_id'    => $validated['supplier_id'] ?? null, // nullable
-                    'user_id'        => auth()->id(),
-                    'business_id'    => $businessId,
-                    'sub_total'      => $validated['purchase_price'] * $openingQty,
-                    'tax'            => 0,
-                    'discount_value' => 0,
-                    'shipping'       => 0,
-                    'grand_total'    => $validated['purchase_price'] * $openingQty,
-                    'date'           => Carbon::now()->toDateString(),
-                    'status'         => 1,
-                ]);
 
-                $purchaseItem = PurchaseItem::create([
-                    'purchase_id'    => $purchase->id,
-                    'product_id'     => $product->id,
-                    'purchase_price' => $validated['purchase_price'],
-                    'price'          => $validated['price'],
-                    'quantity'       => $openingQty,
-                    'remaining_qty'  => $openingQty,
-                ]);
+        $openingQty = (float) ($validated['quantity'] ?? 0);
 
-                \App\Services\StockReconciliationService::reconcileNewBatch($purchaseItem);
+        // Product quantity starts from 0.
+        // Stock will be managed through PurchaseItem.
+        $validated['quantity'] = 0;
 
-                // Now increment product stock
-                $product->increment('quantity', $openingQty);
 
-                DB::commit();
-            } catch (\Exception $e) {
-                DB::rollBack();
-                // Optionally delete the product if purchase fails
-                $product->delete();
-                return response()->json([
-                    'status'  => false,
-                    'message' => 'Product created but opening stock failed: ' . $e->getMessage()
-                ], 400);
+        DB::beginTransaction();
+
+        try {
+
+            $product = Product::create($validated);
+
+
+            if ($request->hasFile('product_image')) {
+
+                $product->image =
+                    $this->fileHandler->fileUploadAndGetPath(
+                        $request->file('product_image'),
+                        '/public/media/products'
+                    );
+
+                $product->save();
             }
-        }
 
-        return response()->json([
-            'status'  => true,
-            'message' => 'Product created successfully!',
-            'data'    => $product->fresh() // fresh() to get updated quantity
-        ]);
+
+            $purchasePrice = (float) (
+                $validated['purchase_price'] ?? 0
+            );
+
+            $price = (float) (
+                $validated['price'] ?? 0
+            );
+
+
+            $purchase = Purchase::create([
+
+                'supplier_id' => $validated['supplier_id'] ?? null,
+
+                'user_id' => auth()->id(),
+
+                'business_id' => $businessId,
+
+                'sub_total' => $purchasePrice * $openingQty,
+
+                'tax' => 0,
+
+                'discount_value' => 0,
+
+                'shipping' => 0,
+
+                'grand_total' => $purchasePrice * $openingQty,
+
+                'date' => Carbon::now()->toDateString(),
+
+                'status' => 1,
+            ]);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | ALWAYS Create Purchase Batch
+            |--------------------------------------------------------------------------
+            |
+            | If opening quantity is 0:
+            |
+            | quantity      = 0
+            | remaining_qty = 0
+            |
+            */
+
+            $purchaseItem = PurchaseItem::create([
+
+                'purchase_id' => $purchase->id,
+
+                'product_id' => $product->id,
+
+                'purchase_price' => $purchasePrice,
+
+                'price' => $price,
+
+                'quantity' => $openingQty,
+
+                'remaining_qty' => $openingQty,
+            ]);
+
+
+            \App\Services\StockReconciliationService::reconcileNewBatch(
+                $purchaseItem
+            );
+
+
+            if ($openingQty != 0) {
+
+                $product->increment(
+                    'quantity',
+                    $openingQty
+                );
+            }
+
+
+            DB::commit();
+
+
+            return response()->json([
+
+                'status' => true,
+
+                'message' => 'Product created successfully!',
+
+                'data' => $product->fresh()
+            ]);
+
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+
+                'status' => false,
+
+                'message' =>
+                    'Product creation failed: ' . $e->getMessage()
+
+            ], 400);
+        }
     }
 
     private function generateUniqueSku(string $name): string
