@@ -1419,6 +1419,8 @@ class OrderController extends Controller
             return response()->json(['error' => 'No business selected'], 422);
         }
 
+        $invoiceData = $this->validateCustomInvoiceNumber($request);
+
         $qtyVal = \App\Models\quantity_validation::where('business_id', $businessId)->first();
         $isStockEnforced = $qtyVal && $qtyVal->product_quantity_validation === 'disabled';
 
@@ -1474,6 +1476,8 @@ class OrderController extends Controller
             'invoice_number' => $invoiceNumber,
             'note' => $request->note ?? null,
             'order_date' => $request->orderDate,
+            'custom_invoice_number' => $invoiceData['custom_invoice_number'] ?? null,
+            'po_number' => $request->po_number ?? null,
         ]);
 
         $totalAmountOrder = 0;
@@ -2489,30 +2493,54 @@ class OrderController extends Controller
         ]);
     }
 
-    public function updateCustomInvoice(Request $request, Order $order)
-    {
+    private function validateCustomInvoiceNumber(
+        Request $request,
+        ?Order $order = null
+    ): array {
         $businessId = session('business_id');
 
-        abort_if($order->business_id != $businessId, 403);
+        $uniqueRule = Rule::unique('orders', 'custom_invoice_number')
+            ->where('business_id', $businessId);
 
-        $request->validate([
+        // When updating an existing order
+        if ($order) {
+            $uniqueRule->ignore($order->id);
+        }
+
+        return $request->validate([
             'custom_invoice_number' => [
                 'nullable',
                 'string',
                 'max:100',
-                Rule::unique('orders', 'custom_invoice_number')
-                    ->where('business_id', $businessId)
-                    ->ignore($order->id),
+                $uniqueRule,
             ],
         ]);
-
-        $order->update([
-            'custom_invoice_number' => $request->custom_invoice_number,
-        ]);
-
-        return response()->json([
-            'status' => true,
-            'message' => 'Custom invoice number updated successfully.',
-        ]);
     }
+
+    // public function updateCustomInvoice(Request $request, Order $order)
+    // {
+    //     $businessId = session('business_id');
+
+    //     abort_if($order->business_id != $businessId, 403);
+
+    //     $request->validate([
+    //         'custom_invoice_number' => [
+    //             'nullable',
+    //             'string',
+    //             'max:100',
+    //             Rule::unique('orders', 'custom_invoice_number')
+    //                 ->where('business_id', $businessId)
+    //                 ->ignore($order->id),
+    //         ],
+    //     ]);
+
+    //     $order->update([
+    //         'custom_invoice_number' => $request->custom_invoice_number,
+    //     ]);
+
+    //     return response()->json([
+    //         'status' => true,
+    //         'message' => 'Custom invoice number updated successfully.',
+    //     ]);
+    // }
 }
