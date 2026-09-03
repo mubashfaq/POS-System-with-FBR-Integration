@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Backend\BusinessCustomFieldContonller;
+use App\Http\Controllers\Backend\BusinessCustomFieldController;
 use App\Http\Controllers\Backend\CurrencyController;
 use App\Http\Controllers\Backend\Pos\CartController;
 use App\Http\Controllers\Backend\Product\ProductController;
@@ -204,11 +204,14 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
         Route::post('/digital-orders/{orderId}/submit', [OrderController::class, 'submitDigitalOrder'])->name('orders.submit-digital');
         Route::get('orders/fbr-status/{id}', [OrderController::class, 'fbrStatus'])->name('orders.fbr-status');
         // Route::post('/orders/{order}/custom-invoice', [OrderController::class, 'updateCustomInvoice'])->name('orders.custom-invoice');
-        Route::get('/business-custom-fields', [BusinessCustomFieldContonller::class, 'index']);
-        Route::post('/business-custom-fields', [BusinessCustomFieldContonller::class, 'store']);
-        Route::delete('/business-custom-fields/{id}', [BusinessCustomFieldContonller::class, 'destroy']);
-        Route::get('/get/customers',[CustomerController::class,'getCustomers']);
-        Route::post('/create/customers', [CustomerController::class, 'store']);
+    Route::prefix('business-custom-fields')->controller(BusinessCustomFieldController::class)->group(function () {
+        Route::get('/', 'index')->name('business-custom-fields.index');
+        Route::post('/', 'store')->name('business-custom-fields.store');
+        Route::delete('/{id}', 'destroy')->name('business-custom-fields.destroy');
+        Route::put('/{id}/toggle', 'toggleActive')->name('business-custom-fields.toggle');
+    });
+    Route::get('/get/customers',[CustomerController::class,'getCustomers']);
+    Route::post('/create/customers', [CustomerController::class, 'store']);
     //end pos
     Route::get('/get/product-form-data', [ProductController::class, 'getFormData'])->name('products.formData');
     Route::post('/create/ajax-product', [ProductController::class, 'storeAjax'])->name('products.storeAjax');
