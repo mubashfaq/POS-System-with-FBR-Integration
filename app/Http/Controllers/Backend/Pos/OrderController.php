@@ -1544,6 +1544,7 @@ class OrderController extends Controller
                 'customer_tax'     => $customerTax,
                 'further_tax'      => $furtherTax,
                 'total'            => $finalTotal,
+                'custom_fields'    => $cart->custom_fields,
                 'product_id'       => $product->id,
                 'purchase_item_id' => $cart->purchase_item_id,
                 'is_accessory'     => false,

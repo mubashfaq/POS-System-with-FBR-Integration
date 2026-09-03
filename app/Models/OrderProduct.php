@@ -10,6 +10,8 @@ class OrderProduct extends Model
     use HasFactory;
 
     protected $guarded = [];
+    
+    protected $casts = ['custom_fields' => 'array'];
     public function product()
     {
         return $this->belongsTo(Product::class);
