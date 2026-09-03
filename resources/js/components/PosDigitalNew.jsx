@@ -38,7 +38,10 @@ const fmt = (n) =>
         maximumFractionDigits: 2,
     });
 
-export default function PosDigital({ draftButtonEnabled }) {
+export default function PosDigital({
+    draftButtonEnabled,
+    customInvoiceNumberEnabled,
+    poNumberEnabled, }) {
     // ── Submission guard ───────────────────────────────────────────────────
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -83,6 +86,9 @@ export default function PosDigital({ draftButtonEnabled }) {
 
     const [orderDate, setOrderDate] = useState(today);
     const [notes, setNotes] = useState("");
+    const [customInvoiceNumber, setCustomInvoiceNumber] = useState("");
+    const [poNumber, setPoNumber] = useState("");
+
 
     // ── Product-picker dropdown state (Lovable table) ──────────────────────
     const [openPickerKey, setOpenPickerKey] = useState(null);
@@ -512,6 +518,8 @@ export default function PosDigital({ draftButtonEnabled }) {
                     note: notes,
                     orderDate: orderDate,
                     order_stage: orderStage,
+                    custom_invoice_number: customInvoiceNumber,
+                    po_number: poNumber,
                 },
                 { headers: { "Content-Type": "application/json" } },
             )
@@ -557,6 +565,8 @@ export default function PosDigital({ draftButtonEnabled }) {
                     note: notes,
                     orderDate: orderDate,
                     order_stage: orderStage,
+                    custom_invoice_number: customInvoiceNumber,
+                    po_number: poNumber,
                 },
                 { headers: { "Content-Type": "application/json" } },
             )
@@ -653,7 +663,7 @@ export default function PosDigital({ draftButtonEnabled }) {
                                     setCustomerId={setCustomerId}
                                     setIsRegistered={setIsRegistered}
                                     emptyCart={emptyCartOnCustomerChange}
-                                    // setCustomerTaxType={setCustomerTaxType}
+                                // setCustomerTaxType={setCustomerTaxType}
                                 />
                             </div>
                         </div>
@@ -666,8 +676,8 @@ export default function PosDigital({ draftButtonEnabled }) {
                                 type="date"
                                 className="form-control form-control-sm"
                                 value={orderDate}
-                                min={minDate}     
-                                max={today}       
+                                min={minDate}
+                                max={today}
                                 onChange={(e) => setOrderDate(e.target.value)}
                                 onKeyDown={(e) => e.preventDefault()}
                             />
@@ -676,6 +686,32 @@ export default function PosDigital({ draftButtonEnabled }) {
 
                     {/* Right Side */}
                     <div className="col-md-4">
+                        {customInvoiceNumberEnabled && (
+                            <Field label="Invoice No.">
+                                <input
+                                    type="text"
+                                    className="form-control form-control-sm"
+                                    value={customInvoiceNumber}
+                                    onChange={(e) =>
+                                        setCustomInvoiceNumber(e.target.value)
+                                    }
+                                    placeholder="Custom Invoice Number"
+                                />
+                            </Field>
+                        )}
+                        {poNumberEnabled && (
+                            <Field label="PO No.">
+                                <input
+                                    type="text"
+                                    className="form-control form-control-sm"
+                                    value={poNumber}
+                                    onChange={(e) =>
+                                        setPoNumber(e.target.value)
+                                    }
+                                    placeholder="PO Number"
+                                />
+                            </Field>
+                        )}
                     </div>
                 </div>
 

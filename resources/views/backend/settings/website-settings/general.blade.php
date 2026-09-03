@@ -624,6 +624,17 @@
                         <span class="ml-3">Show Custom Invoice Number</span>
                     </div>
 
+                    <!-- PO Number Switch -->
+                    <div class="form-group d-flex align-items-center">
+                        <label class="switch">
+                            <input type="hidden" name="is_show_po_number" value="0">
+                            <input type="checkbox" name="is_show_po_number" value="1"
+                                {{ isset($invoiceSetting) && $invoiceSetting->po_number == 1 ? 'checked' : '' }}>
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="ml-3">Show PO Number</span>
+                    </div>
+
                     <!-- Imc Logo Switch -->
                     <div class="form-group d-flex align-items-center">
                         <label class="switch">
