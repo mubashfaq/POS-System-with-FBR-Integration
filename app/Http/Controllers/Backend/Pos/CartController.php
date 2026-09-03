@@ -548,4 +548,13 @@ public function digitalInvoice(Request $request)
         ]);
     }
 
+    public function updateCustomFields(Request $request)
+    {
+        $request->validate(['id' => 'required', 'custom_fields' => 'nullable|array']);
+        $cart = PosCart::findOrFail($request->id);
+        $cart->custom_fields = $request->custom_fields;
+        $cart->save();
+        return response()->json(['message' => 'Saved', 'cart' => $cart]);
+    }
+
 }

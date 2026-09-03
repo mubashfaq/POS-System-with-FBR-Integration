@@ -11,6 +11,8 @@ class PosCart extends Model
 
     protected $guarded = [];
 
+    protected $casts = ['custom_fields' => 'array'];
+
     public function product()
     {
         return $this->belongsTo(Product::class);
