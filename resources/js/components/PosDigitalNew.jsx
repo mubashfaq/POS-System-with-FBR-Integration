@@ -40,6 +40,7 @@ const fmt = (n) =>
 
 export default function PosDigital({
     draftButtonEnabled,
+    customFieldButtonEnabled,
     customInvoiceNumberEnabled,
     poNumberEnabled, }) {
     // ── Submission guard ───────────────────────────────────────────────────
@@ -736,6 +737,7 @@ export default function PosDigital({
                     onAddProduct={addProductToCart}
                     customerId={customerId}
                     onProductCreated={handleProductCreated}
+                    customFieldButtonEnabled={customFieldButtonEnabled}
                 />
 
                 {/* ── Notes + Totals (Lovable layout) ─────────────────────── */}
