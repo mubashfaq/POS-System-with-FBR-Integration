@@ -940,7 +940,7 @@ export default function Cart({
                                     value={newField.field_label}
                                     onChange={(e) => setNewField({ ...newField, field_label: e.target.value })}
                                 />
-                                <select
+                                {/* <select
                                     className="form-control form-control-sm mb-2"
                                     value={newField.field_type}
                                     onChange={(e) => setNewField({ ...newField, field_type: e.target.value })}
@@ -956,7 +956,7 @@ export default function Cart({
                                         value={newField.field_options}
                                         onChange={(e) => setNewField({ ...newField, field_options: e.target.value })}
                                     />
-                                )}
+                                )} */}
                             </div>
                             <div className="modal-footer">
                                 <button className="btn btn-secondary" onClick={() => setShowFieldsModal(false)}>Close</button>
