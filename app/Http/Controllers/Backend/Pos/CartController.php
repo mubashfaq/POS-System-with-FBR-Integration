@@ -457,7 +457,9 @@ public function digitalInvoice(Request $request)
             ]);
         }
         $businessId = session('business_id');
-        $cartSetting = CartSetting::where('business_id', $businessId)->value('draft_btn');
+        $cartSetting = CartSetting::where('business_id', $businessId)->first(['draft_btn', 'custom_field_btn']);
+        $draftBtn = $cartSetting?->draft_btn;
+        $CustomFieldBtn = $cartSetting?->custom_field_btn;
         $invoiceSetting = InvoiceSetting::where('business_id', $businessId)->first(['invoice_number', 'po_number']);
         $invoiceNumber = $invoiceSetting?->invoice_number;
         $poNumber = $invoiceSetting?->po_number;
@@ -467,13 +469,14 @@ public function digitalInvoice(Request $request)
 
         if ($request->route()->getName() === 'backend.admin.cart.digitalInvoiceNew') {
             return view('backend.cart.digital-invoice-new', [
-                'draftButtonEnabled' => $cartSetting,
+                'draftButtonEnabled' => $draftBtn,
+                'customFieldButton' => $CustomFieldBtn,
                 'invoiceNumber' => $invoiceNumber,
                 'poNumber' => $poNumber,
             ]);
         }
         return view('backend.cart.digital-invoice', [
-            'draftButtonEnabled' => $cartSetting,
+            'draftButtonEnabled' => $draftBtn,
             'invoiceNumber' => $invoiceNumber,
             'poNumber' => $poNumber,
         ]);
@@ -549,12 +552,12 @@ public function digitalInvoice(Request $request)
     }
 
     public function updateCustomFields(Request $request)
-    {
-        $request->validate(['id' => 'required', 'custom_fields' => 'nullable|array']);
-        $cart = PosCart::findOrFail($request->id);
-        $cart->custom_fields = $request->custom_fields;
-        $cart->save();
-        return response()->json(['message' => 'Saved', 'cart' => $cart]);
-    }
+{
+    $request->validate(['id' => 'required', 'custom_fields' => 'nullable|array']);
+    $cart = PosCart::findOrFail($request->id);
+    $cart->custom_fields = array_merge($cart->custom_fields ?? [], $request->custom_fields ?? []);
+    $cart->save();
+    return response()->json(['message' => 'Saved', 'cart' => $cart]);
+}
 
 }
