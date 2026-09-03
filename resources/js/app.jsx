@@ -10,6 +10,10 @@ const getDraftButtonSetting = (element) => {
     return element?.dataset.draftButton === "1";
 };
 
+const getCustomFieldButtonSetting = (element) => {
+    return element?.dataset.customFieldButton === "1";
+};
+
 const getCustomInvoiceNumberSetting = (element) => {
     return element?.dataset.customInvoiceNumber === "1";
 };
@@ -40,8 +44,8 @@ if (cartElement) {
         <Pos
             businessType={businessType}
             draftButtonEnabled={draftButtonEnabled}
-            // customInvoiceNumberEnabled={customInvoiceNumberEnabled}
-            // poNumberEnabled={poNumberEnabled}
+        // customInvoiceNumberEnabled={customInvoiceNumberEnabled}
+        // poNumberEnabled={poNumberEnabled}
         />
     );
 }
@@ -83,6 +87,8 @@ if (cartDigitalInvoiceNewElement) {
     const draftButtonEnabled =
         getDraftButtonSetting(cartDigitalInvoiceNewElement);
 
+    const customFieldButtonEnabled = getCustomFieldButtonSetting(cartDigitalInvoiceNewElement);
+
     const customInvoiceNumberEnabled =
         getCustomInvoiceNumberSetting(cartDigitalInvoiceNewElement);
 
@@ -94,6 +100,7 @@ if (cartDigitalInvoiceNewElement) {
     cartRoot.render(
         <PosDigitalNew
             draftButtonEnabled={draftButtonEnabled}
+            customFieldButtonEnabled={customFieldButtonEnabled}
             customInvoiceNumberEnabled={customInvoiceNumberEnabled}
             poNumberEnabled={poNumberEnabled}
         />
