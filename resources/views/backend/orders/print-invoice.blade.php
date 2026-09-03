@@ -2,7 +2,7 @@
 @section('title', $order->display_invoice_number)
 @section('content')
 <div class="card">
-    @if(($invoiceSettings?->invoice_number ?? 0) == 1)
+    {{-- @if(($invoiceSettings?->invoice_number ?? 0) == 1)
         <div class="mt-n5 mb-3 d-flex justify-content-end align-items-center">
             <form id="customInvoiceForm" class="d-flex align-items-center">
                 @csrf
@@ -28,7 +28,7 @@
                 <small id="invoice-message" class="text-success ml-2"></small>
             </form>
         </div>
-    @endif
+    @endif --}}
     <div class="card-body">
         <!-- Main content -->
         <section class="invoice">
@@ -93,7 +93,10 @@
                 <!-- /.col -->
                 <div class="col-sm-4 invoice-col">
                     Info <br>
-                    Sale ID #{{$order->id}}<br>
+                    Invoice No. {{$order->display_invoice_number}}<br>
+                    @if(($invoiceSettings?->po_number ?? 0) == 1)
+                        PO No. {{$order->po_number}}<br>
+                    @endif
                     Sale Date: {{date('d/m/Y', strtotime($order->order_date ?? $order->created_at))}}<br>
                     @if (($fbrIntegration ?? null) == 'enabled' && $order->order_stage !== 'draft')
                         FBR Invoice: <div>{{ $order->fbr_invoice_no }}</div>
@@ -319,44 +322,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
-    $(function () {
-
-        $('#customInvoiceForm').on('submit', function (e) {
-            e.preventDefault();
-
-            let btn = $(this).find('button[type="submit"]');
-
-            btn.prop('disabled', true);
-
-            $.ajax({
-                url: "{{ route('backend.admin.orders.custom-invoice', $order->id) }}",
-                type: "POST",
-                data: {
-                    _token: "{{ csrf_token() }}",
-                    custom_invoice_number: $('#custom_invoice_number').val()
-                },
-                success: function (response) {
-
-                    showToast(response.message, 'success');
-
-                },
-                error: function (xhr) {
-
-                    if (xhr.status === 422) {
-                        showToast(xhr.responseJSON.errors.custom_invoice_number[0], 'error');
-                    } else {
-                        showToast(xhr.responseJSON?.message ?? 'Something went wrong.', 'error');
-                    }
-
-                },
-                complete: function () {
-                    btn.prop('disabled', false);
-                }
-            });
-        });
-
-    });
-    
 
     window.addEventListener("load", window.print());
 

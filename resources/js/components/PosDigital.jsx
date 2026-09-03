@@ -24,7 +24,10 @@ const Field = ({ label, required, children, alignStart }) => (
     </div>
 );
 
-export default function Pos({ draftButtonEnabled }) {
+export default function Pos({
+    draftButtonEnabled,
+    customInvoiceNumberEnabled,
+    poNumberEnabled, }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [products, setProducts] = useState([]);
@@ -57,7 +60,8 @@ export default function Pos({ draftButtonEnabled }) {
     const minDate = minDateObj.toISOString().split("T")[0];
 
     const [orderDate, setOrderDate] = useState(today);
-
+    const [customInvoiceNumber, setCustomInvoiceNumber] = useState("");
+    const [poNumber, setPoNumber] = useState("");
 
     const [showBatchModal, setShowBatchModal] = useState(false);
     const [availableBatches, setAvailableBatches] = useState([]);
@@ -419,6 +423,8 @@ export default function Pos({ draftButtonEnabled }) {
                 check_duplicate: true,
                 orderDate: orderDate,
                 order_stage: orderStage,
+                custom_invoice_number: customInvoiceNumber,
+                po_number: poNumber,
             },
             {
                 headers: {
@@ -489,6 +495,8 @@ export default function Pos({ draftButtonEnabled }) {
                 cart: carts,
                 orderDate: orderDate,
                 order_stage: orderStage,
+                custom_invoice_number: customInvoiceNumber,
+                po_number: poNumber,
             },
             { headers: { "Content-Type": "application/json" } }
         )
@@ -556,22 +564,55 @@ export default function Pos({ draftButtonEnabled }) {
 
     return (
         <>
-            <div className="card">
-                <div class="mt-n5 mb-3 d-flex justify-content-end">
-                    <div className="col-md-4">
-                        <Field label="Date" required>
-                            <input
-                                type="date"
-                                className="form-control form-control-sm"
-                                value={orderDate}
-                                min={minDate}
-                                max={today}
-                                onChange={(e) => setOrderDate(e.target.value)}
-                                onKeyDown={(e) => e.preventDefault()}
-                            />
-                        </Field>
-                    </div>
+            <div className="mt-n5 mb-3 d-flex justify-content-end">
+                <div className="col-md-4">
+                    <Field label="Date" required>
+                        <input
+                            type="date"
+                            className="form-control form-control-sm"
+                            value={orderDate}
+                            min={minDate}
+                            max={today}
+                            onChange={(e) => setOrderDate(e.target.value)}
+                            onKeyDown={(e) => e.preventDefault()}
+                        />
+                    </Field>
                 </div>
+                {(customInvoiceNumberEnabled || poNumberEnabled) && (
+                    <div className="col-md-4">
+
+                        {customInvoiceNumberEnabled && (
+                            <Field label="Invoice No.">
+                                <input
+                                    type="text"
+                                    className="form-control form-control-sm"
+                                    value={customInvoiceNumber}
+                                    onChange={(e) =>
+                                        setCustomInvoiceNumber(e.target.value)
+                                    }
+                                    placeholder="Custom Invoice Number"
+                                />
+                            </Field>
+                        )}
+
+                        {poNumberEnabled && (
+                            <Field label="PO No.">
+                                <input
+                                    type="text"
+                                    className="form-control form-control-sm"
+                                    value={poNumber}
+                                    onChange={(e) =>
+                                        setPoNumber(e.target.value)
+                                    }
+                                    placeholder="PO Number"
+                                />
+                            </Field>
+                        )}
+
+                    </div>
+                )}
+            </div>
+            <div className="card">
 
                 <div className="card-body p-2 p-md-4 pt-0">
                     <div className="row">
