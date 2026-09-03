@@ -668,6 +668,19 @@ export default function PosDigital({
                                 />
                             </div>
                         </div>
+                        {customInvoiceNumberEnabled && (
+                            <Field label="Invoice No.">
+                                <input
+                                    type="text"
+                                    className="form-control form-control-sm"
+                                    value={customInvoiceNumber}
+                                    onChange={(e) =>
+                                        setCustomInvoiceNumber(e.target.value)
+                                    }
+                                    placeholder="Custom Invoice Number"
+                                />
+                            </Field>
+                        )}
                     </div>
 
                     {/* Center Side */}
@@ -683,23 +696,6 @@ export default function PosDigital({
                                 onKeyDown={(e) => e.preventDefault()}
                             />
                         </Field>
-                    </div>
-
-                    {/* Right Side */}
-                    <div className="col-md-4">
-                        {customInvoiceNumberEnabled && (
-                            <Field label="Invoice No.">
-                                <input
-                                    type="text"
-                                    className="form-control form-control-sm"
-                                    value={customInvoiceNumber}
-                                    onChange={(e) =>
-                                        setCustomInvoiceNumber(e.target.value)
-                                    }
-                                    placeholder="Custom Invoice Number"
-                                />
-                            </Field>
-                        )}
                         {poNumberEnabled && (
                             <Field label="PO No.">
                                 <input
@@ -713,6 +709,10 @@ export default function PosDigital({
                                 />
                             </Field>
                         )}
+                    </div>
+
+                    {/* Right Side */}
+                    <div className="col-md-4">
                     </div>
                 </div>
 
