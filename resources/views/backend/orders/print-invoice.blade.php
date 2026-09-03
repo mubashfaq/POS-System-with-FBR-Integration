@@ -132,7 +132,19 @@
                             @foreach ($order->products->where('is_accessory', 0) as $item)
                             <tr>
                                 <td>{{$loop->index + 1}}</td>
-                                <td>{{$item->product->name}}</td>
+                                <td>
+                                    {{ $item->product->name }}
+                                    @if(!empty($item->custom_fields))
+                                        <br>
+                                        <small class="text-muted">
+                                            @foreach ($item->custom_fields as $key => $value)
+                                                @if($value !== null && $value !== '')
+                                                    {{ ucfirst(str_replace('_', ' ', $key)) }}: {{ $value }}@if(!$loop->last), @endif
+                                                @endif
+                                            @endforeach
+                                        </small>
+                                    @endif
+                                </td>
                                 @if ($order->type !== 'pos_invoice') 
                                 <td>{{$item->product->hsCode}}</td>
                                 <td>{{$item->product->uom}}</td>

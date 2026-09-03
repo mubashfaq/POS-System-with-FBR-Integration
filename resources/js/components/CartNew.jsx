@@ -109,6 +109,41 @@ export default function Cart({
     // const [customerTaxTotal, setCustomerTaxTotal] = useState(0);
     const [grandTotal, setGrandTotal] = useState(0);
     const [showProductModal, setShowProductModal] = useState(false);
+    const [businessFields, setBusinessFields] = useState([]);
+    const [showFieldsModal, setShowFieldsModal] = useState(false);
+    const [newField, setNewField] = useState({ field_label: "", field_type: "text", field_options: "" });
+
+    useEffect(() => {
+        axios.get("/admin/business-custom-fields").then((res) => setBusinessFields(res.data));
+    }, []);
+
+    function saveNewField() {
+        axios.post("/admin/business-custom-fields", {
+            field_label: newField.field_label,
+            field_type: newField.field_type,
+            field_options: newField.field_type === "select"
+                ? newField.field_options.split(",").map((s) => s.trim()).filter(Boolean)
+                : null,
+        }).then((res) => {
+            setBusinessFields((prev) => [...prev, res.data.field]);
+            setNewField({ field_label: "", field_type: "text", field_options: "" });
+            setShowFieldsModal(false);
+            toast.success("Field added");
+        }).catch(() => toast.error("Failed to add field"));
+    }
+
+    function saveCustomFieldValue(cartItemId, fieldName, value) {
+        setCartItems((prev) =>
+            prev.map((it) => it.id === cartItemId
+                ? { ...it, custom_fields: { ...(it.custom_fields || {}), [fieldName]: value } }
+                : it
+            )
+        );
+        axios.put("/admin/cart/update-custom-fields", {
+            id: cartItemId,
+            custom_fields: { ...(carts.find((c) => c.id === cartItemId)?.custom_fields || {}), [fieldName]: value },
+        }).catch(() => toast.error("Failed to save field"));
+    }
 
     const handleProductCreated = (newProductId) => {
         if (onProductCreated) {
@@ -371,7 +406,7 @@ export default function Cart({
     );
 
     const isUnregistered = registrationStatus.toLowerCase() === "unregistered";
-    const colSpanFull = isUnregistered ? 10 : 9;
+    const colSpanFull = (isUnregistered ? 10 : 9) + businessFields.length;
     const headerStyle = { backgroundColor: ORANGE, color: "#fff" };
 
     return (
@@ -386,6 +421,11 @@ export default function Cart({
                             <th className="py-2 pl-3" style={{ minWidth: 220, textAlign: "center" }}>
                                 Product / Services
                             </th>
+                            {businessFields.map((f) => (
+                                <th key={f.id} className="text-center" style={{ minWidth: 110 }}>
+                                    {f.field_label}
+                                </th>
+                            ))}
                             <th className="text-center" style={{ minWidth: 140 }}>
                                 Qty
                             </th>
@@ -466,6 +506,32 @@ export default function Cart({
                                                 </span>
                                             )}
                                         </td>
+
+                                        {businessFields.map((f) => (
+                                            <td key={f.id} className="text-center">
+                                                {f.field_type === "select" ? (
+                                                    <select
+                                                        className="form-control form-control-sm"
+                                                        style={{ width: 100 }}
+                                                        value={item.custom_fields?.[f.field_name] || ""}
+                                                        onChange={(e) => saveCustomFieldValue(item.id, f.field_name, e.target.value)}
+                                                    >
+                                                        <option value="">Select</option>
+                                                        {(f.field_options || []).map((opt) => (
+                                                            <option key={opt} value={opt}>{opt}</option>
+                                                        ))}
+                                                    </select>
+                                                ) : (
+                                                    <input
+                                                        type={f.field_type === "number" ? "number" : "text"}
+                                                        className="form-control form-control-sm text-center"
+                                                        style={{ width: 100 }}
+                                                        defaultValue={item.custom_fields?.[f.field_name] || ""}
+                                                        onBlur={(e) => saveCustomFieldValue(item.id, f.field_name, e.target.value)}
+                                                    />
+                                                )}
+                                            </td>
+                                        ))}
 
                                         {/* Qty */}
                                         <td>
@@ -656,6 +722,11 @@ export default function Cart({
                                             }
                                         </div>
                                     </td>
+                                    {businessFields.map((f) => (
+                                        <td key={f.id} className="text-center text-muted">
+                                            —
+                                        </td>
+                                    ))}
                                     <td>
                                         <div className="d-flex align-items-center justify-content-center" style={{ gap: "4px" }}>
                                             {/* <button
@@ -749,6 +820,7 @@ export default function Cart({
                                 style={{ backgroundColor: "#f5f5f5" }}
                             >
                                 <td className="pl-3">Total</td>
+                                {businessFields.map((f) => <td key={f.id}></td>)}
                                 <td className="text-center">{totals.qty}</td>
                                 <td></td>
                                 <td className="text-center">
@@ -819,6 +891,14 @@ export default function Cart({
                 >
                     + Add Product
                 </button>
+                <button
+                    type="button"
+                    onClick={() => setShowFieldsModal(true)}
+                    className="btn btn-sm rounded-pill"
+                    style={{ border: `1px solid ${ORANGE}`, color: ORANGE, backgroundColor: "transparent" }}
+                >
+                    + Custom Fields
+                </button>
             </div>
 
             {/* Unregistered notice */}
@@ -837,6 +917,57 @@ export default function Cart({
                 onClose={() => setShowProductModal(false)}
                 onCreated={handleProductCreated}
             />
+
+            {showFieldsModal && (
+                <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+                    <div className="modal-dialog">
+                        <div className="modal-content">
+                            <div className="modal-header text-white" style={{ backgroundColor: ORANGE }}>
+                                <h5 className="modal-title">Manage Custom Fields</h5>
+                                <button className="close text-white" onClick={() => setShowFieldsModal(false)}>&times;</button>
+                            </div>
+                            <div className="modal-body">
+                                <ul className="list-group mb-3">
+                                    {businessFields.map((f) => (
+                                        <li key={f.id} className="list-group-item d-flex justify-content-between">
+                                            {f.field_label} <small className="text-muted">{f.field_type}</small>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <input
+                                    className="form-control form-control-sm mb-2"
+                                    placeholder="Field label (e.g. Color)"
+                                    value={newField.field_label}
+                                    onChange={(e) => setNewField({ ...newField, field_label: e.target.value })}
+                                />
+                                <select
+                                    className="form-control form-control-sm mb-2"
+                                    value={newField.field_type}
+                                    onChange={(e) => setNewField({ ...newField, field_type: e.target.value })}
+                                >
+                                    <option value="text">Text</option>
+                                    <option value="number">Number</option>
+                                    <option value="select">Select</option>
+                                </select>
+                                {newField.field_type === "select" && (
+                                    <input
+                                        className="form-control form-control-sm"
+                                        placeholder="Comma separated options e.g. Red,Blue,Green"
+                                        value={newField.field_options}
+                                        onChange={(e) => setNewField({ ...newField, field_options: e.target.value })}
+                                    />
+                                )}
+                            </div>
+                            <div className="modal-footer">
+                                <button className="btn btn-secondary" onClick={() => setShowFieldsModal(false)}>Close</button>
+                                <button className="btn text-white" style={{ backgroundColor: ORANGE }} onClick={saveNewField}>
+                                    Add Field
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <Toaster position="top-right" reverseOrder={false} />
         </>
