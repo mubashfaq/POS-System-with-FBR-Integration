@@ -110,6 +110,9 @@
                             <tr>
                                 <th>SN</th>
                                 <th>Product</th>
+                                @foreach ($customFields as $field)
+                                    <th>{{ $field->field_label }}</th>
+                                @endforeach
                                 @if ($order->type !== 'pos_invoice') 
                                 <th>HS Code</th>
                                 <th>UOM</th>
@@ -134,17 +137,10 @@
                                 <td>{{$loop->index + 1}}</td>
                                 <td>
                                     {{ $item->product->name }}
-                                    @if(!empty($item->custom_fields))
-                                        <br>
-                                        <small class="text-muted">
-                                            @foreach ($item->custom_fields as $key => $value)
-                                                @if($value !== null && $value !== '')
-                                                    {{ ucfirst(str_replace('_', ' ', $key)) }}: {{ $value }}@if(!$loop->last), @endif
-                                                @endif
-                                            @endforeach
-                                        </small>
-                                    @endif
                                 </td>
+                                @foreach ($customFields as $field)
+                                    <td>{{ $item->custom_fields[$field->field_name] ?? '—' }}</td>
+                                @endforeach
                                 @if ($order->type !== 'pos_invoice') 
                                 <td>{{$item->product->hsCode}}</td>
                                 <td>{{$item->product->uom}}</td>
