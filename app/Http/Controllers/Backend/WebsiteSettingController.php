@@ -31,17 +31,17 @@ class WebsiteSettingController extends Controller
         if ($businessId) {
             $invoiceSetting = \App\Models\InvoiceSetting::where('business_id', $businessId)->first();
             $fbrToken = DB::table('fbr_tokens')
-            ->where('business_id', $businessId)
-            ->latest('id')
-            ->first();
+                ->where('business_id', $businessId)
+                ->latest('id')
+                ->first();
 
             $status = quantity_validation::select('product_quantity_validation')
-            ->where('business_id', $businessId)
-            ->first();
+                ->where('business_id', $businessId)
+                ->first();
 
             $quantityValidationStatus = $status ? $status->product_quantity_validation : 'disabled'; // default
 
-            $cartSetting = CartSetting::where('business_id', $businessId)->value('draft_btn');
+            $cartSetting = CartSetting::where('business_id', $businessId)->first();
 
             $businessType = Business::where('id', $businessId)->value('business_type');
 
@@ -132,7 +132,7 @@ class WebsiteSettingController extends Controller
         return to_route('backend.admin.settings.website.general', ['active-tab' => 'notification-settings'])
             ->with('success', 'Updated successfully');
     }
-    
+
 
     public function websiteStatusUpdate(Request $request)
     {
@@ -186,16 +186,16 @@ class WebsiteSettingController extends Controller
             ['business_id' => $businessId], // condition to match existing record
             [
                 'fbr_integration' => $request->fbr_integration ?? 'disabled',
-                'pos_sandbox_token'        => $request->pos_sandbox_token ?? null,
-                'pos_production_token'     => $request->pos_production_token ?? null,
-                'digital_sandbox_token'    => $request->digital_sandbox_token ?? null,
+                'pos_sandbox_token' => $request->pos_sandbox_token ?? null,
+                'pos_production_token' => $request->pos_production_token ?? null,
+                'digital_sandbox_token' => $request->digital_sandbox_token ?? null,
                 'digital_production_token' => $request->digital_production_token ?? null,
-                'pral_sandbox_token'       => $request->pral_sandbox_token ?? null,
-                'pral_production_token'    => $request->pral_production_token ?? null,
-                'POSID_sandbox'            => $request->POSID_sandbox ?? null,
-                'POSID_production'         => $request->POSID_production ?? null,
-                'environment'              => $request->environment ?? 0, // 0=sandbox, 1=production
-                'updated_at'               => now(),
+                'pral_sandbox_token' => $request->pral_sandbox_token ?? null,
+                'pral_production_token' => $request->pral_production_token ?? null,
+                'POSID_sandbox' => $request->POSID_sandbox ?? null,
+                'POSID_production' => $request->POSID_production ?? null,
+                'environment' => $request->environment ?? 0, // 0=sandbox, 1=production
+                'updated_at' => now(),
             ]
         );
 
@@ -213,18 +213,20 @@ class WebsiteSettingController extends Controller
 
         $validated = $request->validate([
             'draft_btn' => ['required', 'boolean'],
+            'custom_field_btn' => ['required', 'boolean'],
         ]);
 
-         CartSetting::updateOrCreate(
+        CartSetting::updateOrCreate(
             [
                 'business_id' => $businessId,
             ],
             [
                 'draft_btn' => $request->boolean('draft_btn'),
+                'custom_field_btn' => $request->boolean('custom_field_btn'),
             ]
         );
-        
+
         return to_route('backend.admin.settings.website.general', ['active-tab' => 'cart-settings'])
-        ->with('success', 'Cart settings updated successfully');
+            ->with('success', 'Cart settings updated successfully');
     }
 }

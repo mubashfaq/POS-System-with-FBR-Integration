@@ -96,6 +96,7 @@ export default function Cart({
     onQuantityChange,
     onTotalsChange,
     quantityValidation,
+    customFieldButtonEnabled,
     // New props from PosDigital:
     products, // full product list for the picker dropdown
     onAddProduct, // fn(productId, customerId) — calls addProductToCart in PosDigital
@@ -141,8 +142,9 @@ export default function Cart({
         );
         axios.put("/admin/cart/update-custom-fields", {
             id: cartItemId,
-            custom_fields: { ...(carts.find((c) => c.id === cartItemId)?.custom_fields || {}), [fieldName]: value },
-        }).catch(() => toast.error("Failed to save field"));
+            custom_fields: { [fieldName]: value },
+        }).then(() => setCartUpdated((prev) => !prev))
+            .catch(() => toast.error("Failed to save field"));
     }
 
     const handleProductCreated = (newProductId) => {
@@ -891,14 +893,16 @@ export default function Cart({
                 >
                     + Add Product
                 </button>
-                <button
-                    type="button"
-                    onClick={() => setShowFieldsModal(true)}
-                    className="btn btn-sm rounded-pill"
-                    style={{ border: `1px solid ${ORANGE}`, color: ORANGE, backgroundColor: "transparent" }}
-                >
-                    + Custom Fields
-                </button>
+                {customFieldButtonEnabled && (
+                    <button
+                        type="button"
+                        onClick={() => setShowFieldsModal(true)}
+                        className="btn btn-sm rounded-pill"
+                        style={{ border: `1px solid ${ORANGE}`, color: ORANGE, backgroundColor: "transparent" }}
+                    >
+                        + Custom Fields
+                    </button>
+                )}
             </div>
 
             {/* Unregistered notice */}
