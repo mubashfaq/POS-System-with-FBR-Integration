@@ -41,7 +41,8 @@ class WebsiteSettingController extends Controller
 
             $quantityValidationStatus = $status ? $status->product_quantity_validation : 'disabled'; // default
 
-            $cartSetting = CartSetting::where('business_id', $businessId)->first();
+            $cartSetting = CartSetting::where('business_id', $businessId)->first()
+                ?? new CartSetting(['draft_btn' => 0, 'custom_field_btn' => 0]);
 
             $businessType = Business::where('id', $businessId)->value('business_type');
 
