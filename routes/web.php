@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Backend\BusinessCustomFieldContonller;
 use App\Http\Controllers\Backend\CurrencyController;
 use App\Http\Controllers\Backend\Pos\CartController;
 use App\Http\Controllers\Backend\Product\ProductController;
@@ -188,6 +189,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
 
         Route::put('/cart/update-quantity', [CartController::class, 'updateQuantity']);
         Route::put('/cart/update-price', [CartController::class, 'updatePrice']);
+        Route::put('/cart/update-custom-fields', [CartController::class, 'updateCustomFields']);
 
 
         Route::put('/cart/increment', [CartController::class, 'increment']);
@@ -202,7 +204,9 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
         Route::post('/digital-orders/{orderId}/submit', [OrderController::class, 'submitDigitalOrder'])->name('orders.submit-digital');
         Route::get('orders/fbr-status/{id}', [OrderController::class, 'fbrStatus'])->name('orders.fbr-status');
         // Route::post('/orders/{order}/custom-invoice', [OrderController::class, 'updateCustomInvoice'])->name('orders.custom-invoice');
-
+        Route::get('/business-custom-fields', [BusinessCustomFieldContonller::class, 'index']);
+        Route::post('/business-custom-fields', [BusinessCustomFieldContonller::class, 'store']);
+        Route::delete('/business-custom-fields/{id}', [BusinessCustomFieldContonller::class, 'destroy']);
         Route::get('/get/customers',[CustomerController::class,'getCustomers']);
         Route::post('/create/customers', [CustomerController::class, 'store']);
     //end pos
