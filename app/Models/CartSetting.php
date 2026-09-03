@@ -8,12 +8,14 @@ use Illuminate\Database\Eloquent\Model;
 class CartSetting extends Model
 {
     use HasFactory;
-     protected $fillable = [
+    protected $fillable = [
         'business_id',
         'draft_btn',
+        'custom_field_btn',
     ];
 
     protected $casts = [
         'draft_btn' => 'boolean',
+        'custom_field_btn' => 'boolean',
     ];
 }

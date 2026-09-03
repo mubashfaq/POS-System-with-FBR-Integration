@@ -882,15 +882,28 @@
                                     type="checkbox"
                                     name="draft_btn"
                                     value="1"
-                                    {{ $cartSetting == 1 ? 'checked' : '' }}
+                                    {{ $cartSetting->draft_btn == 1 ? 'checked' : '' }}
                                 >
 
                                 <span class="slider round"></span>
                             </label>
 
                             <span class="ml-3">
-                                <i class="fas fa-file-alt"></i>
                                 &nbsp;Show Save Draft Button
+                            </span>
+                        </div>
+
+                        <!-- Custom field Button -->
+                        <div class="form-group d-flex align-items-center">
+                            <label class="switch">
+                                <input type="hidden" name="custom_field_btn" value="0">
+                                <input type="checkbox" name="custom_field_btn" value="1" {{ $cartSetting->custom_field_btn == 1 ? 'checked' : '' }}>
+
+                                <span class="slider round"></span>
+                            </label>
+
+                            <span class="ml-3">
+                                &nbsp;Show Custom Field Button
                             </span>
                         </div>
 

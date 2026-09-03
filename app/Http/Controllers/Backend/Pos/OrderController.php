@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Backend\Pos;
 use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\BusinessCounter;
+use App\Models\BusinessCustomField;
 use App\Models\Customer;
 use App\Models\InvoiceSetting;
 use App\Models\Order;
@@ -2334,7 +2335,19 @@ class OrderController extends Controller
         $fbrIntegration = FbrTokenService::isIntegrationEnabled();
         $invoiceSettings = InvoiceSetting::where('business_id', $businessId)->first();
 
-        return view('backend.orders.print-invoice', compact('order', 'business', 'fbrIntegration', 'invoiceSettings'));
+        $allFields = BusinessCustomField::where('business_id', $order->business_id)
+            ->orderBy('sort_order')
+            ->get();
+
+        // Keep only fields that have a non-empty value in at least one order item
+        $customFields = $allFields->filter(function ($field) use ($order) {
+            return $order->products->contains(function ($item) use ($field) {
+                $val = $item->custom_fields[$field->field_name] ?? null;
+                return $val !== null && $val !== '';
+            });
+        })->values();
+
+        return view('backend.orders.print-invoice', compact('order', 'business', 'fbrIntegration', 'invoiceSettings', 'customFields'));
     }
     
     public function customerTaxInvoice($id)
