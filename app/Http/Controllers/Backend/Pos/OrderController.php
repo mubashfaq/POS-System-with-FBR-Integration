@@ -1723,9 +1723,11 @@ class OrderController extends Controller
                     }
                 }
 
+                $customFieldsSuffix = $this->formatCustomFieldsForName($cart->custom_fields);
+
                 $fbrItems[] = [
                     "hsCode" => $product->hsCode,
-                    "productDescription" => $product->name,
+                    "productDescription" => $product->name . $customFieldsSuffix,
                     "rate" => $rateText,
                     "uoM" => $product->uom,
 
@@ -1780,7 +1782,7 @@ class OrderController extends Controller
                 "items" => $fbrItems
             ];
 
-
+            
             if (!FbrTokenService::isIntegrationEnabled()) {
 
                 DB::commit();
@@ -1821,6 +1823,7 @@ class OrderController extends Controller
                     info('Connection Exception: ' . $e->getMessage());
                 }
                 $body = $response->body();
+
 
                 // fix FBR invalid JSON (trailing comma)
                 $cleanBody = preg_replace('/,\s*([}\]])/', '$1', $body);
@@ -2530,6 +2533,23 @@ class OrderController extends Controller
             ],
         ]);
     }
+
+    private function formatCustomFieldsForName($customFields): string
+{
+    if (empty($customFields) || !is_array($customFields)) {
+        return '';
+    }
+
+    $parts = [];
+    foreach ($customFields as $key => $value) {
+        if ($value === null || $value === '') {
+            continue;
+        }
+        $parts[] = ucfirst($key) . ': ' . $value;
+    }
+
+    return $parts ? ' (' . implode(', ', $parts) . ')' : '';
+}
 
     // public function updateCustomInvoice(Request $request, Order $order)
     // {

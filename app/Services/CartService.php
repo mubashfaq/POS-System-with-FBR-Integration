@@ -115,6 +115,80 @@ class CartService
         return $cartItem;
     }
 
+    
+    
+    
+    public function addToCartNew($productId, $businessId, $registrationStatus, $purchaseItemId = null, $parentCartId = null, $overrideQty = null, $skipStockCheck = false)
+{
+    $businessId = session('business_id') ?: $businessId;
+
+    $quantityVal = quantity_validation::where('business_id', $businessId)->firstOrFail();
+    $isValidationDisabled = $quantityVal->product_quantity_validation === 'disabled';
+
+    $product = Product::where('id', $productId)
+        ->where('business_id', $businessId)
+        ->firstOrFail();
+
+    if (!$skipStockCheck && $isValidationDisabled && $product->quantity === 0) {
+        throw new \Exception('Insufficient stock');
+    }
+
+    $purchaseItem = null;
+    if ($purchaseItemId) {
+        $query = PurchaseItem::where('id', $purchaseItemId)
+            ->where('product_id', $productId);
+
+        if ($isValidationDisabled && !$skipStockCheck) {
+            $query->where('remaining_qty', '>', 0);
+        }
+
+        $purchaseItem = $query->firstOrFail();
+    }
+
+    $forceQty = $overrideQty;
+
+    // ✅ Hamesha quantity 1 (ya forceQty) — koi existing row check nahi
+    $newQuantity = $forceQty !== null ? $forceQty : 1;
+
+    // Stock limit check (only when validation is disabled)
+    if (!$skipStockCheck && $isValidationDisabled) {
+        if ($purchaseItem && $newQuantity > $purchaseItem->remaining_qty) {
+            throw new \Exception(
+                'Cannot add more, batch stock limit reached (Available: ' . $purchaseItem->remaining_qty . ')'
+            );
+        } elseif (!$purchaseItem && $newQuantity > $product->quantity) {
+            throw new \Exception('Cannot add more, stock limit reached');
+        }
+    }
+
+    $unitPrice = $product->discounted_price;
+    $baseTotal = $unitPrice * $newQuantity;
+
+    $furtherTax = $this->calculateFurtherTax(
+        $product,
+        $baseTotal,
+        $registrationStatus
+    );
+
+    // ✅ Hamesha naya row banao
+    $cartItem = PosCart::create([
+        'user_id'               => Auth::id(),
+        'product_id'            => $product->id,
+        'purchase_item_id'      => $purchaseItemId,
+        'quantity'              => $newQuantity,
+        'further_tax'           => $furtherTax,
+        'parent_cart_id'        => $parentCartId,
+        'accessory_default_qty' => $forceQty,
+    ]);
+
+    if ($parentCartId === null) {
+        $this->syncAccessoriesToCart($product, $cartItem, $businessId, $registrationStatus, $isValidationDisabled);
+    }
+
+    return $cartItem;
+}
+    
+    
     /**
      * Auto-add or update accessory cart rows for the given parent cart item.
      * Uses FIFO batch selection (oldest available batch).
