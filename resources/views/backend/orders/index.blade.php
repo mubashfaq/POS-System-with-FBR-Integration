@@ -261,11 +261,11 @@
         $(function () {
 
             // Default Dates
-            let startDate = moment().subtract(29, 'days').format('YYYY-MM-DD');
-            let endDate = moment().format('YYYY-MM-DD');
+            let startDate = null;
+            let endDate = null;
 
-            $('#start_date').val(startDate);
-            $('#end_date').val(endDate);
+            $('#start_date').val('');
+            $('#end_date').val('');
 
             // DataTable
             table = $('#datatables').DataTable({
@@ -307,7 +307,7 @@
                     { data: 'date', name: 'date' },
                     { data: 'status', name: 'status' },
                     @if ($fbr)
-                                                                            {
+                        {
                             data: 'fbr_status',
                             name: 'fbr_status',
                             orderable: false,
@@ -427,8 +427,8 @@
                     'This Month': [moment().startOf('month'), moment().endOf('month')],
                     'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
                 },
-                startDate: moment(startDate, 'YYYY-MM-DD'),
-                endDate: moment(endDate, 'YYYY-MM-DD')
+                startDate: moment(),
+                endDate: moment()
             }, function (start, end) {
                 $('#start_date').val(start.format('YYYY-MM-DD'));
                 $('#end_date').val(end.format('YYYY-MM-DD'));
@@ -456,17 +456,11 @@
                         $('#fbrStatusMessage').text(response.message);
 
                         if (response.fbr_invoice_no) {
-
-                            $('#fbrInvoiceNumber')
-                                .text(response.fbr_invoice_no);
-
+                            $('#fbrInvoiceNumber').text(response.fbr_invoice_no);
                             $('#fbrInvoiceNumberContainer').show();
-
                         } else {
-
                             $('#fbrInvoiceNumber').text('');
                             $('#fbrInvoiceNumberContainer').hide();
-
                         }
 
                         $('#fbrStatusModal').modal('show');

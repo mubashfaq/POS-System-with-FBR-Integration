@@ -48,30 +48,36 @@ class OrderController extends Controller
 
             $business = Business::find($businessId);
 
-            $start_date_input = $request->input('start_date', Carbon::today()->subDays(29)->format('Y-m-d')); 
-
-            $end_date_input = $request->input('end_date', Carbon::today()->format('Y-m-d'));
-
-            // Parse and set start date
-            $start_date = Carbon::createFromFormat('Y-m-d', $start_date_input) ?: Carbon::today()->subDays(29)->startOfDay();
-            $start_date = $start_date->startOfDay();
-
-            // Parse and set end date
-            $end_date = Carbon::createFromFormat('Y-m-d', $end_date_input) ?: Carbon::today()->endOfDay();
-            $end_date = $end_date->endOfDay();
-
             $ordersQuery = Order::with('customer')
-                ->where('business_id', $businessId)
-                ->whereBetween('created_at', [$start_date, $end_date]);
+                ->where('business_id', $businessId);
+
+            // Date Filter
+            if ($request->filled('start_date')) {
+                $start_date = Carbon::createFromFormat(
+                    'Y-m-d',
+                    $request->input('start_date')
+                )->startOfDay();
+
+                $ordersQuery->where('created_at', '>=', $start_date);
+            }
+
+            if ($request->filled('end_date')) {
+                $end_date = Carbon::createFromFormat(
+                    'Y-m-d',
+                    $request->input('end_date')
+                )->endOfDay();
+
+                $ordersQuery->where('created_at', '<=', $end_date);
+            }
 
             // Environment Filter
             if ($request->filled('environment')) {
                 $ordersQuery->where(
                     'invoice_environment',
-                    $request->environment
+                    $request->input('environment')
                 );
             }
-
+ 
             $orders = $ordersQuery->get();
 
             $fbr = FbrTokenService::isIntegrationEnabled();
@@ -2336,6 +2342,7 @@ class OrderController extends Controller
         $invoiceSettings = InvoiceSetting::where('business_id', $businessId)->first();
 
         $allFields = BusinessCustomField::where('business_id', $order->business_id)
+            ->where('is_active', 1)
             ->orderBy('sort_order')
             ->get();
 
