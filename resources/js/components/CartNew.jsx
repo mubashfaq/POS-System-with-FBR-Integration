@@ -122,20 +122,20 @@ export default function Cart({
         axios.get("/admin/business-custom-fields").then((res) => setBusinessFields(res.data));
     }, []);
 
-    function saveNewField() {
-        axios.post("/admin/business-custom-fields", {
-            field_label: newField.field_label,
-            field_type: newField.field_type,
-            field_options: newField.field_type === "select"
-                ? newField.field_options.split(",").map((s) => s.trim()).filter(Boolean)
-                : null,
-        }).then((res) => {
-            setBusinessFields((prev) => [...prev, res.data.field]);
-            setNewField({ field_label: "", field_type: "text", field_options: "" });
-            setShowFieldsModal(false);
-            toast.success("Field added");
-        }).catch(() => toast.error("Failed to add field"));
-    }
+    // function saveNewField() {
+    //     axios.post("/admin/business-custom-fields", {
+    //         field_label: newField.field_label,
+    //         field_type: newField.field_type,
+    //         field_options: newField.field_type === "select"
+    //             ? newField.field_options.split(",").map((s) => s.trim()).filter(Boolean)
+    //             : null,
+    //     }).then((res) => {
+    //         setBusinessFields((prev) => [...prev, res.data.field]);
+    //         setNewField({ field_label: "", field_type: "text", field_options: "" });
+    //         setShowFieldsModal(false);
+    //         toast.success("Field added");
+    //     }).catch(() => toast.error("Failed to add field"));
+    // }
 
     function saveCustomFieldValue(cartItemId, fieldName, value) {
         setCartItems((prev) =>
@@ -149,6 +149,45 @@ export default function Cart({
             custom_fields: { [fieldName]: value },
         }).then(() => setCartUpdated((prev) => !prev))
             .catch(() => toast.error("Failed to save field"));
+    }
+
+    function saveNewField() {
+        axios.post("/admin/business-custom-fields", {
+            field_label: newField.field_label,
+            field_type: newField.field_type,
+            field_options: newField.field_type === "select"
+                ? newField.field_options.split(",").map((s) => s.trim()).filter(Boolean)
+                : null,
+        }).then((res) => {
+            setBusinessFields((prev) => [...prev, res.data.field]);
+            setNewField({ field_label: "", field_type: "text", field_options: "" });
+            setShowFieldsModal(false);
+            toast.success("Field added");
+        }).catch((error) => {
+            console.error("Full Error:", error);
+
+            if (error.response) {
+                // Server responded with an error
+                console.error("Status:", error.response.status);
+                console.error("Response:", error.response.data);
+
+                console.log("Validation Errors:", error.response.data.errors);
+
+                toast.error(
+                    error.response.data.message || "Failed to add field"
+                );
+            }
+            else if (error.request) {
+                // Request sent but no response received
+                console.error("No response received:", error.request);
+                toast.error("Server did not respond");
+            }
+            else {
+                // Something else happened
+                console.error("Error:", error.message);
+                toast.error(error.message);
+            }
+        });
     }
 
     function toggleFieldActive(id) {

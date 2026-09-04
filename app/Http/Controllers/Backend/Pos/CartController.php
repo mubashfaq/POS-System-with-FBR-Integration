@@ -239,6 +239,35 @@ class CartController extends Controller
         }
     }
 
+     public function storeNewDigital(Request $request, CartService $cartService)
+    {
+        $request->validate([
+            'id' => 'required|exists:products,id',
+            'purchase_item_id' => 'nullable|integer|exists:purchase_items,id',
+        ]);
+    
+        try {
+    
+            $cartItem = $cartService->addToCartNew(
+                $request->id,
+                session('business_id'),
+                session('registration_status') ?? 'registered',
+                $request->purchase_item_id
+            );
+    
+            return response()->json([
+                'message' => 'Product added to cart',
+                'quantity' => $cartItem->quantity,
+                'further_tax' => $cartItem->further_tax,
+            ], 201);
+    
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
     public function increment(Request $request, CartService $cartService)
     {
         $request->validate([
