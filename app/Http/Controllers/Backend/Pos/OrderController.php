@@ -48,8 +48,7 @@ class OrderController extends Controller
 
             $business = Business::find($businessId);
 
-            $ordersQuery = Order::with('customer')
-                ->where('business_id', $businessId);
+            $ordersQuery = Order::with('customer')->where('business_id', $businessId);
 
             // Date Filter
             if ($request->filled('start_date')) {
@@ -70,12 +69,24 @@ class OrderController extends Controller
                 $ordersQuery->where('created_at', '<=', $end_date);
             }
 
-            // Environment Filter
-            if ($request->filled('environment')) {
-                $ordersQuery->where(
-                    'invoice_environment',
-                    $request->input('environment')
-                );
+            // Environment Logic
+            $isSuperAdmin = auth()->user()->hasRole('super_admin');
+            $environment = FbrTokenService::getURLEnvironment();
+
+            $request->validate([
+                'environment' => 'nullable|in:sandbox,production',
+            ]);
+
+            // Other users → only current environment + null
+           if (!$isSuperAdmin) {
+                $ordersQuery->where(function ($query) use ($environment) {
+                    $query->where('invoice_environment', $environment)->orWhereNull('invoice_environment');
+                });
+            }
+
+            // Super Admin → optional environment filter
+            if ($isSuperAdmin && $request->filled('environment')) {
+                $ordersQuery->where('invoice_environment', $request->input('environment'));
             }
  
             $orders = $ordersQuery->get();
@@ -515,13 +526,15 @@ class OrderController extends Controller
         $counter->increment('last_invoice_number');
 
         $invoiceNumber = $counter->last_invoice_number;
+        $getURLEnvironment = FbrTokenService::getURLEnvironment();
 
         $order = Order::create([
             'customer_id' => $request->customer_id,
             'user_id' => $userId,
             'business_id' => $businessId,
             'invoice_number' => $invoiceNumber,
-            'order_date' => $request->orderDate
+            'order_date' => $request->orderDate,
+            'invoice_environment' => $getURLEnvironment,
         ]);
 
         $totalAmountOrder = 0;
@@ -814,7 +827,7 @@ class OrderController extends Controller
                 } else {
                     $token = $tokens;
                 }
-                $getURLEnvironment = FbrTokenService::getURLEnvironment();
+                
                 $post_api_response = null;
 
                 if ($business->business_type == 'pral') {
@@ -882,7 +895,6 @@ class OrderController extends Controller
                         'fbr_invoice_no' => $fbr_invoice_number,
                         'api_status' => $post_api_response->status(),
                         'api_message' => 1,
-                        'invoice_environment' => $getURLEnvironment,
                     ]);
 
                     Log::channel('fbr')->info('FBR Payload', [
@@ -1123,7 +1135,6 @@ class OrderController extends Controller
                 'api_status' => $post_api_response->status(),
                 'api_message' => 1,
                 'order_stage' => 'submitted',
-                'invoice_environment' => $getURLEnvironment,
             ]);
 
             DB::commit();
@@ -1347,7 +1358,6 @@ class OrderController extends Controller
                 'api_status'     => $post_api_response->status(),
                 'api_message'    => 1,
                 'order_stage'    => 'submitted',
-                'invoice_environment' => $getURLEnvironment,
             ]);
 
             DB::commit();
@@ -1476,6 +1486,9 @@ class OrderController extends Controller
         $counter->increment('last_invoice_number');
         $invoiceNumber = $counter->last_invoice_number;
 
+        $invoiceEnvironment = FbrTokenService::getURLEnvironment();
+
+
         $order = Order::create([
             'customer_id' => $request->customer_id,
             'user_id'     => $userId,
@@ -1485,6 +1498,7 @@ class OrderController extends Controller
             'order_date' => $request->orderDate,
             'custom_invoice_number' => $invoiceData['custom_invoice_number'] ?? null,
             'po_number' => $request->po_number ?? null,
+            'invoice_environment' => $invoiceEnvironment,
         ]);
 
         $totalAmountOrder = 0;
@@ -1809,7 +1823,6 @@ class OrderController extends Controller
                 }
 
                 $tokenUrlEnd = FbrTokenService::getTokenUrl();
-                $invoiceEnvironment = FbrTokenService::getURLEnvironment();
 
                 try {
 
@@ -1876,7 +1889,6 @@ class OrderController extends Controller
                     'error_code' => $errorCode,
                     'error_message' => $errorMessage,
                     'api_message' => $response->ok(),
-                    'invoice_environment' => $invoiceEnvironment,
                 ]);
 
 
@@ -2180,7 +2192,6 @@ class OrderController extends Controller
             'api_message'    => 1,
             'fbr_invoice_no' => $fbr_invoice_number,
             'order_stage'    => 'submitted',
-            'invoice_environment' => $invoiceEnvironment,
         ]);
 
         DB::commit();
