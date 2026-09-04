@@ -91,7 +91,7 @@
                     Info <br>
                     Invoice No. {{$order->display_invoice_number}}<br>
                     @if(($invoiceSettings?->po_number ?? 0) == 1)
-                        PO No. {{$order->po_number}}<br>
+                        PO No. {{$order->po_number ?? '  -'}}<br>
                     @endif
                     Sale Date: {{date('d/m/Y', strtotime($order->order_date ?? $order->created_at))}}<br>
                     @if (($fbrIntegration ?? null) == 'enabled' && $order->order_stage !== 'draft')
@@ -114,11 +114,13 @@
                                     <th>{{ $field->field_label }}</th>
                                 @endforeach
                                 @if ($order->type !== 'pos_invoice') 
-                                <th>HS Code</th>
-                                <th>UOM</th>
+                                    <th>HS Code</th>
+                                    <th>UOM</th>
                                 @endif
                                 <th>Quantity</th>
-                                <th>Unit Price {{currency()->symbol??''}}</th>
+                                @if(($invoiceSettings?->unit_price ?? 0) == 1)
+                                    <th>Unit Price {{currency()->symbol??''}}</th>
+                                @endif
                                 <th>Sales Excl. Tax {{currency()->symbol??''}}</th>
                                 <th>Sales Tax {{currency()->symbol??''}}</th>
                                 <th>Sales Incl. Tax {{currency()->symbol??''}}</th>
@@ -146,12 +148,9 @@
                                 <td>{{$item->product->uom}}</td>
                                 @endif
                                 <td>{{$item->quantity}} {{optional($item->product->unit)->short_name}}</td>
-                                <td>
-                                    {{$item->price }}
-                                    {{-- @if ($item->price>$item->discounted_price)
-                                    <br><del>{{ $item->price }}</del>
-                                    @endif --}}
-                                </td>
+                                @if(($invoiceSettings?->unit_price ?? 0) == 1)
+                                    <td>{{$item->price }}</td>
+                                @endif
                                 @php
                                     $inclTax = $item->total;
                                     $exclTax = $item->sub_total;
