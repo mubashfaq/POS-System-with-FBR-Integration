@@ -129,15 +129,17 @@
 
 
             <!-- Environment Filter -->
-            <div class="form-group mb-0 mr-2">
-                <select id="environment_filter" class="form-control form-control-sm" style="width: 170px;">
+            @hasrole('super_admin')
+                <div class="form-group mb-0 mr-2">
+                    <select id="environment_filter" class="form-control form-control-sm" style="width: 170px;">
 
-                    <option value="">All Environments</option>
-                    <option value="sandbox">Sandbox</option>
-                    <option value="production">Production</option>
+                        <option value="">All Environments</option>
+                        <option value="sandbox">Sandbox</option>
+                        <option value="production">Production</option>
 
-                </select>
-            </div>
+                    </select>
+                </div>
+            @endhasrole
 
 
             <!-- Date Filter -->
