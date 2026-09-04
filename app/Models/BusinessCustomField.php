@@ -16,6 +16,7 @@ class BusinessCustomField extends Model
         'field_type',
         'field_options',
         'sort_order',
+        'is_active',
     ];
-    protected $casts = ['field_options' => 'array'];
+    protected $casts = ['field_options' => 'array', 'is_active' => 'boolean',];
 }
