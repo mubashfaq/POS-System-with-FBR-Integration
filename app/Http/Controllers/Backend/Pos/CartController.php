@@ -430,7 +430,7 @@ public function digitalInvoice(Request $request)
 
             $cartItems = PosCart::where('user_id', auth()->id())
                 ->with(['product', 'purchaseItem.purchase'])
-                ->latest('created_at')
+                ->oldest('created_at')
                 ->get()
                 ->map(function ($item) use ($customerIsRegistered) {
                     $unitPrice = $item->price_override ?? $item->product->discounted_price;
