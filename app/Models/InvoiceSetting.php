@@ -8,5 +8,21 @@ use Illuminate\Database\Eloquent\Model;
 class InvoiceSetting extends Model
 {
     use HasFactory;
-    protected $fillable = ['business_id', 'logo', 'site_name', 'phone', 'email', 'address', 'customer', 'invoice_number', 'po_number', 'imc_logo', 'thanks_for_shopping', 'note_to_customer', 'note_msg', 'post_invoice_width'];
+    protected $fillable = [
+        'business_id',
+        'logo',
+        'site_name',
+        'phone',
+        'email',
+        'address',
+        'customer',
+        'unit_price',
+        'invoice_number',
+        'po_number',
+        'imc_logo',
+        'thanks_for_shopping',
+        'note_to_customer',
+        'note_msg',
+        'post_invoice_width'
+    ];
 }
