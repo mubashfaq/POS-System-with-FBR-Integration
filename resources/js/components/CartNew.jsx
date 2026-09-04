@@ -1,5 +1,5 @@
 import axios from "axios";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import Swal from "sweetalert2";
 import SuccessSound from "../sounds/beep-07a.mp3";
@@ -111,6 +111,10 @@ export default function Cart({
     const [grandTotal, setGrandTotal] = useState(0);
     const [showProductModal, setShowProductModal] = useState(false);
     const [businessFields, setBusinessFields] = useState([]);
+    const activeFields = useMemo(
+        () => businessFields.filter((f) => f.is_active),
+        [businessFields]
+    );
     const [showFieldsModal, setShowFieldsModal] = useState(false);
     const [newField, setNewField] = useState({ field_label: "", field_type: "text", field_options: "" });
 
@@ -145,6 +149,14 @@ export default function Cart({
             custom_fields: { [fieldName]: value },
         }).then(() => setCartUpdated((prev) => !prev))
             .catch(() => toast.error("Failed to save field"));
+    }
+
+    function toggleFieldActive(id) {
+        axios.put(`/admin/business-custom-fields/${id}/toggle`).then((res) => {
+            setBusinessFields((prev) =>
+                prev.map((f) => (f.id === id ? { ...f, is_active: res.data.field.is_active } : f))
+            );
+        }).catch(() => toast.error("Failed to update field"));
     }
 
     const handleProductCreated = (newProductId) => {
@@ -408,7 +420,7 @@ export default function Cart({
     );
 
     const isUnregistered = registrationStatus.toLowerCase() === "unregistered";
-    const colSpanFull = (isUnregistered ? 10 : 9) + businessFields.length;
+    const colSpanFull = (isUnregistered ? 10 : 9) + activeFields.length;
     const headerStyle = { backgroundColor: ORANGE, color: "#fff" };
 
     return (
@@ -423,7 +435,7 @@ export default function Cart({
                             <th className="py-2 pl-3" style={{ minWidth: 220, textAlign: "center" }}>
                                 Product / Services
                             </th>
-                            {businessFields.map((f) => (
+                            {activeFields.map((f) => (
                                 <th key={f.id} className="text-center" style={{ minWidth: 110 }}>
                                     {f.field_label}
                                 </th>
@@ -509,7 +521,7 @@ export default function Cart({
                                             )}
                                         </td>
 
-                                        {businessFields.map((f) => (
+                                        {activeFields.map((f) => (
                                             <td key={f.id} className="text-center">
                                                 {f.field_type === "select" ? (
                                                     <select
@@ -724,7 +736,7 @@ export default function Cart({
                                             }
                                         </div>
                                     </td>
-                                    {businessFields.map((f) => (
+                                    {activeFields.map((f) => (
                                         <td key={f.id} className="text-center text-muted">
                                             —
                                         </td>
@@ -822,7 +834,7 @@ export default function Cart({
                                 style={{ backgroundColor: "#f5f5f5" }}
                             >
                                 <td className="pl-3">Total</td>
-                                {businessFields.map((f) => <td key={f.id}></td>)}
+                                {activeFields.map((f) => <td key={f.id}></td>)}
                                 <td className="text-center">{totals.qty}</td>
                                 <td></td>
                                 <td className="text-center">
@@ -933,8 +945,18 @@ export default function Cart({
                             <div className="modal-body">
                                 <ul className="list-group mb-3">
                                     {businessFields.map((f) => (
-                                        <li key={f.id} className="list-group-item d-flex justify-content-between">
-                                            {f.field_label} <small className="text-muted">{f.field_type}</small>
+                                        <li key={f.id} className="list-group-item d-flex justify-content-between align-items-center">
+                                            <span className={f.is_active ? "" : "text-muted"}>{f.field_label}</span>
+                                            <div className="custom-control custom-switch">
+                                                <input
+                                                    type="checkbox"
+                                                    className="custom-control-input"
+                                                    id={`field-toggle-${f.id}`}
+                                                    checked={f.is_active}
+                                                    onChange={() => toggleFieldActive(f.id)}
+                                                />
+                                                <label className="custom-control-label" htmlFor={`field-toggle-${f.id}`}></label>
+                                            </div>
                                         </li>
                                     ))}
                                 </ul>
