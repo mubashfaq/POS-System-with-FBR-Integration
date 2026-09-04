@@ -7,7 +7,7 @@ use App\Models\BusinessCustomField;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
-class BusinessCustomFieldContonller extends Controller
+class BusinessCustomFieldController extends Controller
 {
 
     public function index()
@@ -36,6 +36,7 @@ class BusinessCustomFieldContonller extends Controller
             'field_type' => $request->field_type,
             'field_options' => $request->field_options,
             'sort_order' => BusinessCustomField::where('business_id', $businessId)->count(),
+            'is_active'    => true,
         ]);
 
         return response()->json(['message' => 'Field added', 'field' => $field]);
@@ -47,5 +48,14 @@ class BusinessCustomFieldContonller extends Controller
         BusinessCustomField::where('business_id', $businessId)
             ->where('id', $id)->delete();
         return response()->json(['message' => 'Field removed']);
+    }
+
+    public function toggleActive($id)
+    {
+        $businessId = session('business_id');
+        $field = BusinessCustomField::where('business_id', $businessId)->where('id', $id)->firstOrFail();
+        $field->is_active = !$field->is_active;
+        $field->save();
+        return response()->json(['message' => 'Updated', 'field' => $field]);
     }
 }
