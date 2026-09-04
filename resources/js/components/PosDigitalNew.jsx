@@ -42,7 +42,8 @@ export default function PosDigital({
     draftButtonEnabled,
     customFieldButtonEnabled,
     customInvoiceNumberEnabled,
-    poNumberEnabled, }) {
+    poNumberEnabled,
+    isSuperAdmin, }) {
     // ── Submission guard ───────────────────────────────────────────────────
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -648,26 +649,16 @@ export default function PosDigital({
                     {/* Left Side */}
                     <div className="col-md-4">
                         {/* Customer */}
-                        <div className="mb-3 d-flex">
-                            <label
-                                style={{
-                                    width: "110px",
-                                    flexShrink: 0,
-                                    fontSize: 14,
-                                }}
-                            >
-                                Customer <span className="text-danger">*</span>
-                            </label>
+                        <Field label="Customer" required>
+                            <CustomerSelect
+                                setCustomerId={setCustomerId}
+                                setIsRegistered={setIsRegistered}
+                                emptyCart={emptyCartOnCustomerChange}
+                                small
+                            />
+                        </Field>
 
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                                <CustomerSelect
-                                    setCustomerId={setCustomerId}
-                                    setIsRegistered={setIsRegistered}
-                                    emptyCart={emptyCartOnCustomerChange}
-                                // setCustomerTaxType={setCustomerTaxType}
-                                />
-                            </div>
-                        </div>
+                        {/* Invoice Number */}
                         {customInvoiceNumberEnabled && (
                             <Field label="Invoice No.">
                                 <input
@@ -738,6 +729,7 @@ export default function PosDigital({
                     customerId={customerId}
                     onProductCreated={handleProductCreated}
                     customFieldButtonEnabled={customFieldButtonEnabled}
+                    isSuperAdmin={isSuperAdmin}
                 />
 
                 {/* ── Notes + Totals (Lovable layout) ─────────────────────── */}
