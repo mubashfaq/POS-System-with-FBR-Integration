@@ -97,11 +97,11 @@ export default function Cart({
     onTotalsChange,
     quantityValidation,
     customFieldButtonEnabled,
-    // New props from PosDigital:
+    isSuperAdmin,
     products, // full product list for the picker dropdown
     onAddProduct, // fn(productId, customerId) — calls addProductToCart in PosDigital
     customerId, // needed so the picker can add directly
-    onProductCreated, // New prop
+    onProductCreated,
 }) {
     const [editingQuantity, setEditingQuantity] = useState({});
     const [cartItems, setCartItems] = useState([]);
@@ -116,7 +116,19 @@ export default function Cart({
         [businessFields]
     );
     const [showFieldsModal, setShowFieldsModal] = useState(false);
-    const [newField, setNewField] = useState({ field_label: "", field_type: "text", field_options: "" });
+    const [newFields, setNewFields] = useState([{ field_label: "" }]);
+
+    function addFieldRow() {
+        setNewFields((prev) => [...prev, { field_label: "" }]);
+    }
+
+    function removeFieldRow(index) {
+        setNewFields((prev) => prev.filter((_, i) => i !== index));
+    }
+
+    function updateFieldRow(index, value) {
+        setNewFields((prev) => prev.map((f, i) => (i === index ? { field_label: value } : f)));
+    }
 
     useEffect(() => {
         axios.get("/admin/business-custom-fields").then((res) => setBusinessFields(res.data));
@@ -151,43 +163,46 @@ export default function Cart({
             .catch(() => toast.error("Failed to save field"));
     }
 
-    function saveNewField() {
-        axios.post("/admin/business-custom-fields", {
-            field_label: newField.field_label,
-            field_type: newField.field_type,
-            field_options: newField.field_type === "select"
-                ? newField.field_options.split(",").map((s) => s.trim()).filter(Boolean)
-                : null,
-        }).then((res) => {
-            setBusinessFields((prev) => [...prev, res.data.field]);
-            setNewField({ field_label: "", field_type: "text", field_options: "" });
-            setShowFieldsModal(false);
-            toast.success("Field added");
-        }).catch((error) => {
-            console.error("Full Error:", error);
+    function saveNewFields() {
+        const validFields = newFields.filter((f) => f.field_label.trim() !== "");
+        if (validFields.length === 0) {
+            toast.error("Please enter at least one field label");
+            return;
+        }
 
-            if (error.response) {
-                // Server responded with an error
-                console.error("Status:", error.response.status);
-                console.error("Response:", error.response.data);
+        Promise.all(
+            validFields.map((f) =>
+                axios.post("/admin/business-custom-fields", {
+                    field_label: f.field_label,
+                    field_type: "text",
+                    field_options: null,
+                })
+            )
+        )
+            .then((responses) => {
+                const created = responses.map((res) => res.data.field);
+                setBusinessFields((prev) => [...prev, ...created]);
+                setNewFields([{ field_label: "" }]);
+                setShowFieldsModal(false);
+                toast.success(`${created.length} field(s) added`);
+            })
+            .catch((error) => {
+                toast.error(error.response?.data?.message || "Failed to add fields");
+            });
+    }
 
-                console.log("Validation Errors:", error.response.data.errors);
-
-                toast.error(
-                    error.response.data.message || "Failed to add field"
-                );
-            }
-            else if (error.request) {
-                // Request sent but no response received
-                console.error("No response received:", error.request);
-                toast.error("Server did not respond");
-            }
-            else {
-                // Something else happened
-                console.error("Error:", error.message);
-                toast.error(error.message);
-            }
-        });
+    function saveCustomFieldValue(cartItemId, fieldName, value) {
+        setCartItems((prev) =>
+            prev.map((it) => it.id === cartItemId
+                ? { ...it, custom_fields: { ...(it.custom_fields || {}), [fieldName]: value } }
+                : it
+            )
+        );
+        axios.put("/admin/cart/update-custom-fields", {
+            id: cartItemId,
+            custom_fields: { [fieldName]: value },
+        }).then(() => setCartUpdated((prev) => !prev))
+            .catch(() => toast.error("Failed to save field"));
     }
 
     function toggleFieldActive(id) {
@@ -944,7 +959,7 @@ export default function Cart({
                 >
                     + Add Product
                 </button>
-                {customFieldButtonEnabled && (
+                {isSuperAdmin && customFieldButtonEnabled && (
                     <button
                         type="button"
                         onClick={() => setShowFieldsModal(true)}
@@ -999,12 +1014,35 @@ export default function Cart({
                                         </li>
                                     ))}
                                 </ul>
-                                <input
-                                    className="form-control form-control-sm mb-2"
-                                    placeholder="Field label (e.g. Color)"
-                                    value={newField.field_label}
-                                    onChange={(e) => setNewField({ ...newField, field_label: e.target.value })}
-                                />
+                                {newFields.map((f, index) => (
+                                    <div key={index} className="d-flex mb-2" style={{ gap: 6 }}>
+                                        <input
+                                            className="form-control form-control-sm"
+                                            placeholder="Field label (e.g. Color)"
+                                            value={f.field_label}
+                                            onChange={(e) => updateFieldRow(index, e.target.value)}
+                                        />
+                                        {newFields.length > 1 && (
+                                            <button
+                                                type="button"
+                                                className="btn btn-sm btn-outline-danger"
+                                                onClick={() => removeFieldRow(index)}
+                                            >
+                                                &times;
+                                            </button>
+                                        )}
+                                        {index === newFields.length - 1 && (
+                                            <button
+                                                type="button"
+                                                className="btn btn-sm"
+                                                style={{ border: `1px solid ${ORANGE}`, color: ORANGE }}
+                                                onClick={addFieldRow}
+                                            >
+                                                +
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
                                 {/* <select
                                     className="form-control form-control-sm mb-2"
                                     value={newField.field_type}
@@ -1025,8 +1063,8 @@ export default function Cart({
                             </div>
                             <div className="modal-footer">
                                 <button className="btn btn-secondary" onClick={() => setShowFieldsModal(false)}>Close</button>
-                                <button className="btn text-white" style={{ backgroundColor: ORANGE }} onClick={saveNewField}>
-                                    Add Field
+                                <button className="btn text-white" style={{ backgroundColor: ORANGE }} onClick={saveNewFields}>
+                                    Add Field{newFields.filter((f) => f.field_label.trim()).length > 1 ? "s" : ""}
                                 </button>
                             </div>
                         </div>
