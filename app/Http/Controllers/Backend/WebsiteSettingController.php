@@ -159,6 +159,7 @@ class WebsiteSettingController extends Controller
         $invoiceSetting->email = $request->is_show_email_invoice ?? 0;
         $invoiceSetting->address = $request->is_show_address_invoice ?? 0;
         $invoiceSetting->customer = $request->is_show_customer_invoice ?? 0;
+        $invoiceSetting->unit_price = $request->is_show_unit_price_invoice ?? 0;
         $invoiceSetting->invoice_number = $request->is_show_invoice_number_invoice ?? 0;
         $invoiceSetting->po_number = $request->is_show_po_number ?? 0;
         $invoiceSetting->imc_logo = $request->is_show_imc_logo_invoice ?? 0;
