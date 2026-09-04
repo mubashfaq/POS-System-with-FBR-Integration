@@ -22,6 +22,10 @@ const getPoNumberSetting = (element) => {
     return element?.dataset.poNumber === "1";
 };
 
+const getSuperAdminSetting = (element) => {
+    return element?.dataset.isSuperAdmin === "1";
+};
+
 
 // POS
 const cartElement = document.getElementById("cart");
@@ -84,16 +88,15 @@ const cartDigitalInvoiceNewElement =
 
 if (cartDigitalInvoiceNewElement) {
 
-    const draftButtonEnabled =
-        getDraftButtonSetting(cartDigitalInvoiceNewElement);
+    const draftButtonEnabled = getDraftButtonSetting(cartDigitalInvoiceNewElement);
 
     const customFieldButtonEnabled = getCustomFieldButtonSetting(cartDigitalInvoiceNewElement);
 
-    const customInvoiceNumberEnabled =
-        getCustomInvoiceNumberSetting(cartDigitalInvoiceNewElement);
+    const customInvoiceNumberEnabled = getCustomInvoiceNumberSetting(cartDigitalInvoiceNewElement);
 
-    const poNumberEnabled =
-        getPoNumberSetting(cartDigitalInvoiceNewElement);
+    const poNumberEnabled = getPoNumberSetting(cartDigitalInvoiceNewElement);
+
+    const isSuperAdmin = getSuperAdminSetting(cartDigitalInvoiceNewElement);
 
     const cartRoot = createRoot(cartDigitalInvoiceNewElement);
 
@@ -103,6 +106,7 @@ if (cartDigitalInvoiceNewElement) {
             customFieldButtonEnabled={customFieldButtonEnabled}
             customInvoiceNumberEnabled={customInvoiceNumberEnabled}
             poNumberEnabled={poNumberEnabled}
+            isSuperAdmin={isSuperAdmin}
         />
     );
 }
