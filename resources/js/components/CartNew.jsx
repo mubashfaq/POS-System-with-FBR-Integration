@@ -134,6 +134,35 @@ export default function Cart({
         axios.get("/admin/business-custom-fields").then((res) => setBusinessFields(res.data));
     }, []);
 
+    // function saveNewField() {
+    //     axios.post("/admin/business-custom-fields", {
+    //         field_label: newField.field_label,
+    //         field_type: newField.field_type,
+    //         field_options: newField.field_type === "select"
+    //             ? newField.field_options.split(",").map((s) => s.trim()).filter(Boolean)
+    //             : null,
+    //     }).then((res) => {
+    //         setBusinessFields((prev) => [...prev, res.data.field]);
+    //         setNewField({ field_label: "", field_type: "text", field_options: "" });
+    //         setShowFieldsModal(false);
+    //         toast.success("Field added");
+    //     }).catch(() => toast.error("Failed to add field"));
+    // }
+
+    function saveCustomFieldValue(cartItemId, fieldName, value) {
+        setCartItems((prev) =>
+            prev.map((it) => it.id === cartItemId
+                ? { ...it, custom_fields: { ...(it.custom_fields || {}), [fieldName]: value } }
+                : it
+            )
+        );
+        axios.put("/admin/cart/update-custom-fields", {
+            id: cartItemId,
+            custom_fields: { [fieldName]: value },
+        }).then(() => setCartUpdated((prev) => !prev))
+            .catch(() => toast.error("Failed to save field"));
+    }
+
     function saveNewFields() {
         const validFields = newFields.filter((f) => f.field_label.trim() !== "");
         if (validFields.length === 0) {
