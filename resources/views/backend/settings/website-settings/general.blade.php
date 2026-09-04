@@ -613,6 +613,17 @@
                         <span class="ml-3">Show Customer Details</span>
                     </div>
 
+                    <!-- Unit Price Switch -->
+                    <div class="form-group d-flex align-items-center">
+                        <label class="switch">
+                            <input type="hidden" name="is_show_unit_price_invoice" value="0">
+                            <input type="checkbox" name="is_show_unit_price_invoice" value="1"
+                                {{ isset($invoiceSetting) && $invoiceSetting->unit_price == 1 ? 'checked' : '' }}>
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="ml-3">Show Unit Price</span>
+                    </div>
+
                     <!-- Invoice Number Switch -->
                     <div class="form-group d-flex align-items-center">
                         <label class="switch">
