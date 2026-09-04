@@ -288,18 +288,18 @@ class OrderController extends Controller
                     ';
                 }
 
-                $buttons[] = '
-                    <a
-                        class="btn-expand btn-outline-info"
-                        href="' . route(
-                            'backend.admin.orders.customer-tax-invoice',
-                            $data->id
-                        ) . '"
-                    >
-                        <i class="fas fa-file-invoice-dollar"></i>
-                        <span>Customer Tax Invoice</span>
-                    </a>
-                ';
+                // $buttons[] = '
+                //     <a
+                //         class="btn-expand btn-outline-info"
+                //         href="' . route(
+                //             'backend.admin.orders.customer-tax-invoice',
+                //             $data->id
+                //         ) . '"
+                //     >
+                //         <i class="fas fa-file-invoice-dollar"></i>
+                //         <span>Customer Tax Invoice</span>
+                //     </a>
+                // ';
 
                 if (!$data->is_cancelled && !$data->status) {
 
@@ -1729,9 +1729,11 @@ class OrderController extends Controller
                     }
                 }
 
+                $customFieldsSuffix = $this->formatCustomFieldsForName($cart->custom_fields);
+
                 $fbrItems[] = [
                     "hsCode" => $product->hsCode,
-                    "productDescription" => $product->name,
+                    "productDescription" => $product->name . $customFieldsSuffix,
                     "rate" => $rateText,
                     "uoM" => $product->uom,
 
@@ -1786,7 +1788,7 @@ class OrderController extends Controller
                 "items" => $fbrItems
             ];
 
-
+            
             if (!FbrTokenService::isIntegrationEnabled()) {
 
                 DB::commit();
@@ -1827,6 +1829,7 @@ class OrderController extends Controller
                     info('Connection Exception: ' . $e->getMessage());
                 }
                 $body = $response->body();
+
 
                 // fix FBR invalid JSON (trailing comma)
                 $cleanBody = preg_replace('/,\s*([}\]])/', '$1', $body);
@@ -2537,6 +2540,23 @@ class OrderController extends Controller
             ],
         ]);
     }
+
+    private function formatCustomFieldsForName($customFields): string
+{
+    if (empty($customFields) || !is_array($customFields)) {
+        return '';
+    }
+
+    $parts = [];
+    foreach ($customFields as $key => $value) {
+        if ($value === null || $value === '') {
+            continue;
+        }
+        $parts[] = ucfirst($key) . ': ' . $value;
+    }
+
+    return $parts ? ' (' . implode(', ', $parts) . ')' : '';
+}
 
     // public function updateCustomInvoice(Request $request, Order $order)
     // {

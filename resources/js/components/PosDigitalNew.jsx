@@ -407,59 +407,98 @@ export default function PosDigital({
         }
     }
 
-    function submitToCart(productId, purchaseItemId) {
-        setCarts((prev) => {
-            const existing = prev.find(
-                (c) =>
-                    c.product?.id === productId &&
-                    c.purchase_item_id === purchaseItemId,
-            );
-            if (existing) {
-                return prev.map((c) =>
-                    c.product?.id === productId &&
-                        c.purchase_item_id === purchaseItemId
-                        ? { ...c, quantity: c.quantity + 1 }
-                        : c,
-                );
-            }
-            return [
-                ...prev,
-                {
-                    id: `optimistic-${productId}-${Date.now()}`,
-                    product: {
-                        id: productId,
-                        name: "...",
-                        discounted_price: 0,
-                        price: 0,
-                        rate_of_tax: "0",
-                        sale_type: "",
-                    },
-                    quantity: 1,
-                    purchase_item_id: purchaseItemId,
-                    unit_price: null,
-                },
-            ];
-        });
+    // function submitToCart(productId, purchaseItemId) {
+    //     setCarts((prev) => {
+    //         const existing = prev.find(
+    //             (c) =>
+    //                 c.product?.id === productId &&
+    //                 c.purchase_item_id === purchaseItemId,
+    //         );
+    //         if (existing) {
+    //             return prev.map((c) =>
+    //                 c.product?.id === productId &&
+    //                     c.purchase_item_id === purchaseItemId
+    //                     ? { ...c, quantity: c.quantity + 1 }
+    //                     : c,
+    //             );
+    //         }
+    //         return [
+    //             ...prev,
+    //             {
+    //                 id: `optimistic-${productId}-${Date.now()}`,
+    //                 product: {
+    //                     id: productId,
+    //                     name: "...",
+    //                     discounted_price: 0,
+    //                     price: 0,
+    //                     rate_of_tax: "0",
+    //                     sale_type: "",
+    //                 },
+    //                 quantity: 1,
+    //                 purchase_item_id: purchaseItemId,
+    //                 unit_price: null,
+    //             },
+    //         ];
+    //     });
 
-        axios
-            .post("/admin/cart", {
+    //     axios
+    //         .post("/admin/cart", {
+    //             id: productId,
+    //             purchase_item_id: purchaseItemId,
+    //         })
+    //         .then((res) => {
+    //             setCartUpdated((prev) => !prev);
+    //             playSound(SuccessSound);
+    //             toast.success(res?.data?.message);
+    //             setShowBatchModal(false);
+    //         })
+    //         .catch((err) => {
+    //             setCartUpdated((prev) => !prev);
+    //             playSound(WarningSound);
+    //             toast.error(
+    //                 err.response?.data?.message || "Failed to add product",
+    //             );
+    //         });
+    // }
+
+    function submitToCart(productId, purchaseItemId) {
+    setCarts((prev) => [
+        ...prev,
+        {
+            id: `optimistic-${productId}-${Date.now()}-${Math.random()}`,
+            product: {
                 id: productId,
-                purchase_item_id: purchaseItemId,
-            })
-            .then((res) => {
-                setCartUpdated((prev) => !prev);
-                playSound(SuccessSound);
-                toast.success(res?.data?.message);
-                setShowBatchModal(false);
-            })
-            .catch((err) => {
-                setCartUpdated((prev) => !prev);
-                playSound(WarningSound);
-                toast.error(
-                    err.response?.data?.message || "Failed to add product",
-                );
-            });
-    }
+                name: "...",
+                discounted_price: 0,
+                price: 0,
+                rate_of_tax: "0",
+                sale_type: "",
+            },
+            quantity: 1,
+            purchase_item_id: purchaseItemId,
+            unit_price: null,
+        },
+    ]);
+
+    axios
+        .post("/admin/cartNewDigital", {
+            id: productId,
+            purchase_item_id: purchaseItemId,
+        })
+        .then((res) => {
+            setCartUpdated((prev) => !prev);
+            playSound(SuccessSound);
+            toast.success(res?.data?.message);
+            setShowBatchModal(false);
+        })
+        .catch((err) => {
+            setCartUpdated((prev) => !prev);
+            playSound(WarningSound);
+            toast.error(
+                err.response?.data?.message || "Failed to add product",
+            );
+        });
+}
 
     function cartEmpty() {
         if (total <= 0) return;

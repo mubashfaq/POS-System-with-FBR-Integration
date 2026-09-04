@@ -22,8 +22,12 @@
         @if(!empty($invoiceSettings->address) && $invoiceSettings->address == 1)
           <div align="center" class="mt-1"> {{ $business->address ?? '' }} </div>
         @endif
-
+        @if ($business->business_type == 'pral')
+        <div class="mt-1">POSID: {{ $business->ntn ?? 'POSID' }}</div>
+        @else
         <div class="mt-1">NTN: {{ $business->ntn ?? 'NTN' }}</div>
+        @endif
+
 
         <div class="mt-1">
           <p>{{ date('d-M-Y') }} {{ date('h:i:s A') }}</p>
