@@ -2,33 +2,7 @@
 @section('title', $order->display_invoice_number)
 @section('content')
 <div class="card">
-    {{-- @if(($invoiceSettings?->invoice_number ?? 0) == 1)
-        <div class="mt-n5 mb-3 d-flex justify-content-end align-items-center">
-            <form id="customInvoiceForm" class="d-flex align-items-center">
-                @csrf
-                <input type="hidden" id="order_id" value="{{ $order->id }}">
-
-                <div class="input-group input-group-sm" style="width: 340px;">
-                    <input
-                        type="text"
-                        class="form-control"
-                        id="custom_invoice_number"
-                        name="custom_invoice_number"
-                        placeholder="Custom Invoice Number"
-                        value="{{ $order->custom_invoice_number }}"
-                    >
-
-                    <div class="input-group-append">
-                        <button type="submit" class="btn action-button">
-                            <i class="fas fa-save"></i> Save
-                        </button>
-                    </div>
-                </div>
-
-                <small id="invoice-message" class="text-success ml-2"></small>
-            </form>
-        </div>
-    @endif --}}
+   
     <div class="card-body">
         <!-- Main content -->
         <section class="invoice">
@@ -51,9 +25,11 @@
                 <div class="col-4">
                     <h4 class="page-header" align="center">Invoice</h4>
                 </div>
-                <div class="col-4">
-                    <small class="float-right text-small">Date: {{date('d/m/Y')}}</small>
-                </div>
+                @if(($invoiceSettings?->date_on_top ?? 0) == 1)
+                    <div class="col-4">
+                        <small class="float-right text-small">Date: {{date('d/M/Y')}}</small>
+                    </div>
+                @endif
                 <!-- /.col -->
             </div>
             <!-- info row -->
@@ -73,11 +49,7 @@
                 <div class="col-sm-4 invoice-col">
                     From
                     <address>
-                        <!-- @if(readConfig('is_show_site_invoice'))<strong>Name:{{ readConfig('site_name') }}</strong><br> @endif
-            @if(readConfig('is_show_address_invoice'))Address: {{ readConfig('contact_address') }}<br>@endif
-            @if(readConfig('is_show_phone_invoice'))Phone: {{ readConfig('contact_phone') }}<br>@endif
-            @if(readConfig('is_show_email_invoice'))Email: {{ readConfig('contact_email') }}<br>@endif -->
-
+                        
                         @if(readConfig('is_show_site_invoice'))<strong>Name:{{ $business->business_name }}</strong><br>
                         @endif
                         @if(readConfig('is_show_address_invoice'))Address: {{ $business->address }}<br>@endif
@@ -97,7 +69,7 @@
                     @if(($invoiceSettings?->po_number ?? 0) == 1)
                         PO No. {{$order->po_number ?? '  -'}}<br>
                     @endif
-                    Sale Date: {{date('d/m/Y', strtotime($order->order_date ?? $order->created_at))}}<br>
+                    Sale Date: {{date('d/M/Y', strtotime($order->order_date ?? $order->created_at))}}<br>
                     @if (($fbrIntegration ?? null) == 'enabled' && $order->order_stage !== 'draft')
                         FBR Invoice: <div>{{ $order->fbr_invoice_no }}</div>
                     @endif

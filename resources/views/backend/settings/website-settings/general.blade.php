@@ -646,6 +646,17 @@
                         <span class="ml-3">Show PO Number</span>
                     </div>
 
+                     <!-- Real Date Switch -->
+                    <div class="form-group d-flex align-items-center">
+                        <label class="switch">
+                            <input type="hidden" name="is_show_date_on_top" value="0">
+                            <input type="checkbox" name="is_show_date_on_top" value="1"
+                                {{ isset($invoiceSetting) && $invoiceSetting->date_on_top == 1 ? 'checked' : '' }}>
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="ml-3">Show Actual Date on Top</span>
+                    </div>
+
                     <!-- Imc Logo Switch -->
                     <div class="form-group d-flex align-items-center">
                         <label class="switch">
