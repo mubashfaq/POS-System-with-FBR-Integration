@@ -19,6 +19,7 @@ class InvoiceSetting extends Model
         'unit_price',
         'invoice_number',
         'po_number',
+        'date_on_top',
         'imc_logo',
         'thanks_for_shopping',
         'note_to_customer',
