@@ -590,6 +590,8 @@ class OrderController extends Controller
 
             $orderProduct = $order->products()->create([
                 'quantity'         => $cart->quantity,
+                'hsCode'           => $product->hsCode ?? null,
+                'uom'              => $product->uom ?? null,
                 'price'            => $unitPrice,
                 'purchase_price'   => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
                 'sub_total'        => $subTotal,
@@ -1556,6 +1558,8 @@ class OrderController extends Controller
 
             $orderProduct = $order->products()->create([
                 'quantity'         => $cart->quantity,
+                'hsCode'           => $product->hsCode ?? null,
+                'uom'              => $product->uom ?? null,
                 'price'            => $unitPrice,
                 'purchase_price'   => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
                 'sub_total'        => $subTotal,
