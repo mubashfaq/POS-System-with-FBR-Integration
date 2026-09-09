@@ -120,8 +120,8 @@
                                     <td>{{ $item->custom_fields[$field->field_name] ?? '—' }}</td>
                                 @endforeach
                                 @if ($order->type !== 'pos_invoice') 
-                                <td>{{$item->product->hsCode}}</td>
-                                <td>{{$item->product->uom}}</td>
+                                <td>{{$item->hsCode}}</td>
+                                <td>{{$item->uom}}</td>
                                 @endif
                                 <td>{{$item->quantity}} {{optional($item->product->unit)->short_name}}</td>
                                 @if(($invoiceSettings?->unit_price ?? 0) == 1)

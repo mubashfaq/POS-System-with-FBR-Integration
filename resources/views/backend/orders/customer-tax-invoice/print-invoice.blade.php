@@ -2,33 +2,6 @@
 @section('title', $order->display_invoice_number)
 @section('content')
 <div class="card">
-    @if(($invoiceSettings?->invoice_number ?? 0) == 1)
-        <div class="mt-n5 mb-3 d-flex justify-content-end align-items-center">
-            <form id="customInvoiceForm" class="d-flex align-items-center">
-                @csrf
-                <input type="hidden" id="order_id" value="{{ $order->id }}">
-
-                <div class="input-group input-group-sm" style="width: 340px;">
-                    <input
-                        type="text"
-                        class="form-control"
-                        id="custom_invoice_number"
-                        name="custom_invoice_number"
-                        placeholder="Custom Invoice Number"
-                        value="{{ $order->custom_invoice_number }}"
-                    >
-
-                    <div class="input-group-append">
-                        <button type="submit" class="btn action-button">
-                            <i class="fas fa-save"></i> Save
-                        </button>
-                    </div>
-                </div>
-
-                <small id="invoice-message" class="text-success ml-2"></small>
-            </form>
-        </div>
-    @endif
     <div class="card-body">
         <!-- Main content -->
         <section class="invoice">
@@ -131,8 +104,8 @@
                                 <td>{{$loop->index + 1}}</td>
                                 <td>{{$item->product->name}}</td>
                                 @if ($order->type !== 'pos_invoice') 
-                                <td>{{$item->product->hsCode}}</td>
-                                <td>{{$item->product->uom}}</td>
+                                <td>{{$item->hsCode}}</td>
+                                <td>{{$item->uom}}</td>
                                 @endif
                                 <td>{{$item->quantity}} {{optional($item->product->unit)->short_name}}</td>
                                 <td>
