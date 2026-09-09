@@ -27,7 +27,7 @@
                 </div>
                 @if(($invoiceSettings?->date_on_top ?? 0) == 1)
                     <div class="col-4">
-                        <small class="float-right text-small">Date: {{date('d/M/Y')}}</small>
+                        <small class="float-right text-small">Date: {{date('d-M-Y')}}</small>
                     </div>
                 @endif
                 <!-- /.col -->
@@ -69,7 +69,7 @@
                     @if(($invoiceSettings?->po_number ?? 0) == 1)
                         PO No. {{$order->po_number ?? '  -'}}<br>
                     @endif
-                    Sale Date: {{date('d/M/Y', strtotime($order->order_date ?? $order->created_at))}}<br>
+                    Sale Date: {{date('d-M-Y', strtotime($order->order_date ?? $order->created_at))}}<br>
                     @if (($fbrIntegration ?? null) == 'enabled' && $order->order_stage !== 'draft')
                         FBR Invoice: <div>{{ $order->fbr_invoice_no }}</div>
                     @endif
