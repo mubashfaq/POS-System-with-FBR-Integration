@@ -39,9 +39,23 @@ export function ConfirmBox({
             icon,
             html: `
                 <div class="my-actions" style="display:flex;gap:8px;justify-content:center;margin-top:16px;">
-                    <button id="cb-confirm" class="swal2-confirm swal2-styled">${confirmText}</button>
-                    <button id="cb-extra" class="swal2-styled" style="background-color:#6c757d;color:#fff;border:none;border-radius:6px;">${extraButton.text}</button>
-                    <button id="cb-deny" class="swal2-deny swal2-styled">${denyText}</button>
+                    <button id="cb-confirm"
+                            class="swal2-styled"
+                            style="background-color:#28a745;color:#fff;border:none;border-radius:6px;font-size:13px;padding:8px 16px;font-weight:600;">
+                        ${confirmText}
+                    </button>
+
+                    <button id="cb-extra"
+                            class="swal2-styled"
+                            style="background-color:#7066e0;color:#fff;border:none;border-radius:6px;font-size:13px;padding:8px 16px;font-weight:600;">
+                        ${extraButton.text}
+                    </button>
+
+                    <button id="cb-deny"
+                            class="swal2-styled"
+                            style="background-color:#dc3545;color:#fff;border:none;border-radius:6px;font-size:13px;padding:8px 16px;font-weight:600;">
+                        ${denyText}
+                    </button>
                 </div>
             `,
             showConfirmButton: false,
