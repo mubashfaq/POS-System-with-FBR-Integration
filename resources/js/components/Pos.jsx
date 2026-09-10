@@ -379,9 +379,9 @@ export default function Pos({ businessType, draftButtonEnabled }) {
     const handleCheckout = async () => {
         const result = await ConfirmBox({
             title: "Are you sure you want to checkout this order?",
-            confirmText: "Save and Post",
+            confirmText: "Send to FBR",
             denyText: "Cancel",
-            extraButton: { text: "Draft" },
+            extraButton: { text: "Save only" },
         });
 
         if (result === "confirm") {
