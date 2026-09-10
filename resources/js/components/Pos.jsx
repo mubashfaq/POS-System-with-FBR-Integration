@@ -360,8 +360,8 @@ export default function Pos({ businessType, draftButtonEnabled }) {
     async function cartEmpty() {
         if (total <= 0) return;
 
-        const ok = await ConfirmBox({ title: "Are you sure you want to delete Cart?" });
-        if (!ok) return;
+        const result = await ConfirmBox({ title: "Are you sure you want to delete Cart?" });
+        if (result !== "confirm") return;
 
         axios
             .put("/admin/cart/empty")
@@ -377,13 +377,26 @@ export default function Pos({ businessType, draftButtonEnabled }) {
     }
 
     const handleCheckout = async () => {
-        const ok = await ConfirmBox({ title: "Are you sure you want to checkout this order?" });
-        if (ok) orderCreate("submitted");
+        const result = await ConfirmBox({
+            title: "Are you sure you want to checkout this order?",
+            extraButton: {
+                text: "Save as Draft",
+                className: "swal2-styled", // add your own class if you want custom color
+            },
+        });
+
+        if (result === "confirm") {
+            orderCreate("submitted");
+        } else if (result === "extra") {
+            orderCreate("draft");
+        }
+        // "deny" or null → do nothing
     };
 
     const handleSaveDraft = async () => {
-        const ok = await ConfirmBox({ title: "Are you sure you want to save this order as a draft?" });
-        if (ok) orderCreate("draft");
+        const result = await ConfirmBox({ title: "Are you sure you want to save this order as a draft?" });
+        if (result !== "confirm") return;
+        orderCreate("draft");
     };
 
 
