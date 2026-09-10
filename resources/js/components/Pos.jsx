@@ -4,6 +4,7 @@ import Swal from "sweetalert2";
 import Cart1 from "./Cart1";
 import toast, { Toaster } from "react-hot-toast";
 import CustomerSelect from "./CutomerSelect";
+import { ConfirmBox } from "./ConfirmBox";
 
 import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
@@ -355,39 +356,36 @@ export default function Pos({ businessType, draftButtonEnabled }) {
                 setAddingProducts(prev => { const s = new Set(prev); s.delete(productId); return s; });
             });
     }
-    function cartEmpty() {
-        if (total <= 0) {
-            return;
-        }
-        Swal.fire({
-            title: "Are you sure you want to delete Cart?",
-            showDenyButton: true,
-            confirmButtonText: "Yes",
-            denyButtonText: "No",
-            customClass: {
-                actions: "my-actions",
-                cancelButton: "order-1 right-gap",
-                confirmButton: "order-2",
-                denyButton: "order-3",
-            },
-        }).then((result) => {
-            if (result.isConfirmed) {
-                axios
-                    .put("/admin/cart/empty")
-                    .then((res) => {
-                        setCartUpdated(prev => !prev); // ✅ functional updater
-                        playSound(SuccessSound);
-                        toast.success(res?.data?.message);
-                    })
-                    .catch((err) => {
-                        playSound(WarningSound);
-                        toast.error(err.response.data.message);
-                    });
-            } else if (result.isDenied) {
-                return;
-            }
-        });
+
+    async function cartEmpty() {
+        if (total <= 0) return;
+
+        const ok = await ConfirmBox({ title: "Are you sure you want to delete Cart?" });
+        if (!ok) return;
+
+        axios
+            .put("/admin/cart/empty")
+            .then((res) => {
+                setCartUpdated(prev => !prev);
+                playSound(SuccessSound);
+                toast.success(res?.data?.message);
+            })
+            .catch((err) => {
+                playSound(WarningSound);
+                toast.error(err.response.data.message);
+            });
     }
+
+    const handleCheckout = async () => {
+        const ok = await ConfirmBox({ title: "Are you sure you want to checkout this order?" });
+        if (ok) orderCreate("submitted");
+    };
+
+    const handleSaveDraft = async () => {
+        const ok = await ConfirmBox({ title: "Are you sure you want to save this order as a draft?" });
+        if (ok) orderCreate("draft");
+    };
+
 
     function orderCreate(orderStage = "submitted") {
         if (isSubmitting) return;
@@ -737,7 +735,7 @@ export default function Pos({ businessType, draftButtonEnabled }) {
                                 {draftButtonEnabled && (
                                     <div className="col">
                                         <button
-                                            onClick={() => orderCreate("draft")}
+                                            onClick={handleSaveDraft}
                                             type="button"
                                             className="btn btn-secondary btn-block text-white text-bold w-100"
                                             disabled={carts.length === 0 || isSubmitting}
@@ -750,7 +748,7 @@ export default function Pos({ businessType, draftButtonEnabled }) {
                                 {/* Checkout */}
                                 <div className="col">
                                     <button
-                                        onClick={() => orderCreate("submitted")}
+                                        onClick={handleCheckout}
                                         type="button"
                                         className="btn checkout-btn btn-block text-white text-bold w-100"
                                         disabled={carts.length === 0 || isSubmitting}
