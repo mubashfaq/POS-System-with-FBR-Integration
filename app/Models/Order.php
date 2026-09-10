@@ -11,7 +11,38 @@ class Order extends Model
 {
     use HasFactory;
 
-    protected $fillable=['business_id', 'invoice_number', 'custom_invoice_number', 'po_number', 'user_id', 'customer_id', 'discount', 'total_sale_tax', 'total_customer_tax', 'total_further_tax', 'sub_total','total','paid','due','note', 'order_date', 'is_retured','status', 'order_stage', 'is_cancelled', 'cancelled_by', 'cancelled_at', 'api_status','error_code','error_message','api_message', 'fbr_invoice_no', 'invoice_environment', 'type'];
+    protected $fillable = [
+        'business_id',
+        'invoice_number',
+        'custom_invoice_number',
+        'po_number',
+        'user_id',
+        'customer_id',
+        'POSID',
+        'discount',
+        'total_sale_tax',
+        'total_customer_tax',
+        'total_further_tax',
+        'sub_total',
+        'total',
+        'paid',
+        'due',
+        'note',
+        'order_date',
+        'is_retured',
+        'status',
+        'order_stage',
+        'is_cancelled',
+        'cancelled_by',
+        'cancelled_at',
+        'api_status',
+        'error_code',
+        'error_message',
+        'api_message',
+        'fbr_invoice_no',
+        'invoice_environment',
+        'type'
+    ];
 
     protected $guarded = [];
     protected $appends = ['total_item'];
@@ -23,7 +54,8 @@ class Order extends Model
     {
         return $this->hasMany(OrderTransaction::class);
     }
-    public function customer(){
+    public function customer()
+    {
         return $this->belongsTo(Customer::class);
     }
     public function getTotalItemAttribute()
@@ -33,12 +65,12 @@ class Order extends Model
             ->sum('quantity');
 
         return $value == (int) $value
-            ? (string)(int) $value
+            ? (string) (int) $value
             : number_format($value, 2, '.', '');
     }
-    
-    
-    
+
+
+
     public function business()
     {
         return $this->belongsTo(Business::class, 'business_id');
@@ -59,6 +91,6 @@ class Order extends Model
     protected $casts = [
         'order_date' => 'date',
     ];
-    
-   
+
+
 }

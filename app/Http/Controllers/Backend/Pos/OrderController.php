@@ -527,6 +527,7 @@ class OrderController extends Controller
 
         $invoiceNumber = $counter->last_invoice_number;
         $getURLEnvironment = FbrTokenService::getURLEnvironment();
+        $POSID = FbrTokenService::getPOSID();
 
         $order = Order::create([
             'customer_id' => $request->customer_id,
@@ -535,6 +536,7 @@ class OrderController extends Controller
             'invoice_number' => $invoiceNumber,
             'order_date' => $request->orderDate,
             'invoice_environment' => $getURLEnvironment,
+            'POSID' => $POSID,
         ]);
 
         $totalAmountOrder = 0;
@@ -789,7 +791,6 @@ class OrderController extends Controller
 
             $customer = Customer::find($request->customer_id);
             $business = Business::find($businessId);
-            $POSID = FbrTokenService::getPOSID();
 
             $fbrPayload = [
                 // "POSID" => 819045,
@@ -1134,9 +1135,10 @@ class OrderController extends Controller
 
             $order->update([
                 'fbr_invoice_no' => $fbr_invoice_number,
-                'api_status' => $post_api_response->status(),
-                'api_message' => 1,
-                'order_stage' => 'submitted',
+                'api_status'     => $post_api_response->status(),
+                'api_message'    => 1,
+                'order_stage'    => 'submitted',
+                'POSID'          => $POSID,
             ]);
 
             DB::commit();
@@ -1360,6 +1362,7 @@ class OrderController extends Controller
                 'api_status'     => $post_api_response->status(),
                 'api_message'    => 1,
                 'order_stage'    => 'submitted',
+                'POSID'          => $POSID
             ]);
 
             DB::commit();

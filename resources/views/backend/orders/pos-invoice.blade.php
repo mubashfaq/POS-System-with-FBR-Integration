@@ -23,7 +23,7 @@
           <div align="center" class="mt-1"> {{ $business->address ?? '' }} </div>
         @endif
         @if ($business->business_type == 'pral')
-        <div class="mt-1">POSID: {{ $business->ntn ?? 'POSID' }}</div>
+        <div class="mt-1">POSID: {{ $order->POSID ?? $business->ntn }}</div>
         @else
         <div class="mt-1">NTN: {{ $business->ntn ?? 'NTN' }}</div>
         @endif

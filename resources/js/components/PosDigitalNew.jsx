@@ -10,6 +10,7 @@ import Swal from "sweetalert2";
 import CartNew from "./CartNew";
 import toast, { Toaster } from "react-hot-toast";
 import CustomerSelect from "./CutomerSelect";
+import { ConfirmBox } from "./ConfirmBox";
 
 import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
@@ -500,38 +501,34 @@ export default function PosDigital({
         });
 }
 
-    function cartEmpty() {
+    async function cartEmpty() {
         if (total <= 0) return;
-        Swal.fire({
-            title: "Are you sure you want to delete Cart?",
-            showDenyButton: true,
-            confirmButtonText: "Yes",
-            denyButtonText: "No",
-            customClass: {
-                actions: "my-actions",
-                cancelButton: "order-1 right-gap",
-                confirmButton: "order-2",
-                denyButton: "order-3",
-            },
-        }).then((result) => {
-            if (result.isConfirmed) {
-                axios
-                    .put("/admin/cart/empty")
-                    .then((res) => {
-                        setCartUpdated((prev) => !prev);
-                        playSound(SuccessSound);
-                        toast.success(res?.data?.message);
-                    })
-                    .catch((err) => {
-                        playSound(WarningSound);
-                        toast.error(
-                            err.response?.data?.message ||
-                            "Something went wrong",
-                        );
-                    });
-            }
-        });
+
+        const ok = await ConfirmBox({ title: "Are you sure you want to delete Cart?" });
+        if (!ok) return;
+
+        axios
+            .put("/admin/cart/empty")
+            .then((res) => {
+                setCartUpdated(prev => !prev);
+                playSound(SuccessSound);
+                toast.success(res?.data?.message);
+            })
+            .catch((err) => {
+                playSound(WarningSound);
+                toast.error(err.response.data.message);
+            });
     }
+
+    const handleCheckout = async () => {
+        const ok = await ConfirmBox({ title: "Are you sure you want to checkout this order?" });
+        if (ok) orderCreate("submitted");
+    };
+
+    const handleSaveDraft = async () => {
+        const ok = await ConfirmBox({ title: "Are you sure you want to save this order as a draft?" });
+        if (ok) orderCreate("draft");
+    };
 
     // Order creation
     function orderCreate(orderStage = "submitted") {
@@ -958,7 +955,7 @@ export default function PosDigital({
                     {draftButtonEnabled && (
                         <div className="col-6 col-md-3">
                             <button
-                                onClick={() => orderCreate("draft")}
+                                onClick={handleSaveDraft}
                                 type="button"
                                 className="btn btn-block fw-bold text-white w-100"
                                 disabled={carts.length === 0 || isSubmitting}
@@ -975,7 +972,7 @@ export default function PosDigital({
                     {/* Checkout Digital */}
                     <div className="col-6 col-md-3">
                         <button
-                            onClick={() => orderCreate("submitted")}
+                            onClick={handleCheckout}
                             type="button"
                             className="btn checkout-btn btn-block fw-bold text-white w-100"
                             disabled={carts.length === 0 || isSubmitting}
