@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
+import Select from "react-select";
 
 export default function ProductCreateDigitalModal({ show, onClose, onCreated }) {
     const [formData, setFormData] = useState({
@@ -287,7 +288,7 @@ export default function ProductCreateDigitalModal({ show, onClose, onCreated }) 
                                     </div>
                                     <div className="mb-3 col-md-6">
                                         <label className="form-label">Stock Quantity</label>
-                                        <input type="number" className="form-control" name="quantity" value={formData.quantity} onChange={handleChange} min="0" step="1"  />
+                                        <input type="number" className="form-control" name="quantity" value={formData.quantity} onChange={handleChange} min="0" step="1" />
                                     </div>
 
                                     {bType === 'pos' || bType === 'pral' ? (
@@ -308,10 +309,33 @@ export default function ProductCreateDigitalModal({ show, onClose, onCreated }) 
                                                 <>
                                                     <div className="mb-3 col-md-6">
                                                         <label className="form-label">HS Code <span className="text-danger">*</span></label>
-                                                        <select className="form-control" name="hsCode" value={formData.hsCode} onChange={handleHsCodeChange} required>
-                                                            <option value="">Select HS Code</option>
-                                                            {formOptions.hsCodes?.map(hc => <option key={hc.id || hc.hs_code} value={hc.hs_code}>{hc.hs_code}</option>)}
-                                                        </select>
+                                                        <Select
+                                                            name="hsCode"
+                                                            value={
+                                                                formData.hsCode
+                                                                    ? {
+                                                                        value: formData.hsCode,
+                                                                        label: formData.hsCode,
+                                                                    }
+                                                                    : null
+                                                            }
+                                                            onChange={(selected) =>
+                                                                handleHsCodeChange({
+                                                                    target: {
+                                                                        value: selected ? selected.value : "",
+                                                                    },
+                                                                })
+                                                            }
+                                                            options={
+                                                                formOptions.hsCodes?.map((hc) => ({
+                                                                    value: hc.hs_code,
+                                                                    label: hc.hs_code,
+                                                                })) || []
+                                                            }
+                                                            placeholder="Select HS Code"
+                                                            isSearchable={true}
+                                                            isClearable={true}
+                                                        />
                                                     </div>
                                                     <div className="mb-3 col-md-6">
                                                         <label className="form-label">Description <span className="text-danger">*</span></label>
