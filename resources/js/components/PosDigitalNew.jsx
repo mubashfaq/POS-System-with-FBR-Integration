@@ -463,49 +463,49 @@ export default function PosDigital({
     // }
 
     function submitToCart(productId, purchaseItemId) {
-    setCarts((prev) => [
-        ...prev,
-        {
-            id: `optimistic-${productId}-${Date.now()}-${Math.random()}`,
-            product: {
-                id: productId,
-                name: "...",
-                discounted_price: 0,
-                price: 0,
-                rate_of_tax: "0",
-                sale_type: "",
+        setCarts((prev) => [
+            ...prev,
+            {
+                id: `optimistic-${productId}-${Date.now()}-${Math.random()}`,
+                product: {
+                    id: productId,
+                    name: "...",
+                    discounted_price: 0,
+                    price: 0,
+                    rate_of_tax: "0",
+                    sale_type: "",
+                },
+                quantity: 1,
+                purchase_item_id: purchaseItemId,
+                unit_price: null,
             },
-            quantity: 1,
-            purchase_item_id: purchaseItemId,
-            unit_price: null,
-        },
-    ]);
+        ]);
 
-    axios
-        .post("/admin/cartNewDigital", {
-            id: productId,
-            purchase_item_id: purchaseItemId,
-        })
-        .then((res) => {
-            setCartUpdated((prev) => !prev);
-            playSound(SuccessSound);
-            toast.success(res?.data?.message);
-            setShowBatchModal(false);
-        })
-        .catch((err) => {
-            setCartUpdated((prev) => !prev);
-            playSound(WarningSound);
-            toast.error(
-                err.response?.data?.message || "Failed to add product",
-            );
-        });
-}
+        axios
+            .post("/admin/cartNewDigital", {
+                id: productId,
+                purchase_item_id: purchaseItemId,
+            })
+            .then((res) => {
+                setCartUpdated((prev) => !prev);
+                playSound(SuccessSound);
+                toast.success(res?.data?.message);
+                setShowBatchModal(false);
+            })
+            .catch((err) => {
+                setCartUpdated((prev) => !prev);
+                playSound(WarningSound);
+                toast.error(
+                    err.response?.data?.message || "Failed to add product",
+                );
+            });
+    }
 
     async function cartEmpty() {
         if (total <= 0) return;
 
-        const ok = await ConfirmBox({ title: "Are you sure you want to delete Cart?" });
-        if (!ok) return;
+        const result = await ConfirmBox({ title: "Are you sure you want to delete Cart?" });
+        if (result !== "confirm") return;
 
         axios
             .put("/admin/cart/empty")
@@ -521,13 +521,26 @@ export default function PosDigital({
     }
 
     const handleCheckout = async () => {
-        const ok = await ConfirmBox({ title: "Are you sure you want to checkout this order?" });
-        if (ok) orderCreate("submitted");
+        const result = await ConfirmBox({
+            title: "Are you sure you want to checkout this order?",
+            extraButton: {
+                text: "Save as Draft",
+                className: "swal2-styled", // add your own class if you want custom color
+            },
+        });
+
+        if (result === "confirm") {
+            orderCreate("submitted");
+        } else if (result === "extra") {
+            orderCreate("draft");
+        }
+        // "deny" or null → do nothing
     };
 
     const handleSaveDraft = async () => {
-        const ok = await ConfirmBox({ title: "Are you sure you want to save this order as a draft?" });
-        if (ok) orderCreate("draft");
+        const result = await ConfirmBox({ title: "Are you sure you want to save this order as a draft?" });
+        if (result !== "confirm") return;
+        orderCreate("draft");
     };
 
     // Order creation
