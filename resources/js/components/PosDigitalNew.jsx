@@ -310,44 +310,52 @@ export default function PosDigital({
     };
 
     const handleQuantityChange = (cartId, newQty) => {
-        // Update local state immediately so UI remains responsive
         setCarts((prev) =>
             prev.map((item) =>
                 item.id === cartId ? { ...item, quantity: newQty } : item,
             ),
         );
-
-        const qty = parseFloat(newQty);
-        if (isNaN(qty) || qty <= 0) return;
-
-        // Stock validation check if quantityValidation is disabled
-        const item = carts.find((c) => c.id === cartId);
-        if (item) {
-            const isAccessory = !!item.parent_cart_id || !!item.is_accessory;
-            const stockEnforced = quantityValidation === "disabled";
-            if (!isAccessory && stockEnforced && qty > item.product.quantity) {
-                playSound(WarningSound);
-                toast.error(`Only ${item.product.quantity} items available in stock`);
-                // Reset to max stock
-                setCarts((prev) =>
-                    prev.map((item) =>
-                        item.id === cartId ? { ...item, quantity: item.product.quantity } : item,
-                    ),
-                );
-                // Sync max stock with backend
-                axios
-                    .put("/admin/cart/update-quantity", { id: cartId, quantity: item.product.quantity })
-                    .then(() => setCartUpdated((prev) => !prev))
-                    .catch((err) => console.error("Quantity update failed", err));
-                return;
-            }
-        }
-
-        axios
-            .put("/admin/cart/update-quantity", { id: cartId, quantity: qty })
-            .then(() => setCartUpdated((prev) => !prev))
-            .catch((err) => console.error("Quantity update failed", err));
     };
+
+    // const handleQuantityChange = (cartId, newQty) => {
+    //     // Update local state immediately so UI remains responsive
+    //     setCarts((prev) =>
+    //         prev.map((item) =>
+    //             item.id === cartId ? { ...item, quantity: newQty } : item,
+    //         ),
+    //     );
+
+    //     const qty = parseFloat(newQty);
+    //     if (isNaN(qty) || qty <= 0) return;
+
+    //     // Stock validation check if quantityValidation is disabled
+    //     const item = carts.find((c) => c.id === cartId);
+    //     if (item) {
+    //         const isAccessory = !!item.parent_cart_id || !!item.is_accessory;
+    //         const stockEnforced = quantityValidation === "disabled";
+    //         if (!isAccessory && stockEnforced && qty > item.product.quantity) {
+    //             playSound(WarningSound);
+    //             toast.error(`Only ${item.product.quantity} items available in stock`);
+    //             // Reset to max stock
+    //             setCarts((prev) =>
+    //                 prev.map((item) =>
+    //                     item.id === cartId ? { ...item, quantity: item.product.quantity } : item,
+    //                 ),
+    //             );
+    //             // Sync max stock with backend
+    //             axios
+    //                 .put("/admin/cart/update-quantity", { id: cartId, quantity: item.product.quantity })
+    //                 .then(() => setCartUpdated((prev) => !prev))
+    //                 .catch((err) => console.error("Quantity update failed", err));
+    //             return;
+    //         }
+    //     }
+
+    //     axios
+    //         .put("/admin/cart/update-quantity", { id: cartId, quantity: qty })
+    //         .then(() => setCartUpdated((prev) => !prev))
+    //         .catch((err) => console.error("Quantity update failed", err));
+    // };
 
     const handleCartTotals = (
         subTotalCalc,
