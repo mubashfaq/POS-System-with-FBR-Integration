@@ -1,4 +1,6 @@
 import Swal from "sweetalert2";
+import "../../css/app.css";
+
 
 export function ConfirmBox({
     title,
@@ -38,22 +40,16 @@ export function ConfirmBox({
             title,
             icon,
             html: `
-                <div class="my-actions" style="display:flex;gap:8px;justify-content:center;margin-top:16px;">
-                    <button id="cb-confirm"
-                            class="swal2-styled"
-                            style="background-color:#28a745;color:#fff;border:none;border-radius:6px;font-size:15px;padding:8px 16px;font-weight:600;">
+                <div class="my-actions">
+                    <button id="cb-confirm" class="cb-btn cb-confirm">
                         ${confirmText}
                     </button>
 
-                    <button id="cb-extra"
-                            class="swal2-styled"
-                            style="background-color:#7066e0;color:#fff;border:none;border-radius:6px;font-size:15px;padding:8px 16px;font-weight:600;">
+                    <button id="cb-extra" class="cb-btn cb-extra">
                         ${extraButton.text}
                     </button>
 
-                    <button id="cb-deny"
-                            class="swal2-styled"
-                            style="background-color:#dc3545;color:#fff;border:none;border-radius:6px;font-size:15px;padding:8px 16px;font-weight:600;">
+                    <button id="cb-deny" class="cb-btn cb-deny">
                         ${denyText}
                     </button>
                 </div>
