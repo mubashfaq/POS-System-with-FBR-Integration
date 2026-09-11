@@ -6,6 +6,7 @@ import toast, { Toaster } from "react-hot-toast";
 import CustomerSelect from "./CutomerSelect";
 import ProductCreateDigitalModal from "./ProductCreateDigitalModal";
 import { ConfirmBox } from "./ConfirmBox";
+import "../../css/app.css";
 
 import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
@@ -387,6 +388,9 @@ export default function Pos({
     const handleCheckout = async () => {
         const result = await ConfirmBox({
             title: "Are you sure you want to checkout this order?",
+            customClass: {
+                title: "confirm-box-title",
+            },
             confirmText: "Send to FBR",
             denyText: "Cancel",
             extraButton: { text: "Save only" },
