@@ -39,6 +39,9 @@ export function ConfirmBox({
         Swal.fire({
             title,
             icon,
+            customClass: {
+                title: "confirm-box-title",
+            },
             html: `
                 <div class="my-actions">
                     <button id="cb-confirm" class="cb-btn cb-confirm">
