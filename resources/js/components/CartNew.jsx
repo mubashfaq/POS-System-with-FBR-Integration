@@ -74,6 +74,46 @@ const PriceInput = ({ item, onPriceChange, onPriceSave }) => {
 
 };
 
+const QuantityInput = ({ item, onQuantityChange, onQuantityBlur }) => {
+    const [value, setValue] = useState(item.quantity ?? "");
+    const debounceRef = useRef(null);
+
+    useEffect(() => {
+        setValue(item.quantity ?? "");
+    }, [item.id]);
+
+    const handleChange = (e) => {
+        const newValue = e.target.value;
+        setValue(newValue);
+        onQuantityChange(item.id, newValue); // live totals, no API call
+
+        clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+            onQuantityBlur(item.id, newValue); // save after user stops typing
+        }, 1000); // adjust delay as needed
+    };
+
+    const handleBlur = () => {
+        clearTimeout(debounceRef.current);
+        onQuantityBlur(item.id, value); // save immediately if user tabs/clicks away
+    };
+
+    useEffect(() => () => clearTimeout(debounceRef.current), []);
+
+    return (
+        <input
+            type="number"
+            min="0.01"
+            step="0.01"
+            className="form-control form-control-sm text-center"
+            style={{ width: 70 }}
+            value={value}
+            onChange={handleChange}
+            onBlur={handleBlur}
+        />
+    );
+};
+
 const ORANGE = "#fd6802";
 
 const fmt = (n) =>
@@ -604,19 +644,10 @@ export default function Cart({
                                         {/* Qty */}
                                         <td>
                                             <div className="d-flex align-items-center justify-content-center">
-                                                <input
-                                                    type="number"
-                                                    min="0.01"
-                                                    step="0.01"
-                                                    className="form-control form-control-sm text-center"
-                                                    style={{ width: 70 }}
-                                                    value={item.quantity}
-                                                    onChange={(e) =>
-                                                        onQuantityChange(
-                                                            item.id,
-                                                            e.target.value,
-                                                        )
-                                                    }
+                                                <QuantityInput
+                                                    item={item}
+                                                    onQuantityChange={onQuantityChange}
+                                                    onQuantityBlur={handleQuantityBlur}
                                                 />
                                             </div>
                                         </td>
