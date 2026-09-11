@@ -77,10 +77,18 @@ const PriceInput = ({ item, onPriceChange, onPriceSave }) => {
 const QuantityInput = ({ item, onQuantityChange, onQuantityBlur }) => {
     const [value, setValue] = useState(item.quantity ?? "");
     const debounceRef = useRef(null);
+    const lastSavedRef = useRef(item.quantity ?? "");
 
     useEffect(() => {
         setValue(item.quantity ?? "");
+        lastSavedRef.current = item.quantity ?? "";
     }, [item.id]);
+
+    const save = (val) => {
+        if (val === lastSavedRef.current) return; // skip duplicate save
+        lastSavedRef.current = val;
+        onQuantityBlur(item.id, val);
+    };
 
     const handleChange = (e) => {
         const newValue = e.target.value;
@@ -88,14 +96,12 @@ const QuantityInput = ({ item, onQuantityChange, onQuantityBlur }) => {
         onQuantityChange(item.id, newValue); // live totals, no API call
 
         clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => {
-            onQuantityBlur(item.id, newValue); // save after user stops typing
-        }, 1000); // adjust delay as needed
+        debounceRef.current = setTimeout(() => save(newValue), 1000);
     };
 
     const handleBlur = () => {
         clearTimeout(debounceRef.current);
-        onQuantityBlur(item.id, value); // save immediately if user tabs/clicks away
+        save(value);
     };
 
     useEffect(() => () => clearTimeout(debounceRef.current), []);

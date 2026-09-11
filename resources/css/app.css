@@ -36,3 +36,7 @@
 .cb-btn:active {
     transform: translateY(0);
 }
+
+.confirm-box-title {
+    font-size: 1.8em !important;
+}
