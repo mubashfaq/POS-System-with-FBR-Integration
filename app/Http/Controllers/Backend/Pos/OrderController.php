@@ -914,13 +914,13 @@ class OrderController extends Controller
                             'timeout' => 620,
                             'connect_timeout' => 620,
                             'verify' => false,
-                        ])
-                            ->withToken($token)
-                            ->acceptJson()
-                            ->post(
-                                "https://ims.pral.com.pk/ims/{$getURLEnvironment}/api/Live/PostData",
-                                $fbrPayload
-                            );
+                        ])->withHeaders([
+                                    'Authorization' => "Bearer $token",
+                                    'Content-Type' => 'application/json',
+                                    'Accept-Encoding' => 'gzip, deflate, br',
+                                    'Accept' => '*/*'
+                                ])->withBody(json_encode($fbrPayload), 'application/json')
+                            ->post("https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData");
                     } catch (\Throwable $e) {
                         dd([
                             'message' => $e->getMessage(),
@@ -1139,13 +1139,13 @@ class OrderController extends Controller
                 'timeout' => 620,
                 'connect_timeout' => 620,
                 'verify' => false,
-            ])
-                ->withToken($token)
-                ->acceptJson()
-                ->post(
-                    "https://ims.pral.com.pk/ims/{$getURLEnvironment}/api/Live/PostData", // <-- confirm: ye ya esp.fbr.gov.pk wala?
-                    $fbrPayload
-                );
+            ])->withHeaders([
+                        'Authorization' => "Bearer $token",
+                        'Content-Type' => 'application/json',
+                        'Accept-Encoding' => 'gzip, deflate, br',
+                        'Accept' => '*/*'
+                    ])->withBody(json_encode($fbrPayload), 'application/json')
+                ->post("https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData");
         } catch (\Throwable $e) {
             DB::rollBack();
 
