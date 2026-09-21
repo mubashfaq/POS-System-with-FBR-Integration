@@ -610,6 +610,33 @@ export default function PosDigital({
             });
     }
 
+    function extractFbrErrorMessage(fbr) {
+        if (!fbr) return null;
+
+        // Case: no validationResponse at all — auth/credential type errors
+        if (fbr.fault) {
+            return fbr.fault.description || fbr.fault.message || "FBR request failed";
+        }
+
+        const validation = fbr.validationResponse;
+        if (!validation) return null;
+
+        // Case: top-level error message present
+        if (validation.error) {
+            return validation.error;
+        }
+
+        // Case: error is empty at top level, but present per line item
+        if (Array.isArray(validation.invoiceStatuses)) {
+            const itemError = validation.invoiceStatuses.find((s) => s.error);
+            if (itemError) {
+                return `Item ${itemError.itemSNo}: ${itemError.error}`;
+            }
+        }
+
+        return validation.status || "FBR validation failed";
+    }
+
     function createOrder(redirect = false, orderStage = "submitted") {
         axios
             .put(
@@ -645,26 +672,9 @@ export default function PosDigital({
                             duration: 4000,
                         });
                     } else {
-                        toast.error("Order Not Created", { duration: 4000 });
+                        const errorMessage = extractFbrErrorMessage(fbr);
+                        toast.error(errorMessage || "Order Not Created", { duration: 9000 });
                     }
-                }
-
-                if (fbr) {
-                    setTimeout(() => {
-                        const fbrValidation = fbr?.validationResponse;
-                        if (!fbrValidation) return;
-                        if (fbrValidation.statusCode === "00") {
-                            toast.success(
-                                `FBR Invoice Validated\nStatus: ${fbrValidation.status}\nStatus Code: ${fbrValidation.statusCode}`,
-                                { duration: 7000 },
-                            );
-                        } else {
-                            toast.error(
-                                `FBR Validation Failed\nStatus: ${fbrValidation.status}\nMessage: ${fbrValidation.error}`,
-                                { duration: 9000 },
-                            );
-                        }
-                    }, 800);
                 }
 
                 const orderId = res?.data?.order?.id;
@@ -677,7 +687,8 @@ export default function PosDigital({
             })
             .catch((err) => {
                 console.error(err);
-                toast.error("Order creation failed.");
+                const backendMsg = err?.response?.data?.error_message || err?.response?.data?.error;
+                toast.error(backendMsg || "Order creation failed.", { duration: 6000 });
             })
             .finally(() => {
                 setIsSubmitting(false);

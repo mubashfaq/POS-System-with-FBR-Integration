@@ -75,7 +75,7 @@ class BusinessController extends Controller
             'address'         => 'required|string',
         ],  [
             'ntn.regex' => 'NTN must contain exactly 7 or 13 characters.',
-            'cnic.regex' => 'NTN must contain exactly 7 or 13 characters.',
+            'cnic.regex' => 'CNIC must contain exactly 7 or 13 characters.',
         ]);
         // File Upload
         if ($request->hasFile('logo')) {
