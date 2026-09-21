@@ -3,6 +3,7 @@
 use App\Http\Controllers\Backend\BusinessCustomFieldController;
 use App\Http\Controllers\Backend\CurrencyController;
 use App\Http\Controllers\Backend\Pos\CartController;
+use App\Http\Controllers\Backend\Pos\FbrReconciliationController;
 use App\Http\Controllers\Backend\Product\ProductController;
 use App\Http\Controllers\Backend\Report\ReportController;
 use App\Http\Controllers\Backend\SupplierController;
@@ -121,6 +122,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::post('plans/reorder',        [PlanController::class, 'reorder'])->name('plans.reorder')->middleware('role:super_admin');
     Route::resource('orders', OrderController::class);
     Route::post('orders/pdf-download', [OrderController::class, 'downloadPdf'])->name('orders.pdf-download');
+    Route::post('orders/invoices-pdf-download', [OrderController::class, 'downloadInvoicesPdf'])->name('orders.invoices-pdf-download');
     Route::post('/orders/cancel', [OrderController::class, 'cancelOrder'])->name('order.cancel');
     Route::resource('purchase', PurchaseController::class);
     Route::resource('suppliers', SupplierController::class);
@@ -156,6 +158,8 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::match(['get', 'post'], 'orders/due/collection/{id}', [OrderController::class, 'collection'])->name('due.collection');
     Route::get('collection/invoice/{id}', [OrderController::class, 'collectionInvoice'])->name('collectionInvoice');
     Route::resource('categories', CategoryController::class);
+    Route::get('/fbr-reconciliation', [FbrReconciliationController::class, 'index'])->name('fbr.reconciliation.index');
+    Route::post('/fbr-reconciliation/compare', [FbrReconciliationController::class, 'compare'])->name('fbr.reconciliation.compare');
     //start report
 
     Route::get('/sale/summery', [ReportController::class, 'saleSummery'])->name('sale.summery');

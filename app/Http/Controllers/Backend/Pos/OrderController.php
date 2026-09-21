@@ -23,6 +23,7 @@ use App\Services\FbrTokenService;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Services\DuplicateOrderService;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class OrderController extends Controller
 {
@@ -40,6 +41,11 @@ class OrderController extends Controller
     {
         if ($request->ajax()) {
 
+            $request->validate([
+                'environment' => 'nullable|in:sandbox,production',
+                'sale_status' => 'nullable|in:draft,success,failed',
+            ]);
+
             $businessId = session('business_id');
 
             if (!$businessId) {
@@ -51,34 +57,93 @@ class OrderController extends Controller
             $ordersQuery = Order::with('customer')->where('business_id', $businessId);
 
             // Date Filter
-            if ($request->filled('start_date')) {
-                $start_date = Carbon::createFromFormat(
-                    'Y-m-d',
-                    $request->input('start_date')
-                )->startOfDay();
+            $dateField = $request->input('date_field', 'created_at');
 
-                $ordersQuery->where('created_at', '>=', $start_date);
+            if ($dateField === 'order_date') {
+                $ordersQuery->whereNotNull('order_date');
+            }
+
+            if (!in_array($dateField, ['created_at', 'order_date'])) {
+                $dateField = 'created_at';
+            }
+
+            if ($request->filled('start_date')) {
+                $start_date = Carbon::createFromFormat('Y-m-d', $request->input('start_date'))->startOfDay();
+                $ordersQuery->where($dateField, '>=', $start_date);
             }
 
             if ($request->filled('end_date')) {
-                $end_date = Carbon::createFromFormat(
-                    'Y-m-d',
-                    $request->input('end_date')
-                )->endOfDay();
+                $end_date = Carbon::createFromFormat('Y-m-d', $request->input('end_date'))->endOfDay();
+                $ordersQuery->where($dateField, '<=', $end_date);
+            }
 
-                $ordersQuery->where('created_at', '<=', $end_date);
+            // invoice_number filter
+            if ($request->filled('invoice_number')) {
+
+                $search = trim($request->input('invoice_number'));
+
+                $ordersQuery->where(function ($q) use ($search) {
+
+                    // FBR invoice number
+                    $q->where('fbr_invoice_no', 'like', "%{$search}%")
+
+                        // Custom invoice number
+                        ->orWhere('custom_invoice_number', 'like', "%{$search}%")
+
+                        // System-generated: match the "INV-{business_id}-{padded}" pattern
+                        // Strategy: strip prefix, extract numeric part, compare to invoice_number column
+                        ->orWhere(function ($sub) use ($search) {
+                            // If user typed "INV-5-0007" extract 7 and match invoice_number
+                            if (preg_match('/^INV-\d+-(\d+)$/i', $search, $m)) {
+                                $sub->where('invoice_number', (int) $m[1]);
+                            } else {
+                                // Also allow plain number search: "7" → invoice_number = 7
+                                $sub->where('invoice_number', 'like', "%{$search}%");
+                            }
+                        });
+                });
+            }
+
+            // Sale Status Filter (Draft / Successful / Failed)
+            if ($request->filled('sale_status')) {
+
+                $saleStatus = $request->input('sale_status');
+
+                if ($saleStatus === 'draft') {
+
+                    $ordersQuery->where('order_stage', 'draft');
+
+                } elseif ($saleStatus === 'success') {
+
+                    // Mirrors the "Data Submitted" badge condition
+                    $ordersQuery->where('order_stage', 'submitted')
+                        ->where('api_status', 200)
+                        ->where(function ($q) {
+                            $q->whereNull('error_code')->orWhere('error_code', '');
+                        })
+                        ->where(function ($q) {
+                            $q->whereNotNull('fbr_invoice_no')->where('fbr_invoice_no', '!=', '');
+                        });
+
+                } elseif ($saleStatus === 'failed') {
+                    $ordersQuery->where('order_stage', 'submitted')
+                        ->where(function ($q) {
+                            $q->where('api_status', '!=', 200)
+                                ->orWhere(function ($sub) {
+                                    $sub->whereNotNull('error_code')->where('error_code', '!=', '');
+                                })
+                                ->orWhereNull('fbr_invoice_no')
+                                ->orWhere('fbr_invoice_no', '');
+                        });
+                }
             }
 
             // Environment Logic
             $isSuperAdmin = auth()->user()->hasRole('super_admin');
             $environment = FbrTokenService::getURLEnvironment();
 
-            $request->validate([
-                'environment' => 'nullable|in:sandbox,production',
-            ]);
-
             // Other users → only current environment + null
-           if (!$isSuperAdmin) {
+            if (!$isSuperAdmin) {
                 $ordersQuery->where(function ($query) use ($environment) {
                     $query->where('invoice_environment', $environment)->orWhereNull('invoice_environment');
                 });
@@ -88,7 +153,7 @@ class OrderController extends Controller
             if ($isSuperAdmin && $request->filled('environment')) {
                 $ordersQuery->where('invoice_environment', $request->input('environment'));
             }
- 
+
             $orders = $ordersQuery->get();
 
             $fbr = FbrTokenService::isIntegrationEnabled();
@@ -98,13 +163,23 @@ class OrderController extends Controller
 
                 ->addColumn('saleId', fn($data) => "#" . $data->id)
 
+                ->addColumn('invoice_number', function ($data) {
+                    if (filled($data->fbr_invoice_no)) {
+                        return '<span class="badge bg-success" title="FBR">' . e($data->fbr_invoice_no) . '</span>';
+                    }
+                    if (filled($data->custom_invoice_number)) {
+                        return '<span class="badge bg-info" title="Custom">' . e($data->custom_invoice_number) . '</span>';
+                    }
+                    return '<span class="badge bg-secondary" title="System">' . e($data->display_invoice_number) . '</span>';
+                })
+
                 ->addColumn('customer', fn($data) => $data->customer->name ?? '-')
 
                 ->addColumn('item', fn($data) => number_format($data->total_item, 2, '.', ','))
 
                 ->addColumn('sub_total', fn($data) => number_format($data->sub_total, 2, '.', ','))
 
-                ->addColumn('discount', fn($data) => number_format( $data->discount, 2, '.', ',' ) )
+                ->addColumn('discount', fn($data) => number_format($data->discount, 2, '.', ','))
 
                 ->addColumn('total', fn($data) => number_format($data->total, 2, '.', ','))
 
@@ -123,7 +198,6 @@ class OrderController extends Controller
                         ? '<span class="badge bg-info">POS</span>'
                         : '<span class="badge bg-secondary">Digital</span>';
                 })
-                
 
                 ->addColumn('environment', function ($data) {
                     if ($data->invoice_environment === 'sandbox') {
@@ -138,70 +212,55 @@ class OrderController extends Controller
 
                 })
 
-                ->addColumn('status', fn($data) => $data->status
+                ->addColumn(
+                    'status',
+                    fn($data) => $data->status
                         ? '<span class="badge bg-primary">Paid</span>'
                         : '<span class="badge bg-danger">Due</span>'
                 )
 
                 ->addColumn('date', fn($data) => $data->created_at->format('Y-m-d'));
 
-            if ($fbr) {
 
-                $datatable->addColumn('fbr_status', function ($d) {
+            $datatable->addColumn('fbr_status', function ($d) {
 
-                    // Successfully submitted to FBR
-                    if (
-                        $d->api_status == 200 &&
-                        empty($d->error_code) &&
-                        !empty($d->fbr_invoice_no)
-                    ) {
-                        return "
-                            <button
-                                data-id='{$d->id}'
-                                class='fbr-status btn btn-md bg-white'
-                                title='Data Submitted'
-                            >
+                if (!$d->fbr_integration_enabled && $d->order_stage !== 'draft') {
+                    return "
+                            <button data-id='{$d->id}' class='fbr-status-disabled btn btn-md bg-white' title='FBR Disabled'>
+                                <i class='fas fa-times-circle text-muted'></i>
+                            </button>
+                        ";
+                }
+
+                // Successfully submitted to FBR
+                if ($d->api_status == 200 && empty($d->error_code) && !empty($d->fbr_invoice_no)) {
+                    return "
+                            <button data-id='{$d->id}' class='fbr-status btn btn-md bg-white' title='Data Submitted'>
                                 <i class='fas fa-check-circle text-success'></i>
                             </button>
                         ";
-                    }
+                }
 
-                    // FBR rejected / data incorrect
-                    if (
-                        $d->api_status == 200 &&
-                        !empty($d->error_code) &&
-                        empty($d->fbr_invoice_no)
-                    ) {
-                        return "
-                            <button
-                                data-id='{$d->id}'
-                                class='fbr-status btn btn-md bg-white'
-                                title='Data Not Correct For FBR'
-                            >
+                // FBR rejected / data incorrect
+                if ($d->api_status == 200 && !empty($d->error_code) && empty($d->fbr_invoice_no)) {
+                    return "
+                            <button data-id='{$d->id}' class='fbr-status btn btn-md bg-white' title='Data Not Correct For FBR'>
                                 <i class='fas fa-times-circle text-danger'></i>
                             </button>
                         ";
-                    }
+                }
 
-                    // API failed
-                    if (
-                        $d->api_status != 200 &&
-                        empty($d->fbr_invoice_no)
-                    ) {
-                        return "
-                            <button
-                                data-id='{$d->id}'
-                                class='fbr-status btn btn-md bg-white'
-                                title='Api Failed'
-                            >
+                // API failed
+                if ($d->api_status != 200 && empty($d->fbr_invoice_no)) {
+                    return "
+                            <button data-id='{$d->id}' class='fbr-status btn btn-md bg-white' title='Api Failed'>
                                 <i class='fas fa-exclamation-triangle text-warning'></i>
                             </button>
                         ";
-                    }
+                }
 
-                    return '';
-                });
-            }
+                return '';
+            });
 
             /* Action Buttons */
             $datatable->addColumn('action', function ($data) use ($business, $fbr) {
@@ -248,9 +307,9 @@ class OrderController extends Controller
                         <a
                             class="btn-expand btn-outline-success"
                             href="' . route(
-                                'backend.admin.orders.invoice',
-                                $data->id
-                            ) . '"
+                        'backend.admin.orders.invoice',
+                        $data->id
+                    ) . '"
                         >
                             <i class="fas fa-file-invoice"></i>
                             <span>Invoice</span>
@@ -261,9 +320,9 @@ class OrderController extends Controller
                         <a
                             class="btn-expand btn-outline-secondary"
                             href="' . route(
-                                'backend.admin.orders.pos-invoice',
-                                $data->id
-                            ) . '"
+                        'backend.admin.orders.pos-invoice',
+                        $data->id
+                    ) . '"
                         >
                             <i class="fas fa-receipt"></i>
                             <span>Pos Invoice</span>
@@ -273,13 +332,7 @@ class OrderController extends Controller
                 } else {
 
                     $buttons[] = '
-                        <a
-                            class="btn-expand btn-outline-success"
-                            href="' . route(
-                                'backend.admin.orders.pos-receipt-digital',
-                                $data->id
-                            ) . '"
-                        >
+                        <a class="btn-expand btn-outline-success" href="' . route('backend.admin.orders.pos-receipt-digital', $data->id) . '">
                             <i class="fas fa-file-invoice"></i>
                             <span>Receipt</span>
                         </a>
@@ -289,9 +342,9 @@ class OrderController extends Controller
                         <a
                             class="btn-expand btn-outline-secondary"
                             href="' . route(
-                                'backend.admin.orders.pos-invoice-digital',
-                                $data->id
-                            ) . '"
+                        'backend.admin.orders.pos-invoice-digital',
+                        $data->id
+                    ) . '"
                         >
                             <i class="fas fa-receipt"></i>
                             <span>Digital Invoice</span>
@@ -318,9 +371,9 @@ class OrderController extends Controller
                         <a
                             class="btn-expand btn-outline-warning"
                             href="' . route(
-                                'backend.admin.due.collection',
-                                $data->id
-                            ) . '"
+                        'backend.admin.due.collection',
+                        $data->id
+                    ) . '"
                         >
                             <i class="fas fa-receipt"></i>
                             <span>Due Collection</span>
@@ -332,9 +385,9 @@ class OrderController extends Controller
                     <a
                         class="btn-expand btn-outline-primary"
                         href="' . route(
-                            'backend.admin.orders.transactions',
-                            $data->id
-                        ) . '"
+                    'backend.admin.orders.transactions',
+                    $data->id
+                ) . '"
                     >
                         <i class="fas fa-exchange-alt"></i>
                         <span>Transactions</span>
@@ -357,10 +410,7 @@ class OrderController extends Controller
                 } else {
 
                     $buttons[] = '
-                        <span
-                            class="btn-expand btn-danger"
-                            style="pointer-events:none;"
-                        >
+                        <span class="btn-expand btn-danger" style="pointer-events:none;">
                             <i class="fas fa-ban"></i>
                             <span>Cancelled</span>
                         </span>
@@ -375,6 +425,7 @@ class OrderController extends Controller
             /* Raw Column */
             $rawColumns = [
                 'saleId',
+                'invoice_number',
                 'customer',
                 'item',
                 'sub_total',
@@ -386,12 +437,9 @@ class OrderController extends Controller
                 'date',
                 'environment',
                 'status',
+                'fbr_status',
                 'action',
             ];
-
-            if ($fbr) {
-                $rawColumns[] = 'fbr_status';
-            }
 
             $datatable->rawColumns($rawColumns);
 
@@ -465,10 +513,10 @@ class OrderController extends Controller
             'order_discount' => ['nullable', 'numeric', 'min:0'],
             'paid' => ['nullable', 'numeric', 'min:0'],
             'order_stage' => ['nullable', 'in:draft,submitted'],
-            'orderDate' => ['required', 'date', 'date_format:Y-m-d'],   
+            'orderDate' => ['required', 'date', 'date_format:Y-m-d'],
         ]);
 
-        $userId =  auth()->id();
+        $userId = auth()->id();
 
         $businessId = session('business_id');
 
@@ -528,6 +576,7 @@ class OrderController extends Controller
         $invoiceNumber = $counter->last_invoice_number;
         $getURLEnvironment = FbrTokenService::getURLEnvironment();
         $POSID = FbrTokenService::getPOSID();
+        $isFbrIntegrationEnabled = FbrTokenService::isIntegrationEnabled();
 
         $order = Order::create([
             'customer_id' => $request->customer_id,
@@ -537,6 +586,7 @@ class OrderController extends Controller
             'order_date' => $request->orderDate,
             'invoice_environment' => $getURLEnvironment,
             'POSID' => $POSID,
+            'fbr_integration_enabled' => $isFbrIntegrationEnabled,
         ]);
 
         $totalAmountOrder = 0;
@@ -587,23 +637,23 @@ class OrderController extends Controller
             }
 
             $totalAmountOrder += $finalTotal;
-            $totalTaxOrder    += $saleTax;
+            $totalTaxOrder += $saleTax;
             $totalCustomerTaxOrder += $customerTax;
 
             $orderProduct = $order->products()->create([
-                'quantity'         => $cart->quantity,
-                'hsCode'           => $product->hsCode ?? null,
-                'uom'              => $product->uom ?? null,
-                'price'            => $unitPrice,
-                'purchase_price'   => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
-                'sub_total'        => $subTotal,
-                'discount'         => $discount,
-                'tax_rate'         => $rateText,
-                'sale_tax'         => $saleTax,
-                'customer_tax'     => $customerTax,
-                'further_tax'      => 0,
-                'total'            => $finalTotal,
-                'product_id'       => $product->id,
+                'quantity' => $cart->quantity,
+                'hsCode' => $product->hsCode ?? null,
+                'uom' => $product->uom ?? null,
+                'price' => $unitPrice,
+                'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
+                'sub_total' => $subTotal,
+                'discount' => $discount,
+                'tax_rate' => $rateText,
+                'sale_tax' => $saleTax,
+                'customer_tax' => $customerTax,
+                'further_tax' => 0,
+                'total' => $finalTotal,
+                'product_id' => $product->id,
                 'purchase_item_id' => $cart->purchase_item_id,
                 'is_accessory' => false,
             ]);
@@ -629,7 +679,8 @@ class OrderController extends Controller
 
                 $lastProcessedPi = null;
                 foreach ($purchaseItems as $pi) {
-                    if ($qtyToConsume <= 0) break;
+                    if ($qtyToConsume <= 0)
+                        break;
                     $consume = min($pi->remaining_qty, $qtyToConsume);
                     $pi->decrement('remaining_qty', $consume);
                     $qtyToConsume -= $consume;
@@ -669,20 +720,20 @@ class OrderController extends Controller
             $scaledQty = $cart->quantity * $parentQty;
 
             $order->products()->create([
-                'quantity'                  => $scaledQty,
-                'price'                     => 0,
-                'purchase_price'            => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
-                'sub_total'                 => 0,
-                'discount'                  => 0,
-                'tax_rate'                  => 0,
-                'customer_tax'              => 0,
-                'sale_tax'                  => 0,
-                'further_tax'               => 0,
-                'total'                     => 0,
-                'product_id'                => $product->id,
-                'purchase_item_id'          => $cart->purchase_item_id,
-                'is_accessory'              => true,
-                'parent_order_product_id'   => $parentOrderProductId,
+                'quantity' => $scaledQty,
+                'price' => 0,
+                'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
+                'sub_total' => 0,
+                'discount' => 0,
+                'tax_rate' => 0,
+                'customer_tax' => 0,
+                'sale_tax' => 0,
+                'further_tax' => 0,
+                'total' => 0,
+                'product_id' => $product->id,
+                'purchase_item_id' => $cart->purchase_item_id,
+                'is_accessory' => true,
+                'parent_order_product_id' => $parentOrderProductId,
             ]);
 
             // Decrement accessory stock
@@ -702,7 +753,8 @@ class OrderController extends Controller
 
                 $lastProcessedPi = null;
                 foreach ($purchaseItems as $pi) {
-                    if ($qtyToConsume <= 0) break;
+                    if ($qtyToConsume <= 0)
+                        break;
                     $consume = min($pi->remaining_qty, $qtyToConsume);
                     $pi->decrement('remaining_qty', $consume);
                     $qtyToConsume -= $consume;
@@ -811,7 +863,7 @@ class OrderController extends Controller
             ];
 
 
-            if (!FbrTokenService::isIntegrationEnabled()) {
+            if (!$isFbrIntegrationEnabled) {
 
                 DB::commit();
 
@@ -830,31 +882,31 @@ class OrderController extends Controller
                 } else {
                     $token = $tokens;
                 }
-                
+
                 $post_api_response = null;
 
                 if ($business->business_type == 'pral') {
                     try {
-                                $post_api_response = Http::withOptions([
-                                    'timeout' => 620,
-                                    'connect_timeout' => 620,
-                                    'verify' => false,
-                                ])->withHeaders([
+                        $post_api_response = Http::withOptions([
+                            'timeout' => 620,
+                            'connect_timeout' => 620,
+                            'verify' => false,
+                        ])->withHeaders([
                                     'Authorization' => "Bearer $token",
                                     'Content-Type' => 'application/json',
                                     'Accept-Encoding' => 'gzip, deflate, br',
                                     'Accept' => '*/*'
                                 ])->withBody(json_encode($fbrPayload), 'application/json')
-                                    ->post("https://ims.pral.com.pk/ims/{$getURLEnvironment}/api/Live/PostData"); 
+                            ->post("https://ims.pral.com.pk/ims/{$getURLEnvironment}/api/Live/PostData");
 
-                            } catch (\Throwable $e) {
-                                DB::rollBack();
+                    } catch (\Throwable $e) {
+                        DB::rollBack();
 
-                                return response()->json([
-                                    'error' => 'FBR request failed',
-                                    'message' => $e->getMessage(),
-                                ], 500);
-                            }
+                        return response()->json([
+                            'error' => 'FBR request failed',
+                            'message' => $e->getMessage(),
+                        ], 500);
+                    }
                 } else {
 
                     try {
@@ -862,12 +914,13 @@ class OrderController extends Controller
                             'timeout' => 620,
                             'connect_timeout' => 620,
                             'verify' => false,
-                        ])
-                            ->withToken($token)
-                            ->acceptJson()
-                            ->post("https://ims.pral.com.pk/ims/{$getURLEnvironment}/api/Live/PostData",
-                                $fbrPayload
-                            );
+                        ])->withHeaders([
+                                    'Authorization' => "Bearer $token",
+                                    'Content-Type' => 'application/json',
+                                    'Accept-Encoding' => 'gzip, deflate, br',
+                                    'Accept' => '*/*'
+                                ])->withBody(json_encode($fbrPayload), 'application/json')
+                            ->post("https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData");
                     } catch (\Throwable $e) {
                         dd([
                             'message' => $e->getMessage(),
@@ -972,7 +1025,7 @@ class OrderController extends Controller
             ], 200);
 
         }
-       
+
     }
 
     public function submitPOSOrder(Request $request, $orderId)
@@ -1037,15 +1090,15 @@ class OrderController extends Controller
             }
 
             $fbrItems[] = [
-                "ItemCode"    => $product->sku,
-                "ItemName"    => $product->name,
-                "quantity"    => $qty,
-                "PCTCode"     => $product->PCTCode,
-                "TaxRate"     => $taxRate,
-                "SaleValue"   => $valueExTax,
+                "ItemCode" => $product->sku,
+                "ItemName" => $product->name,
+                "quantity" => $qty,
+                "PCTCode" => $product->PCTCode,
+                "TaxRate" => $taxRate,
+                "SaleValue" => $valueExTax,
                 "TotalAmount" => $lineTotal + $salesTax,
-                "TaxCharged"  => $salesTax,
-                "discount"    => 0,
+                "TaxCharged" => $salesTax,
+                "discount" => 0,
                 "InvoiceType" => 1,
             ];
             $totalQty += $qty;
@@ -1086,13 +1139,13 @@ class OrderController extends Controller
                 'timeout' => 620,
                 'connect_timeout' => 620,
                 'verify' => false,
-            ])
-                ->withToken($token)
-                ->acceptJson()
-                ->post(
-                    "https://ims.pral.com.pk/ims/{$getURLEnvironment}/api/Live/PostData", // <-- confirm: ye ya esp.fbr.gov.pk wala?
-                    $fbrPayload
-                );
+            ])->withHeaders([
+                        'Authorization' => "Bearer $token",
+                        'Content-Type' => 'application/json',
+                        'Accept-Encoding' => 'gzip, deflate, br',
+                        'Accept' => '*/*'
+                    ])->withBody(json_encode($fbrPayload), 'application/json')
+                ->post("https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData");
         } catch (\Throwable $e) {
             DB::rollBack();
 
@@ -1107,17 +1160,17 @@ class OrderController extends Controller
 
             Log::channel('fbr')->error('FBR HTTP error', [
                 'order_id' => $order->id,
-                'status'   => $post_api_response->status(),
-                'body'     => $post_api_response->body(),
+                'status' => $post_api_response->status(),
+                'body' => $post_api_response->body(),
             ]);
 
             $decodedBody = json_decode($post_api_response->body(), true);
 
 
             return response()->json([
-                'error'  => 'FBR API returned an HTTP error',
+                'error' => 'FBR API returned an HTTP error',
                 'status' => $post_api_response->status(),
-                'body'   => $decodedBody ?? $post_api_response->body(),
+                'body' => $decodedBody ?? $post_api_response->body(),
             ], 502);
         }
 
@@ -1135,10 +1188,10 @@ class OrderController extends Controller
 
             $order->update([
                 'fbr_invoice_no' => $fbr_invoice_number,
-                'api_status'     => $post_api_response->status(),
-                'api_message'    => 1,
-                'order_stage'    => 'submitted',
-                'POSID'          => $POSID,
+                'api_status' => $post_api_response->status(),
+                'api_message' => 1,
+                'order_stage' => 'submitted',
+                'POSID' => $POSID,
             ]);
 
             DB::commit();
@@ -1261,15 +1314,15 @@ class OrderController extends Controller
             }
 
             $fbrItems[] = [
-                "ItemCode"    => $product->sku,
-                "ItemName"    => $product->name,
-                "quantity"    => $qty,
-                "PCTCode"     => $product->PCTCode,
-                "TaxRate"     => $taxRate,
-                "SaleValue"   => $valueExTax,
+                "ItemCode" => $product->sku,
+                "ItemName" => $product->name,
+                "quantity" => $qty,
+                "PCTCode" => $product->PCTCode,
+                "TaxRate" => $taxRate,
+                "SaleValue" => $valueExTax,
                 "TotalAmount" => $lineTotal + $salesTax,
-                "TaxCharged"  => $salesTax,
-                "discount"    => 0,
+                "TaxCharged" => $salesTax,
+                "discount" => 0,
                 "InvoiceType" => 1,
             ];
             $totalQty += $qty;
@@ -1311,12 +1364,12 @@ class OrderController extends Controller
                 'connect_timeout' => 620,
                 'verify' => false,
             ])->withHeaders([
-                'Authorization' => "Bearer $token",
-                'Content-Type' => 'application/json',
-                'Accept-Encoding' => 'gzip, deflate, br',
-                'Accept' => '*/*'
-            ])->withBody(json_encode($fbrPayload), 'application/json')
-                ->post("https://ims.pral.com.pk/ims/{$getURLEnvironment}/api/Live/PostData"); 
+                        'Authorization' => "Bearer $token",
+                        'Content-Type' => 'application/json',
+                        'Accept-Encoding' => 'gzip, deflate, br',
+                        'Accept' => '*/*'
+                    ])->withBody(json_encode($fbrPayload), 'application/json')
+                ->post("https://ims.pral.com.pk/ims/{$getURLEnvironment}/api/Live/PostData");
 
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -1332,16 +1385,16 @@ class OrderController extends Controller
 
             Log::channel('fbr')->error('FBR HTTP error', [
                 'order_id' => $order->id,
-                'status'   => $post_api_response->status(),
-                'body'     => $post_api_response->body(),
+                'status' => $post_api_response->status(),
+                'body' => $post_api_response->body(),
             ]);
 
             $decodedBody = json_decode($post_api_response->body(), true);
 
             return response()->json([
-                'error'  => 'FBR API returned an HTTP error',
+                'error' => 'FBR API returned an HTTP error',
                 'status' => $post_api_response->status(),
-                'body'   => $decodedBody ?? $post_api_response->body(),
+                'body' => $decodedBody ?? $post_api_response->body(),
             ], 502);
         }
 
@@ -1349,7 +1402,7 @@ class OrderController extends Controller
 
         Log::info('FBR Payload', [
             'order_id' => $order->id,
-            'payload'  => $fbrPayload,
+            'payload' => $fbrPayload,
             'post_response_pos' => $postResponseJson['Response'] ?? null,
         ]);
 
@@ -1359,10 +1412,10 @@ class OrderController extends Controller
 
             $order->update([
                 'fbr_invoice_no' => $fbr_invoice_number,
-                'api_status'     => $post_api_response->status(),
-                'api_message'    => 1,
-                'order_stage'    => 'submitted',
-                'POSID'          => $POSID
+                'api_status' => $post_api_response->status(),
+                'api_message' => 1,
+                'order_stage' => 'submitted',
+                'POSID' => $POSID
             ]);
 
             DB::commit();
@@ -1371,18 +1424,18 @@ class OrderController extends Controller
                 'order_id' => $order->id,
                 'user_id' => auth()->id(),
                 'business_id' => $businessId,
-                'payload'  => $fbrPayload,
+                'payload' => $fbrPayload,
                 'post_response_pos' => $postResponseJson['Response'],
             ]);
 
             OrderLog::create([
-                'order_id'       => $order->id,
-                'user_id'        => auth()->id(),
-                'business_id'    => $businessId,
+                'order_id' => $order->id,
+                'user_id' => auth()->id(),
+                'business_id' => $businessId,
                 'request_payload' => $fbrPayload,
-                'response'       => $postResponseJson['Response'],
-                'error_code'     => $postResponseJson['Code'] ?? null,
-                'error_message'  => $postResponseJson['Response'] ?? null,
+                'response' => $postResponseJson['Response'],
+                'error_code' => $postResponseJson['Code'] ?? null,
+                'error_message' => $postResponseJson['Response'] ?? null,
             ]);
 
             return response()->json([
@@ -1400,18 +1453,18 @@ class OrderController extends Controller
                 'order_id' => $order->id,
                 'user_id' => auth()->id(),
                 'business_id' => $businessId,
-                'payload'  => $fbrPayload,
+                'payload' => $fbrPayload,
                 'post_response_pos' => $postResponseJson['Response'] ?? null,
             ]);
 
             OrderLog::create([
-                'order_id'       => $order->id,
-                'user_id'        => auth()->id(),
-                'business_id'    => $businessId,
+                'order_id' => $order->id,
+                'user_id' => auth()->id(),
+                'business_id' => $businessId,
                 'request_payload' => $fbrPayload,
-                'response'       => $postResponseJson['Response'] ?? null,
-                'error_code'     => $postResponseJson['Code'] ?? null,
-                'error_message'  => $postResponseJson['Response'] ?? null,
+                'response' => $postResponseJson['Response'] ?? null,
+                'error_code' => $postResponseJson['Code'] ?? null,
+                'error_message' => $postResponseJson['Response'] ?? null,
             ]);
 
             return response()->json([
@@ -1492,11 +1545,12 @@ class OrderController extends Controller
         $invoiceNumber = $counter->last_invoice_number;
 
         $invoiceEnvironment = FbrTokenService::getURLEnvironment();
+        $isFbrIntegrationEnabled = FbrTokenService::isIntegrationEnabled();
 
 
         $order = Order::create([
             'customer_id' => $request->customer_id,
-            'user_id'     => $userId,
+            'user_id' => $userId,
             'business_id' => $businessId,
             'invoice_number' => $invoiceNumber,
             'note' => $request->note ?? null,
@@ -1504,6 +1558,7 @@ class OrderController extends Controller
             'custom_invoice_number' => $invoiceData['custom_invoice_number'] ?? null,
             'po_number' => $request->po_number ?? null,
             'invoice_environment' => $invoiceEnvironment,
+            'fbr_integration_enabled' => $isFbrIntegrationEnabled,
         ]);
 
         $totalAmountOrder = 0;
@@ -1560,22 +1615,22 @@ class OrderController extends Controller
             $totalCustomerTaxOrder += $customerTax;
 
             $orderProduct = $order->products()->create([
-                'quantity'         => $cart->quantity,
-                'hsCode'           => $product->hsCode ?? null,
-                'uom'              => $product->uom ?? null,
-                'price'            => $unitPrice,
-                'purchase_price'   => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
-                'sub_total'        => $subTotal,
-                'discount'         => $discount,
-                'tax_rate'         => $rateText,
-                'sale_tax'         => $salesTax,
-                'customer_tax'     => $customerTax,
-                'further_tax'      => $furtherTax,
-                'total'            => $finalTotal,
-                'custom_fields'    => $cart->custom_fields,
-                'product_id'       => $product->id,
+                'quantity' => $cart->quantity,
+                'hsCode' => $product->hsCode ?? null,
+                'uom' => $product->uom ?? null,
+                'price' => $unitPrice,
+                'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
+                'sub_total' => $subTotal,
+                'discount' => $discount,
+                'tax_rate' => $rateText,
+                'sale_tax' => $salesTax,
+                'customer_tax' => $customerTax,
+                'further_tax' => $furtherTax,
+                'total' => $finalTotal,
+                'custom_fields' => $cart->custom_fields,
+                'product_id' => $product->id,
                 'purchase_item_id' => $cart->purchase_item_id,
-                'is_accessory'     => false,
+                'is_accessory' => false,
             ]);
 
             $parentCartToOrderProduct[$cart->id] = $orderProduct->id;
@@ -1597,7 +1652,8 @@ class OrderController extends Controller
 
                 $lastProcessedPi = null;
                 foreach ($purchaseItems as $pi) {
-                    if ($qtyToConsume <= 0) break;
+                    if ($qtyToConsume <= 0)
+                        break;
                     $consume = min($pi->remaining_qty, $qtyToConsume);
                     $pi->decrement('remaining_qty', $consume);
                     $qtyToConsume -= $consume;
@@ -1635,19 +1691,19 @@ class OrderController extends Controller
             $scaledQty = $cart->quantity * $parentQty;
 
             $order->products()->create([
-                'quantity'                => $scaledQty,
-                'price'                   => 0,
-                'purchase_price'          => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
-                'sub_total'               => 0,
-                'discount'                => 0,
-                'tax_rate'                => 0,
-                'sale_tax'                => 0,
-                'customer_tax'            => 0,
-                'further_tax'             => 0,
-                'total'                   => 0,
-                'product_id'              => $product->id,
-                'purchase_item_id'        => $cart->purchase_item_id,
-                'is_accessory'            => true,
+                'quantity' => $scaledQty,
+                'price' => 0,
+                'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
+                'sub_total' => 0,
+                'discount' => 0,
+                'tax_rate' => 0,
+                'sale_tax' => 0,
+                'customer_tax' => 0,
+                'further_tax' => 0,
+                'total' => 0,
+                'product_id' => $product->id,
+                'purchase_item_id' => $cart->purchase_item_id,
+                'is_accessory' => true,
                 'parent_order_product_id' => $parentOrderProductId,
             ]);
 
@@ -1667,7 +1723,8 @@ class OrderController extends Controller
 
                 $lastProcessedPi = null;
                 foreach ($purchaseItems as $pi) {
-                    if ($qtyToConsume <= 0) break;
+                    if ($qtyToConsume <= 0)
+                        break;
                     $consume = min($pi->remaining_qty, $qtyToConsume);
                     $pi->decrement('remaining_qty', $consume);
                     $qtyToConsume -= $consume;
@@ -1700,20 +1757,20 @@ class OrderController extends Controller
         $due = $total - ($request->paid ?? 0);
 
         $order->update([
-            'sub_total'          => $totalAmountOrder,
-            'discount'           => $orderDiscount,
-            'total_sale_tax'     => round($totalSaleTax, 2),
+            'sub_total' => $totalAmountOrder,
+            'discount' => $orderDiscount,
+            'total_sale_tax' => round($totalSaleTax, 2),
             'total_customer_tax' => round($totalCustomerTaxOrder, 2),
-            'total_further_tax'  => round($totalFurtherTax, 2),
-            'paid'               => $request->paid,
-            'total'              => round($total, 2),
-            'due'                => round($due, 2),
-            'status'             => round($due, 2) <= 0,
-            'order_stage'        => $order_stage,
-            'type'               => 'digital_invoice',
+            'total_further_tax' => round($totalFurtherTax, 2),
+            'paid' => $request->paid,
+            'total' => round($total, 2),
+            'due' => round($due, 2),
+            'status' => round($due, 2) <= 0,
+            'order_stage' => $order_stage,
+            'type' => 'digital_invoice',
         ]);
 
-        if ($order_stage == 'submitted') { 
+        if ($order_stage == 'submitted') {
 
             /* ================= FBR ITEMS (parent products only) ================= */
             $fbrItems = [];
@@ -1795,7 +1852,7 @@ class OrderController extends Controller
             $fbrPayload = [
                 "buyerRegistrationType" => $buyerRegType,
                 "invoiceType" => "Sale Invoice",
-                "invoiceDate" => $request ->orderDate,
+                "invoiceDate" => $request->orderDate,
                 "sellerNTNCNIC" => $business->ntn,
                 "sellerBusinessName" => $business->business_name,
                 "sellerProvince" => strtolower($business->state),
@@ -1809,8 +1866,8 @@ class OrderController extends Controller
                 "items" => $fbrItems
             ];
 
-            
-            if (!FbrTokenService::isIntegrationEnabled()) {
+
+            if (!$isFbrIntegrationEnabled) {
 
                 DB::commit();
 
@@ -1918,7 +1975,6 @@ class OrderController extends Controller
                     $post_api_response = Http::withOptions([
                         'timeout' => 2420,
                         'connect_timeout' => 2420,
-
                     ])->withHeaders([
                                 'Authorization' => "Bearer $token",
                                 'Content-Type' => 'application/json',
@@ -1926,15 +1982,26 @@ class OrderController extends Controller
                                 'Accept' => '*/*'
                             ])->withBody(json_encode($fbrPayload), 'application/json')
                         ->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata$tokenUrlEnd");
-
-
                 } catch (\Illuminate\Http\Client\ConnectionException $e) {
-                    info('Connection Exception: ' . $e->getMessage());
+                    Log::channel('fbr')->error('FBR Post Connection Exception', [
+                        'order_id' => $order->id,
+                        'message' => $e->getMessage(),
+                    ]);
+
+                    Order::where('id', $order->id)->update([
+                        'error_message' => 'Connection error while posting to FBR: ' . $e->getMessage(),
+                    ]);
+
+                    return response()->json([
+                        'error' => 'Order saved, but posting to FBR failed due to a connection error. It can be retried.',
+                        'order' => $order,
+                    ], 502);
                 }
 
                 $postResponseJson = $post_api_response->json();
                 $fbr_invoice_number = data_get($postResponseJson, 'invoiceNumber');
-
+                $postErrorCode = data_get($postResponseJson, 'validationResponse.errorCode') ?? data_get($postResponseJson, 'errorCode');
+                $postErrorMessage = data_get($postResponseJson, 'validationResponse.error') ?? data_get($postResponseJson, 'error');
 
                 Log::info('FBR Payload', [
                     'order_id' => $order->id ?? null,
@@ -1955,20 +2022,35 @@ class OrderController extends Controller
                     'business_id' => $businessId,
                     'request_payload' => "POST API Response",
                     'response' => $postResponseJson,
-                    'status_code' => $response->status(),
-                    'error_code' => $errorCode,
-                    'error_message' => $errorMessage,
-                    'success' => $response->ok(),
+                    'status_code' => $post_api_response->status(),
+                    'error_code' => $postErrorCode,
+                    'error_message' => $postErrorMessage,
+                    'success' => $post_api_response->ok() && !empty($fbr_invoice_number),
                     'fbr_invoice_number' => $fbr_invoice_number,
                 ]);
 
+                // ---- THE ACTUAL FIX: check success before declaring victory ----
+                if (!$post_api_response->ok() || empty($fbr_invoice_number)) {
 
-                /* ================= SAVE API STATUS & LOGS (NO ROLLBACK) ================= */
+                    Order::where('id', $order->id)->update([
+                        'error_code' => $postErrorCode,
+                        'error_message' => $postErrorMessage ?? 'FBR post call failed with no invoice number returned',
+                    ]);
+
+                    PosCart::where('user_id', auth()->id())->delete();
+
+                    return response()->json([
+                        'error' => 'Order was validated and saved, but FBR post failed. It will need to be retried.',
+                        'error_code' => $postErrorCode,
+                        'error_message' => $postErrorMessage,
+                        'order' => $order,
+                    ], 502);
+                }
+
+                // ---- only reached on real success ----
                 Order::where('id', $order->id)->update([
                     'fbr_invoice_no' => $fbr_invoice_number,
                 ]);
-
-
 
                 PosCart::where('user_id', auth()->id())->delete();
 
@@ -2191,14 +2273,46 @@ class OrderController extends Controller
 
         $postResponseJson = $post_api_response->json();
         $fbr_invoice_number = data_get($postResponseJson, 'invoiceNumber');
+        $postErrorCode = data_get($postResponseJson, 'validationResponse.errorCode') ?? data_get($postResponseJson, 'errorCode');
+        $postErrorMessage = data_get($postResponseJson, 'validationResponse.error') ?? data_get($postResponseJson, 'error');
+
+        if (!$post_api_response->successful() || empty($fbr_invoice_number)) {
+
+            DB::rollBack();
+
+            Log::channel('fbr')->error('FBR post failed', [
+                'order_id' => $order->id,
+                'status' => $post_api_response->status(),
+                'body' => $post_api_response->body(),
+            ]);
+
+            OrderLog::create([
+                'order_id' => $order->id,
+                'user_id' => auth()->id(),
+                'business_id' => $businessId,
+                'request_payload' => "POST API Response",
+                'response' => $postResponseJson,
+                'status_code' => $post_api_response->status(),
+                'error_code' => $postErrorCode,
+                'error_message' => $postErrorMessage,
+                'success' => false,
+            ]);
+
+            return response()->json([
+                'error' => 'FBR post failed after successful validation',
+                'error_code' => $postErrorCode,
+                'error_message' => $postErrorMessage,
+                'fbr_api_response' => $postResponseJson,
+            ], 502);
+        }
 
         $order->update([
-            'api_status'     => $response->status(),
-            'error_code'     => $errorCode,
-            'error_message'  => $errorMessage,
-            'api_message'    => 1,
+            'api_status' => $response->status(),
+            'error_code' => null,
+            'error_message' => null,
+            'api_message' => 1,
             'fbr_invoice_no' => $fbr_invoice_number,
-            'order_stage'    => 'submitted',
+            'order_stage' => 'submitted',
         ]);
 
         DB::commit();
@@ -2283,7 +2397,8 @@ class OrderController extends Controller
                         ->get();
 
                     foreach ($batches as $batch) {
-                        if ($qtyToRestore <= 0) break;
+                        if ($qtyToRestore <= 0)
+                            break;
                         $availableSpace = $batch->quantity - $batch->remaining_qty;
                         if ($availableSpace > 0) {
                             $restore = min($qtyToRestore, $availableSpace);
@@ -2311,7 +2426,7 @@ class OrderController extends Controller
 
             return response()->json([
                 'message' => 'Order cancelled and stock restored successfully!',
-                'order'   => $order->fresh('products'),
+                'order' => $order->fresh('products'),
             ], 200);
 
         } catch (\Exception $e) {
@@ -2377,7 +2492,107 @@ class OrderController extends Controller
 
         return view('backend.orders.print-invoice', compact('order', 'business', 'fbrIntegration', 'invoiceSettings', 'customFields'));
     }
-    
+
+    public function downloadInvoicesPdf(Request $request)
+    {
+        $ids = $request->input('ids', []);
+
+        if (empty($ids)) {
+            return back()->with('error', 'No orders selected.');
+        }
+
+        $businessId = session('business_id');
+        $business = Business::findOrFail($businessId);
+        $fbrIntegration = FbrTokenService::isIntegrationEnabled();
+        $invoiceSettings = InvoiceSetting::where('business_id', $businessId)->first();
+
+        $orders = Order::with(['customer', 'products.product'])
+            ->whereIn('id', $ids)
+            ->where('business_id', $businessId)
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $allFields = BusinessCustomField::where('business_id', $businessId)
+            ->where('is_active', 1)
+            ->orderBy('sort_order')
+            ->get();
+
+        // ---- Helper: reliably embed any local image as base64 ----
+        $fileToBase64 = function (?string $absolutePath): ?string {
+            if (!$absolutePath || !file_exists($absolutePath)) {
+                return null;
+            }
+            $ext = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
+            $mime = match ($ext) {
+                'png' => 'image/png',
+                'jpg', 'jpeg' => 'image/jpeg',
+                'svg' => 'image/svg+xml',
+                default => 'image/png',
+            };
+            return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($absolutePath));
+        };
+
+        // Business logo
+        $logoBase64 = null;
+        if (readConfig('is_show_logo_invoice')) {
+            $logoPath = !empty($business->logo)
+                ? storage_path('app/public/' . $business->logo)
+                : public_path('storage/logos/default-business.png');
+            $logoBase64 = $fileToBase64($logoPath);
+        }
+
+        // The 3 possible FBR/PRAL/POS icons — precompute once each
+        $pralImage = $fileToBase64(public_path('assets/images/pral-pos-component.png'));
+        $posImage = $fileToBase64(public_path('assets/images/fbr_pos_invoice_system.png'));
+        $digitalImage = $fileToBase64(public_path('assets/images/fbr_logo-icon.png'));
+
+        // IMC logo
+        $imcLogoBase64 = (!empty($invoiceSettings->imc_logo) && $invoiceSettings->imc_logo == 1)
+            ? $fileToBase64(public_path('assets/images/imc.jpeg'))
+            : null;
+
+        $invoices = $orders->map(function ($order) use ($allFields, $fbrIntegration, $business, $pralImage, $posImage, $digitalImage) {
+
+            $customFields = $allFields->filter(function ($field) use ($order) {
+                return $order->products->contains(function ($item) use ($field) {
+                    $val = $item->custom_fields[$field->field_name] ?? null;
+                    return $val !== null && $val !== '';
+                });
+            })->values();
+
+            $qrCode = null;
+            if ($fbrIntegration == 'enabled' && $order->order_stage !== 'draft' && filled($order->fbr_invoice_no)) {
+                $qrCode = base64_encode(
+                    QrCode::format('svg')->size(60)->generate($order->fbr_invoice_no)
+                );
+            }
+
+            // Pick the right icon for this order, same logic as the single invoice view
+            $fbrImage = $business->business_type == 'pral'
+                ? $pralImage
+                : ($order->type == 'pos_invoice' ? $posImage : $digitalImage);
+
+            return [
+                'order' => $order,
+                'customFields' => $customFields,
+                'qrCode' => $qrCode,
+                'fbrImage' => $fbrImage,
+            ];
+        });
+
+        $pdf = Pdf::loadView('backend.orders.print-invoice-multiple', compact(
+            'invoices',
+            'business',
+            'fbrIntegration',
+            'invoiceSettings',
+            'logoBase64',
+            'imcLogoBase64'
+        ))->setPaper('a4', 'portrait')
+            ->setOptions(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true]);
+
+        return $pdf->download('Invoices - ' . readConfig('site_name') . '.pdf');
+    }
+
     public function customerTaxInvoice($id)
     {
         $businessId = session('business_id');
@@ -2560,21 +2775,21 @@ class OrderController extends Controller
     }
 
     private function formatCustomFieldsForName($customFields): string
-{
-    if (empty($customFields) || !is_array($customFields)) {
-        return '';
-    }
-
-    $parts = [];
-    foreach ($customFields as $key => $value) {
-        if ($value === null || $value === '') {
-            continue;
+    {
+        if (empty($customFields) || !is_array($customFields)) {
+            return '';
         }
-        $parts[] = ucfirst($key) . ': ' . $value;
-    }
 
-    return $parts ? ' (' . implode(', ', $parts) . ')' : '';
-}
+        $parts = [];
+        foreach ($customFields as $key => $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $parts[] = ucfirst($key) . ': ' . $value;
+        }
+
+        return $parts ? ' (' . implode(', ', $parts) . ')' : '';
+    }
 
     // public function updateCustomInvoice(Request $request, Order $order)
     // {

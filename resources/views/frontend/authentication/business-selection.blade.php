@@ -95,33 +95,33 @@
                         </div>
 
                         <!-- Hidden Create Business Form -->
-                        <div id="createForm" style="display: none;">
+                        <div id="createForm" style="{{ $errors->any() ? 'display: block;' : 'display: none;' }}">
                             <h5>Create New Business</h5>
                             <form action="{{ route('business.create') }}" method="POST" enctype="multipart/form-data">
                                 @csrf
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label for="business_name" class="form-label">Business Name *</label>
-                                        <input type="text" class="form-control" id="business_name" name="business_name" required>
+                                        <input type="text" class="form-control" id="business_name" name="business_name" value="{{ old('business_name') }}" required>
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label for="industry" class="form-label">Industry *</label>
-                                        <input type="text" class="form-control" id="industry" name="industry" required>
+                                        <input type="text" class="form-control" id="industry" name="industry" value="{{ old('industry') }}" required>
                                     </div>
                                 </div>
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label for="ntn" class="form-label">NTN (Optional)</label>
-                                        <input type="text" class="form-control" id="ntn" name="ntn">
+                                        <input type="text" class="form-control" id="ntn" name="ntn" value="{{ old('ntn') }}">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label for="business_type" class="form-label">Business type *</label>
                                         <select name="business_type" id="business_type" class="form-control" required>
                                             <option value="">-- Select Business Type --</option>
-                                                <option value="pos">POS</option>
-                                                <option value="digital">Digital</option>
-                                                <option value="both">Both</option>
-                                                <option value="pral">PRA</option>
+                                                <option value="pos" {{ old('business_type') == 'pos' ? 'selected' : '' }}>POS</option>
+                                                <option value="digital" {{ old('business_type') == 'digital' ? 'selected' : '' }}>Digital</option>
+                                                <option value="both" {{ old('business_type') == 'both' ? 'selected' : '' }}>Both</option>
+                                                <option value="pral" {{ old('business_type') == 'pral' ? 'selected' : '' }}>PRA</option>
                                         </select>
                                     </div>                                 
                                     <div class="col-md-6 mb-3">
@@ -138,17 +138,17 @@
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label for="city" class="form-label">State *</label>
-                                        <input type="text" class="form-control" id="state" name="state" required>
+                                        <input type="text" class="form-control" id="state" name="state" value="{{ old('state') }}" required>
                                     </div>
                                 </div>
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label for="city" class="form-label">City *</label>
-                                        <input type="text" class="form-control" id="city" name="city" required>
+                                        <input type="text" class="form-control" id="city" name="city" value="{{ old('city') }}" required>
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label for="ntn" class="form-label">CNIC *</label>
-                                        <input type="text" class="form-control" id="cnic" name="cnic" required>
+                                        <input type="text" class="form-control" id="cnic" name="cnic" value="{{ old('cnic') }}" required>
                                     </div>
                                 </div>
 
@@ -156,12 +156,12 @@
                                 <div class="row">
                                       <div class="mb-3 col-md-6">
                                         <label for="email" class="form-label">Email *</label>
-                                        <input type="email" class="form-control" placeholder="Enter Email" name="email" required>
+                                        <input type="email" class="form-control" placeholder="Enter Email" name="email" value="{{ old('email') }}" required>
                                     </div>
 
                                     <div class="mb-3 col-md-6">
                                         <label for="phone" class="form-label">Phone *</label>
-                                        <input type="text" class="form-control" placeholder="Enter Phone" name="phone" required>
+                                        <input type="text" class="form-control" placeholder="Enter Phone" name="phone" value="{{ old('phone') }}" required>
                                     </div>
                                 </div>
 
@@ -174,7 +174,7 @@
 
                                     <div class="mb-3 col-md-6">
                                         <label for="currency" class="form-label">Currency</label>
-                                        <input type="text" class="form-control" placeholder="Enter Currency" name="currency"
+                                        <input type="text" class="form-control" placeholder="Enter Currency" value="{{ old('currency') }}" name="currency"
                                         >
                                     </div>
                                 </div>
@@ -182,13 +182,13 @@
                                 <div class="row">
                                       <div class="mb-3 col-md-6">
                                         <label for="facebook_link" class="form-label">Facebook Link</label>
-                                        <input type="url" class="form-control" placeholder="Enter Facebook Link" name="facebook_link"
+                                        <input type="url" class="form-control" placeholder="Enter Facebook Link" name="facebook_link value="{{ old('facebook_link') }}""
                                        >
                                     </div>
 
                                     <div class="mb-3 col-md-6">
                                         <label for="whatsapp_link" class="form-label">WhatsApp Link</label>
-                                        <input type="url" class="form-control" placeholder="Enter WhatsApp Link" name="whatsapp_link"
+                                        <input type="url" class="form-control" placeholder="Enter WhatsApp Link" name="whatsapp_link value="{{ old('whatsapp_link') }}""
                                         >
                                     </div>
                                 </div>
@@ -196,20 +196,20 @@
                                 <div class="row">
                                       <div class="mb-3 col-md-6">
                                         <label for="youtube_link" class="form-label">YouTube Link</label>
-                                        <input type="url" class="form-control" placeholder="Enter YouTube Link" name="youtube_link"
+                                        <input type="url" class="form-control" placeholder="Enter YouTube Link" name="youtube_link value="{{ old('youtube_link') }}""
                                        >
                                     </div>
 
                                     <div class="mb-3 col-md-6">
                                         <label for="instagram_link" class="form-label">Instagram Link</label>
-                                        <input type="url" class="form-control" placeholder="Enter Instagram Link" name="instagram_link"
+                                        <input type="url" class="form-control" placeholder="Enter Instagram Link" name="instagram_link value="{{ old('instagram_link') }}""
                                         >
                                     </div>
                                 </div>
                                 <div class="row">
                                     <div class="mb-3 col-md-6">
                                         <label for="address" class="form-label">Address *</label>
-                                        <input type="text" class="form-control" placeholder="Enter address" name="address" required>
+                                        <input type="text" class="form-control" placeholder="Enter address" name="address" value="{{ old('address') }}" required>
                                     </div>
                                 </div>
 
@@ -223,6 +223,56 @@
         </div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        function showToast(message, type = 'success') {
+
+            const bgClass = {
+                success: 'bg-success',
+                error: 'bg-danger',
+                warning: 'bg-warning'
+            }[type] || 'bg-success';
+
+            const toastHtml = `
+                <div style="position: fixed; top: 1rem; right: 1rem; z-index:9999;"
+                    class="toast align-items-center ${bgClass} border-0 text-white"
+                    role="alert">
+
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+
+                </div>
+            `;
+
+            const $toast = $(toastHtml);
+
+            $('body').append($toast);
+
+            const toast = new bootstrap.Toast($toast[0], {
+                delay: 2000
+            });
+
+            toast.show();
+
+            $toast.on('hidden.bs.toast', function () {
+                $(this).remove();
+            });
+        }
+
+        // Show Laravel validation errors as toast
+        @if($errors->any())
+            document.addEventListener('DOMContentLoaded', function () {
+
+                @foreach($errors->all() as $error)
+                    showToast(@json($error), 'error');
+                @endforeach
+
+            });
+        @endif
+    </script>
 <script>
     const toggleBtn = document.getElementById("toggleCreateForm");
     const form = document.getElementById("createForm");
@@ -241,6 +291,7 @@
         }
     });
 </script>
+
 
 </body>
 </html>
