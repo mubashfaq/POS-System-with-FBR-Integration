@@ -20,6 +20,7 @@
         "maatwebsite/excel": "^3.1",
         "phpoffice/phpspreadsheet": "^1.30",
         "rinvex/countries": "^9.1",
+        "simplesoftwareio/simple-qrcode": "^4.2",
         "spatie/laravel-permission": "^5.10",
         "yajra/laravel-datatables": "^10.0"
     },

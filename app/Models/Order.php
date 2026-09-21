@@ -41,6 +41,7 @@ class Order extends Model
         'api_message',
         'fbr_invoice_no',
         'invoice_environment',
+        'fbr_integration_enabled',
         'type'
     ];
 

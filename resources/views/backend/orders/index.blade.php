@@ -110,59 +110,103 @@
             color: #fff;
         }
     </style>
-    <div class="card">
-        <div class="mt-n5 mb-3 d-flex justify-content-end align-items-center">
+    <!-- First Row: Download Buttons + Date Filter -->
+    <div class="mb-3 d-flex justify-content-end align-items-center" style="margin-top: -54px">
 
-            <input type="hidden" id="start_date">
-            <input type="hidden" id="end_date">
+        <input type="hidden" id="start_date">
+        <input type="hidden" id="end_date">
 
-            <!-- Download PDF -->
-            <button id="download-selected-btn" class="btn action-button mx-2" disabled>
+        <!-- Download PDF -->
+        <button id="download-selected-btn" class="btn action-button mx-2" disabled>
+            <i class="fas fa-file-pdf"></i>
+            Download PDF
+            <span id="selected-count" class="badge bg-white text-danger ms-1">
+                0
+            </span>
+        </button>
 
-                <i class="fas fa-file-pdf"></i>
-                Download PDF
+        <!-- Download Invoices -->
+        <button id="download-invoices-btn" class="btn action-button mx-2" disabled>
+            <i class="fas fa-file-invoice"></i>
+            Download Invoices
+            <span id="selected-count-invoices" class="badge bg-white text-danger ms-1">
+                0
+            </span>
+        </button>
 
-                <span id="selected-count" class="badge bg-white text-danger ms-1">
-                    0
-                </span>
-            </button>
+        <!-- Date Filter -->
+        <div class="form-group mb-0 ml-2">
+            <div class="input-group">
 
-
-            <!-- Environment Filter -->
-            @hasrole('super_admin')
                 <div class="form-group mb-0 mr-2">
-                    <select id="environment_filter" class="form-control form-control-sm" style="width: 170px;">
-
-                        <option value="">All Environments</option>
-                        <option value="sandbox">Sandbox</option>
-                        <option value="production">Production</option>
-
+                    <select id="date_field_filter" class="form-control form-control-sm" style="width: 150px;">
+                        <option value="created_at">Order Created Date</option>
+                        <option value="order_date">Invoice Date</option>
                     </select>
                 </div>
-            @endhasrole
 
+                <button type="button" class="btn btn-default" id="daterange-btn">
+                    <i class="far fa-calendar-alt"></i>
+                    Filter by date
+                    <i class="fas fa-caret-down"></i>
+                </button>
 
-            <!-- Date Filter -->
-            <div class="form-group mb-0">
-                <div class="input-group">
-
-                    <button type="button" class="btn btn-default" id="daterange-btn">
-
-                        <i class="far fa-calendar-alt"></i>
-                        Filter by date
-                        <i class="fas fa-caret-down"></i>
-
-                    </button>
-
-                </div>
             </div>
-
         </div>
+
+    </div>
+
+
+    <!-- Second Row: Environment + Status + Invoice Number -->
+    <div class="mb-3 d-flex justify-content-end align-items-center">
+
+        <!-- Environment Filter -->
+        @hasrole('super_admin')
+        <div class="form-group mb-0 mr-2">
+            <select id="environment_filter" class="form-control form-control-sm" style="width: 170px;">
+
+                <option value="">All Environments</option>
+                <option value="sandbox">Sandbox</option>
+                <option value="production">Production</option>
+
+            </select>
+        </div>
+        @endhasrole
+
+
+        <!-- Sale Status Filter -->
+        @if ($fbr)
+            <div class="form-group mb-0 mr-2">
+                <select id="sale_status_filter" class="form-control form-control-sm" style="width: 170px;">
+
+                    <option value="">All Status</option>
+                    <option value="draft">Draft</option>
+                    <option value="success">Successful</option>
+                    <option value="failed">Failed</option>
+
+                </select>
+            </div>
+        @endif
+
+
+        <!-- Invoice Number Filter -->
+        <div class="form-group mb-0">
+            <input type="text" id="invoice_number_filter" class="form-control form-control-sm"
+                placeholder="Invoice # (FBR / Custom / INV-...)" style="width: 240px;">
+        </div>
+
+    </div>
+
+
+    <!-- Card / Table -->
+    <div class="card">
 
         <div class="card-body p-2 p-md-4 pt-0">
             <div class="row g-4">
                 <div class="col-md-12">
-                    <div class="card-body table-responsive p-0" id="table_data">
+
+                    <div class="table-responsive p-0" id="table_data">
+
                         <table id="datatables" class="table table-hover">
                             <thead>
                                 <tr>
@@ -171,6 +215,7 @@
                                     </th>
                                     <th data-orderable="false">#</th>
                                     <th>SaleId</th>
+                                    <th>Invoice #</th>
                                     <th>Customer</th>
                                     <th>Item</th>
                                     <th>Sub Total {{currency()->symbol ?? ''}}</th>
@@ -182,17 +227,18 @@
                                     <th>Environment</th>
                                     <th>Date</th>
                                     <th>Status</th>
-                                    @if ($fbr)
-                                        <th>FBR Status</th>
-                                    @endif
+                                    <th>FBR Status</th>
                                     <th data-orderable="false">Action</th>
                                 </tr>
                             </thead>
                         </table>
+
                     </div>
+
                 </div>
             </div>
         </div>
+
     </div>
 
     <!-- FBR STATUS MODAL -->
@@ -269,6 +315,14 @@
             $('#start_date').val('');
             $('#end_date').val('');
 
+            let invoiceSearchTimer;
+            $('#invoice_number_filter').on('keyup', function () {
+                clearTimeout(invoiceSearchTimer);
+                invoiceSearchTimer = setTimeout(function () {
+                    table.draw();
+                }, 400);
+            });
+
             // DataTable
             table = $('#datatables').DataTable({
                 processing: true,
@@ -282,6 +336,9 @@
                         d.start_date = $('#start_date').val();
                         d.end_date = $('#end_date').val();
                         d.environment = $('#environment_filter').val();
+                        d.date_field = $('#date_field_filter').val();
+                        d.invoice_number = $('#invoice_number_filter').val();
+                        d.sale_status = $('#sale_status_filter').val();
                     }
                 },
 
@@ -297,6 +354,7 @@
                     },
                     { data: 'DT_RowIndex', name: 'DT_RowIndex' },
                     { data: 'saleId', name: 'saleId' },
+                    { data: 'invoice_number', name: 'invoice_number', orderable: false },
                     { data: 'customer', name: 'customer' },
                     { data: 'item', name: 'item' },
                     { data: 'sub_total', name: 'sub_total' },
@@ -308,19 +366,20 @@
                     { data: 'environment', name: 'environment', className: 'text-center' },
                     { data: 'date', name: 'date' },
                     { data: 'status', name: 'status' },
-                    @if ($fbr)
-                        {
-                            data: 'fbr_status',
-                            name: 'fbr_status',
-                            orderable: false,
-                            searchable: false
-                        },
-                    @endif
+                    { data: 'fbr_status', name: 'fbr_status', orderable: false, searchable: false },
                     { data: 'action', name: 'action' }
                 ]
             });
 
             $('#environment_filter').on('change', function () {
+                table.draw();
+            });
+
+            $('#date_field_filter').on('change', function () {
+                table.draw();
+            });
+
+            $('#sale_status_filter').on('change', function () {
                 table.draw();
             });
 
@@ -414,6 +473,21 @@
                     form.append($('<input>', { type: 'hidden', name: 'ids[]', value: id }));
                 });
 
+                $('body').append(form);
+                form.submit();
+                form.remove();
+            });
+
+            $('#download-invoices-btn').on('click', function () {
+                let ids = getSelectedIds();
+                if (ids.length === 0) return;
+
+                let form = $('<form>', {
+                    method: 'POST',
+                    action: "{{ route('backend.admin.orders.invoices-pdf-download') }}"
+                });
+                form.append($('<input>', { type: 'hidden', name: '_token', value: "{{ csrf_token() }}" }));
+                ids.forEach(id => form.append($('<input>', { type: 'hidden', name: 'ids[]', value: id })));
                 $('body').append(form);
                 form.submit();
                 form.remove();
@@ -520,7 +594,9 @@
         function updateDownloadButton() {
             let count = getSelectedIds().length;
             $('#selected-count').text(count);
+            $('#selected-count-invoices').text(count);
             $('#download-selected-btn').prop('disabled', count === 0);
+            $('#download-invoices-btn').prop('disabled', count === 0);
         }
 
     </script>
