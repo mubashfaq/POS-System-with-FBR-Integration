@@ -677,7 +677,7 @@ export default function PosDigital({
                 setProductUpdated(!productUpdated);
                 const fbr = res?.data?.fbr_api_response;
 
-                if (!fbr) {
+                if (!fbrEnabled) {
                     toast.success(
                         res?.data?.message || "Order completed successfully!",
                         { duration: 4000 },
@@ -690,13 +690,13 @@ export default function PosDigital({
                         });
                     } else {
                         const errorMessage = extractFbrErrorMessage(fbr);
-                        toast.error(errorMessage || "Order Not Created", { duration: 9000 });
+                        toast.error(errorMessage || "Order Could Not Be Posted On FBR Right Now.", { duration: 9000 });
                     }
                 }
 
                 const orderId = res?.data?.order?.id;
                 if (!orderId) {
-                    toast.error("Order ID not found, cannot redirect.");
+                    // toast.error("Order ID not found, cannot redirect.");
                     return;
                 }
                 window.location.href = `/admin/orders/pos-invoice-digital/${orderId}`;
@@ -705,7 +705,7 @@ export default function PosDigital({
             .catch((err) => {
                 console.error(err);
                 const backendMsg = err?.response?.data?.error_message || err?.response?.data?.error;
-                toast.error(backendMsg || "Order creation failed.", { duration: 6000 });
+                toast.error(backendMsg || "Order Could Not Be Posted On FBR  Right Now.", { duration: 6000 });
             })
             .finally(() => {
                 setIsSubmitting(false);

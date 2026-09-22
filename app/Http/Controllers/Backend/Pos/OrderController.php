@@ -1906,8 +1906,9 @@ class OrderController extends Controller
                     info('Connection Exception: ' . $e->getMessage());
                 }
                 $body = $response->body();
-
-
+                if (str_contains($body, 'State : SUSPENDED')) {
+                    $errorMessage = 'FBR sandbox API is currently unavailable. Please try again later.';
+                }
                 // fix FBR invalid JSON (trailing comma)
                 $cleanBody = preg_replace('/,\s*([}\]])/', '$1', $body);
 
@@ -1940,12 +1941,12 @@ class OrderController extends Controller
                 ]);
 
 
-                $statusCode = data_get($responseJson, 'validationResponse.statusCode');
-                $errorCode = data_get($responseJson, 'validationResponse.errorCode');
+                $statusCode = data_get($responseJson, 'validationResponse.statusCode') ?: data_get($responseJson, 'validationResponse.invoiceStatuses.0.statusCode');
+                $errorCode = data_get($responseJson, 'validationResponse.errorCode') ?: data_get($responseJson, 'validationResponse.invoiceStatuses.0.errorCode');
 
 
-                $errorMessage = data_get($responseJson, 'validationResponse.error')
-                    ?? data_get($responseJson, 'error');
+                $errorMessage = data_get($responseJson, 'validationResponse.error') ?: data_get($responseJson, 'error')
+                    ?: data_get($responseJson, 'validationResponse.invoiceStatuses.0.error');
 
                 /* ================= SAVE API STATUS & LOGS (NO ROLLBACK) ================= */
                 Order::where('id', $order->id)->update([
@@ -1960,6 +1961,17 @@ class OrderController extends Controller
                 if ($statusCode != "00") {
 
                     DB::rollBack();
+
+                    OrderLog::create([
+                        'user_id' => $userId,
+                        'business_id' => $businessId,
+                        'request_payload' => $fbrPayload,
+                        'response' => $body,
+                        'status_code' => $statusCode,
+                        'error_code' => $errorCode,
+                        'error_message' => $errorMessage,
+                        'success' => 0,
+                    ]);
 
                     return response()->json([
                         'error' => 'FBR validation failed',
@@ -2726,12 +2738,10 @@ class OrderController extends Controller
 
         if ($data->api_status != 200) {
 
-            $message = "API Not Run Due to Some Issue From FBR";
+            $message = "This Order is Not On FBR";
 
         } elseif (
-            $data->api_status == 200 &&
-            empty($data->error_code) &&
-            $data->fbr_invoice_no != null
+            $data->api_status == 200 && empty($data->error_code) && $data->fbr_invoice_no != null
         ) {
 
             $message = "Successfully Sent to FBR.";
