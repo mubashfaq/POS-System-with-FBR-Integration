@@ -162,15 +162,15 @@
 
         <!-- Environment Filter -->
         @hasrole('super_admin')
-        <div class="form-group mb-0 mr-2">
-            <select id="environment_filter" class="form-control form-control-sm" style="width: 170px;">
+            <div class="form-group mb-0 mr-2">
+                <select id="environment_filter" class="form-control form-control-sm" style="width: 170px;">
 
-                <option value="">All Environments</option>
-                <option value="sandbox">Sandbox</option>
-                <option value="production">Production</option>
+                    <option value="">All Environments</option>
+                    <option value="sandbox">Sandbox</option>
+                    <option value="production">Production</option>
 
-            </select>
-        </div>
+                </select>
+            </div>
         @endhasrole
 
 
@@ -218,11 +218,11 @@
                                     <th>Invoice #</th>
                                     <th>Customer</th>
                                     <th>Item</th>
-                                    <th>Sub Total {{currency()->symbol ?? ''}}</th>
-                                    <th>Discount {{currency()->symbol ?? ''}}</th>
-                                    <th>Total {{currency()->symbol ?? ''}}</th>
-                                    <th>Paid {{currency()->symbol ?? ''}}</th>
-                                    <th>Due {{currency()->symbol ?? ''}}</th>
+                                    <th>Sub Total {{ currency()->symbol ?? '' }}</th>
+                                    <th>Discount {{ currency()->symbol ?? '' }}</th>
+                                    <th>Total {{ currency()->symbol ?? '' }}</th>
+                                    <th>Paid {{ currency()->symbol ?? '' }}</th>
+                                    <th>Due {{ currency()->symbol ?? '' }}</th>
                                     <th>Type</th>
                                     <th>Environment</th>
                                     <th>Date</th>
@@ -303,22 +303,20 @@
 
 @push('script')
     <script type="text/javascript">
-
         let table;
 
-        $(function () {
+        $(function() {
 
             // Default Dates
-            let startDate = null;
-            let endDate = null;
-
+            let startDate = moment();
+            let endDate = moment();
             $('#start_date').val('');
             $('#end_date').val('');
 
             let invoiceSearchTimer;
-            $('#invoice_number_filter').on('keyup', function () {
+            $('#invoice_number_filter').on('keyup', function() {
                 clearTimeout(invoiceSearchTimer);
-                invoiceSearchTimer = setTimeout(function () {
+                invoiceSearchTimer = setTimeout(function() {
                     table.draw();
                 }, 400);
             });
@@ -328,11 +326,13 @@
                 processing: true,
                 serverSide: true,
                 ordering: true,
-                order: [[2, 'desc']], // shifted by 1 for checkbox column
+                order: [
+                    [2, 'desc']
+                ], // shifted by 1 for checkbox column
 
                 ajax: {
                     url: "{{ route('backend.admin.orders.index') }}",
-                    data: function (d) {
+                    data: function(d) {
                         d.start_date = $('#start_date').val();
                         d.end_date = $('#end_date').val();
                         d.environment = $('#environment_filter').val();
@@ -348,50 +348,103 @@
                         data: null,
                         orderable: false,
                         searchable: false,
-                        render: function (data, type, row) {
-                            return '<input type="checkbox" class="row-checkbox" data-id="' + row.id + '">';
+                        render: function(data, type, row) {
+                            return '<input type="checkbox" class="row-checkbox" data-id="' + row
+                                .id + '">';
                         }
                     },
-                    { data: 'DT_RowIndex', name: 'DT_RowIndex' },
-                    { data: 'saleId', name: 'saleId' },
-                    { data: 'invoice_number', name: 'invoice_number', orderable: false },
-                    { data: 'customer', name: 'customer' },
-                    { data: 'item', name: 'item' },
-                    { data: 'sub_total', name: 'sub_total' },
-                    { data: 'discount', name: 'discount' },
-                    { data: 'total', name: 'total' },
-                    { data: 'paid', name: 'paid' },
-                    { data: 'due', name: 'due' },
-                    { data: 'type', name: 'type' },
-                    { data: 'environment', name: 'environment', className: 'text-center' },
-                    { data: 'date', name: 'date' },
-                    { data: 'status', name: 'status' },
-                    { data: 'fbr_status', name: 'fbr_status', orderable: false, searchable: false },
-                    { data: 'action', name: 'action' }
+                    {
+                        data: 'DT_RowIndex',
+                        name: 'DT_RowIndex'
+                    },
+                    {
+                        data: 'saleId',
+                        name: 'saleId'
+                    },
+                    {
+                        data: 'invoice_number',
+                        name: 'invoice_number',
+                        orderable: false
+                    },
+                    {
+                        data: 'customer',
+                        name: 'customer'
+                    },
+                    {
+                        data: 'item',
+                        name: 'item'
+                    },
+                    {
+                        data: 'sub_total',
+                        name: 'sub_total'
+                    },
+                    {
+                        data: 'discount',
+                        name: 'discount'
+                    },
+                    {
+                        data: 'total',
+                        name: 'total'
+                    },
+                    {
+                        data: 'paid',
+                        name: 'paid'
+                    },
+                    {
+                        data: 'due',
+                        name: 'due'
+                    },
+                    {
+                        data: 'type',
+                        name: 'type'
+                    },
+                    {
+                        data: 'environment',
+                        name: 'environment',
+                        className: 'text-center'
+                    },
+                    {
+                        data: 'date',
+                        name: 'date'
+                    },
+                    {
+                        data: 'status',
+                        name: 'status'
+                    },
+                    {
+                        data: 'fbr_status',
+                        name: 'fbr_status',
+                        orderable: false,
+                        searchable: false
+                    },
+                    {
+                        data: 'action',
+                        name: 'action'
+                    }
                 ]
             });
 
-            $('#environment_filter').on('change', function () {
+            $('#environment_filter').on('change', function() {
                 table.draw();
             });
 
-            $('#date_field_filter').on('change', function () {
+            $('#date_field_filter').on('change', function() {
                 table.draw();
             });
 
-            $('#sale_status_filter').on('change', function () {
+            $('#sale_status_filter').on('change', function() {
                 table.draw();
             });
 
             // --- Select All (current page only) ---
-            $('#select-all').on('change', function () {
+            $('#select-all').on('change', function() {
                 let checked = $(this).is(':checked');
                 $('#datatables tbody .row-checkbox').prop('checked', checked);
                 updateDownloadButton();
             });
 
             // --- Individual checkbox ---
-            $('#datatables').on('change', '.row-checkbox', function () {
+            $('#datatables').on('change', '.row-checkbox', function() {
                 let total = $('#datatables tbody .row-checkbox').length;
                 let checked = $('#datatables tbody .row-checkbox:checked').length;
                 $('#select-all').prop('indeterminate', checked > 0 && checked < total);
@@ -400,12 +453,12 @@
             });
 
             // Reset checkboxes on page redraw
-            table.on('draw', function () {
+            table.on('draw', function() {
                 $('#select-all').prop('checked', false).prop('indeterminate', false);
                 updateDownloadButton();
             });
 
-            $(document).on('click', '.btn-send-fbr', function () {
+            $(document).on('click', '.btn-send-fbr', function() {
                 const btn = $(this);
                 const url = btn.data('url');
 
@@ -415,13 +468,13 @@
                     url: url,
                     method: 'POST',
                     data: {
-                        _token: '{{ csrf_token() }}'   // yahan add karo
+                        _token: '{{ csrf_token() }}' // yahan add karo
                     },
-                    success: function (res) {
+                    success: function(res) {
                         showToast(res.message || 'Order submitted to FBR', 'success');
                         table.ajax.reload(null, false);
                     },
-                    error: function (xhr) {
+                    error: function(xhr) {
                         const err = xhr.responseJSON;
                         let message = 'Submission failed';
 
@@ -433,26 +486,30 @@
                                 // HTTP-fault case (401, 500 from FBR gateway)
                                 let body = err.body;
                                 if (typeof body === 'string') {
-                                    try { body = JSON.parse(body); } catch (e) { }
+                                    try {
+                                        body = JSON.parse(body);
+                                    } catch (e) {}
                                 }
-                                message = body?.fault?.message
-                                    || body?.fault?.description
-                                    || body?.Response   // POS-style error
-                                    || err.error
-                                    || message;
+                                message = body?.fault?.message ||
+                                    body?.fault?.description ||
+                                    body?.Response // POS-style error
+                                    ||
+                                    err.error ||
+                                    message;
                             } else if (err.error) {
                                 message = err.error;
                             }
                         }
 
                         showToast(message, 'error');
-                        btn.prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Send to FBR');
+                        btn.prop('disabled', false).html(
+                            '<i class="fas fa-paper-plane"></i> Send to FBR');
                     }
                 });
             });
 
             // --- Download Button ---
-            $('#download-selected-btn').on('click', function () {
+            $('#download-selected-btn').on('click', function() {
                 let ids = getSelectedIds();
                 if (ids.length === 0) return;
 
@@ -469,8 +526,12 @@
                     value: "{{ csrf_token() }}"
                 }));
 
-                ids.forEach(function (id) {
-                    form.append($('<input>', { type: 'hidden', name: 'ids[]', value: id }));
+                ids.forEach(function(id) {
+                    form.append($('<input>', {
+                        type: 'hidden',
+                        name: 'ids[]',
+                        value: id
+                    }));
                 });
 
                 $('body').append(form);
@@ -478,7 +539,7 @@
                 form.remove();
             });
 
-            $('#download-invoices-btn').on('click', function () {
+            $('#download-invoices-btn').on('click', function() {
                 let ids = getSelectedIds();
                 if (ids.length === 0) return;
 
@@ -486,14 +547,24 @@
                     method: 'POST',
                     action: "{{ route('backend.admin.orders.invoices-pdf-download') }}"
                 });
-                form.append($('<input>', { type: 'hidden', name: '_token', value: "{{ csrf_token() }}" }));
-                ids.forEach(id => form.append($('<input>', { type: 'hidden', name: 'ids[]', value: id })));
+                form.append($('<input>', {
+                    type: 'hidden',
+                    name: '_token',
+                    value: "{{ csrf_token() }}"
+                }));
+                ids.forEach(id => form.append($('<input>', {
+                    type: 'hidden',
+                    name: 'ids[]',
+                    value: id
+                })));
                 $('body').append(form);
                 form.submit();
                 form.remove();
             });
 
-            // --- Date Range Picker ---
+            // --- Date Range Picker --- 
+            let dateFilterSelected = false;
+
             $('#daterange-btn').daterangepicker({
                 ranges: {
                     'Today': [moment(), moment()],
@@ -501,18 +572,53 @@
                     'Last 7 Days': [moment().subtract(6, 'days'), moment()],
                     'Last 30 Days': [moment().subtract(29, 'days'), moment()],
                     'This Month': [moment().startOf('month'), moment().endOf('month')],
-                    'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+                    'Last Month': [
+                        moment().subtract(1, 'month').startOf('month'),
+                        moment().subtract(1, 'month').endOf('month')
+                    ]
                 },
-                startDate: moment(),
-                endDate: moment()
-            }, function (start, end) {
+                autoUpdateInput: false
+            }, function(start, end) {
+                dateFilterSelected = true;
+
                 $('#start_date').val(start.format('YYYY-MM-DD'));
                 $('#end_date').val(end.format('YYYY-MM-DD'));
+
                 table.draw();
             });
 
+            $('#daterange-btn').on('show.daterangepicker', function(ev, picker) {
+                if (!dateFilterSelected) {
+                    picker.container.find('.ranges li').removeClass('active');
+                }
+            });
+
+            $('#daterange-btn').on('show.daterangepicker', function(ev, picker) {
+                picker.container.find('.ranges li').off('click.firstDate');
+
+                if (!dateFilterSelected) {
+                    picker.container.find('.ranges li').on('click.firstDate', function() {
+                        const selectedRange = $(this).text().trim();
+
+                        if (selectedRange === 'Today') {
+                            dateFilterSelected = true;
+
+                            const today = moment();
+
+                            $('#start_date').val(today.format('YYYY-MM-DD'));
+                            $('#end_date').val(today.format('YYYY-MM-DD'));
+
+                            picker.container.find('.ranges li').removeClass('active');
+                            $(this).addClass('active');
+
+                            table.draw();
+                        }
+                    });
+                }
+            });
+
             // FBR STATUS MODAL
-            $(document).on('click', '.fbr-status', function (e) {
+            $(document).on('click', '.fbr-status', function(e) {
 
                 e.preventDefault();
 
@@ -527,7 +633,7 @@
 
                     dataType: 'json',
 
-                    success: function (response) {
+                    success: function(response) {
 
                         $('#fbrStatusMessage').text(response.message);
 
@@ -542,7 +648,7 @@
                         $('#fbrStatusModal').modal('show');
                     },
 
-                    error: function (xhr, status, error) {
+                    error: function(xhr, status, error) {
 
                         console.error('Error fetching FBR status:', error);
 
@@ -552,16 +658,18 @@
 
             });
 
-            $(document).on('click', '.fbr-modal-close', function () {
+            $(document).on('click', '.fbr-modal-close', function() {
 
                 $('#fbrStatusModal').modal('hide');
 
             });
 
-            $(document).on('click', '.btn-cancel-order', function () {
+            $(document).on('click', '.btn-cancel-order', function() {
                 const orderId = $(this).data('id');
 
-                if (!confirm('Are you sure you want to cancel this order? Stock will be restored.')) {
+                if (!confirm(
+                        'Are you sure you want to cancel this order? Stock will be restored.'
+                    )) {
                     return;
                 }
 
@@ -572,12 +680,16 @@
                         order_id: orderId,
                         _token: '{{ csrf_token() }}'
                     },
-                    success: function (res) {
-                        showToast(res.message || 'Order cancelled successfully!', 'succcess');
-                        table.ajax.reload(null, false); // ✅ 'table' variable already defined globally upar
+                    success: function(res) {
+                        showToast(res.message || 'Order cancelled successfully!',
+                            'succcess');
+                        table.ajax.reload(null,
+                            false
+                        ); // ✅ 'table' variable already defined globally upar
                     },
-                    error: function (xhr) {
-                        const msg = xhr.responseJSON?.error || 'Something went wrong.';
+                    error: function(xhr) {
+                        const msg = xhr.responseJSON?.error ||
+                            'Something went wrong.';
                         showToast(msg, 'error');
                     }
                 });
@@ -586,7 +698,7 @@
         });
 
         function getSelectedIds() {
-            return $('#datatables tbody .row-checkbox:checked').map(function () {
+            return $('#datatables tbody .row-checkbox:checked').map(function() {
                 return $(this).data('id');
             }).get();
         }
@@ -598,6 +710,5 @@
             $('#download-selected-btn').prop('disabled', count === 0);
             $('#download-invoices-btn').prop('disabled', count === 0);
         }
-
     </script>
 @endpush

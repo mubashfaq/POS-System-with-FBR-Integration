@@ -24,7 +24,7 @@ const Field = ({ label, required, children, alignStart }) => (
     </div>
 );
 
-export default function Pos({ businessType, draftButtonEnabled }) {
+export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [products, setProducts] = useState([]);
@@ -379,9 +379,13 @@ export default function Pos({ businessType, draftButtonEnabled }) {
     const handleCheckout = async () => {
         const result = await ConfirmBox({
             title: "Are you sure you want to checkout this order?",
-            confirmText: "Send to FBR",
+            subtitle: fbrEnabled
+                ? "Choose how you want to process this order."
+                : "Choose an action for this order.",
+            confirmText: fbrEnabled ? "Send to FBR" : "Create",
             denyText: "Cancel",
             extraButton: { text: "Save only" },
+            fbrEnabled,
         });
 
         if (result === "confirm") {
@@ -389,7 +393,6 @@ export default function Pos({ businessType, draftButtonEnabled }) {
         } else if (result === "extra") {
             orderCreate("draft");
         }
-        // "deny" or null → do nothing
     };
 
     const handleSaveDraft = async () => {
@@ -744,7 +747,7 @@ export default function Pos({ businessType, draftButtonEnabled }) {
                                 </div>
 
                                 {/* Save Draft */}
-                                {draftButtonEnabled && (
+                                {draftButtonEnabled && fbrEnabled && (
                                     <div className="col">
                                         <button
                                             onClick={handleSaveDraft}

@@ -22,6 +22,10 @@ const getPoNumberSetting = (element) => {
     return element?.dataset.poNumber === "1";
 };
 
+const getFbrEnabled = (element) => {
+    return element?.dataset.fbrEnabled === "1";
+};
+
 const getSuperAdminSetting = (element) => {
     return element?.dataset.isSuperAdmin === "1";
 };
@@ -32,12 +36,8 @@ const cartElement = document.getElementById("cart");
 
 if (cartElement) {
     const businessType = cartElement.dataset.businessType;
-
-    const draftButtonEnabled =
-        getDraftButtonSetting(cartElement);
-
-    // const customInvoiceNumberEnabled =
-    //     getCustomInvoiceNumberSetting(cartElement);
+    const draftButtonEnabled = getDraftButtonSetting(cartElement);
+    const fbrEnabled = getFbrEnabled(cartElement);
 
     // const poNumberEnabled =
     //     getPoNumberSetting(cartElement);
@@ -48,7 +48,7 @@ if (cartElement) {
         <Pos
             businessType={businessType}
             draftButtonEnabled={draftButtonEnabled}
-        // customInvoiceNumberEnabled={customInvoiceNumberEnabled}
+            fbrEnabled={fbrEnabled}
         // poNumberEnabled={poNumberEnabled}
         />
     );
@@ -61,15 +61,10 @@ const cartDigitalInvoiceElement =
 
 if (cartDigitalInvoiceElement) {
 
-    const draftButtonEnabled =
-        getDraftButtonSetting(cartDigitalInvoiceElement);
-
-    const customInvoiceNumberEnabled =
-        getCustomInvoiceNumberSetting(cartDigitalInvoiceElement);
-
-    const poNumberEnabled =
-        getPoNumberSetting(cartDigitalInvoiceElement);
-
+    const draftButtonEnabled = getDraftButtonSetting(cartDigitalInvoiceElement);
+    const customInvoiceNumberEnabled = getCustomInvoiceNumberSetting(cartDigitalInvoiceElement);
+    const poNumberEnabled = getPoNumberSetting(cartDigitalInvoiceElement);
+    const fbrEnabled = getFbrEnabled(cartDigitalInvoiceElement);
     const cartRoot = createRoot(cartDigitalInvoiceElement);
 
     cartRoot.render(
@@ -77,6 +72,7 @@ if (cartDigitalInvoiceElement) {
             draftButtonEnabled={draftButtonEnabled}
             customInvoiceNumberEnabled={customInvoiceNumberEnabled}
             poNumberEnabled={poNumberEnabled}
+            fbrEnabled={fbrEnabled}
         />
     );
 }
@@ -89,15 +85,11 @@ const cartDigitalInvoiceNewElement =
 if (cartDigitalInvoiceNewElement) {
 
     const draftButtonEnabled = getDraftButtonSetting(cartDigitalInvoiceNewElement);
-
     const customFieldButtonEnabled = getCustomFieldButtonSetting(cartDigitalInvoiceNewElement);
-
     const customInvoiceNumberEnabled = getCustomInvoiceNumberSetting(cartDigitalInvoiceNewElement);
-
     const poNumberEnabled = getPoNumberSetting(cartDigitalInvoiceNewElement);
-
+    const fbrEnabled = getFbrEnabled(cartDigitalInvoiceNewElement);
     const isSuperAdmin = getSuperAdminSetting(cartDigitalInvoiceNewElement);
-
     const cartRoot = createRoot(cartDigitalInvoiceNewElement);
 
     cartRoot.render(
@@ -106,6 +98,7 @@ if (cartDigitalInvoiceNewElement) {
             customFieldButtonEnabled={customFieldButtonEnabled}
             customInvoiceNumberEnabled={customInvoiceNumberEnabled}
             poNumberEnabled={poNumberEnabled}
+            fbrEnabled={fbrEnabled}
             isSuperAdmin={isSuperAdmin}
         />
     );
