@@ -560,14 +560,14 @@ export default function Pos({
                         toast.success("Order completed successfully!", { duration: 4000 });
                     } else {
                         const errorMessage = extractFbrErrorMessage(fbr);
-                        toast.error(errorMessage || "Order Not Created", { duration: 9000 });
+                        toast.error(errorMessage || "Order Could Not Be Posted On FBR Right Now.", { duration: 9000 });
                     }
                 }
 
                 const orderId = res?.data?.order?.id;
 
                 if (!orderId) {
-                    toast.error("Order ID not found, cannot redirect.");
+                    // toast.error("Order ID not found, cannot redirect.");
                     return;
                 } else {
                     // FBR enabled → show invoice
@@ -579,7 +579,7 @@ export default function Pos({
             .catch((err) => {
                 console.error(err);
                 const backendMsg = err?.response?.data?.error_message || err?.response?.data?.error;
-                toast.error(backendMsg || "Order creation failed.", { duration: 6000 });
+                toast.error(backendMsg || "Order Could Not Be Posted On FBR Right Now.", { duration: 6000 });
             })
             .finally(() => {
                 setIsSubmitting(false); // enable button again
