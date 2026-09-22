@@ -1983,15 +1983,18 @@ class OrderController extends Controller
 
 
                 DB::commit();
+
+                PosCart::where('user_id', auth()->id())->delete();
+
                 try {
                     $post_api_response = Http::withOptions([
-                        'timeout' => 2420,
-                        'connect_timeout' => 2420,
+                        'timeout' => 60,
+                        'connect_timeout' => 60,
                     ])->withHeaders([
                                 'Authorization' => "Bearer $token",
                                 'Content-Type' => 'application/json',
-                                'Accept-Encoding' => 'gzip, deflate, br',
-                                'Accept' => '*/*'
+                                // 'Accept-Encoding' => 'gzip, deflate, br',
+                                'Accept' => 'application/json',
                             ])->withBody(json_encode($fbrPayload), 'application/json')
                         ->post("https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata$tokenUrlEnd");
                 } catch (\Illuminate\Http\Client\ConnectionException $e) {
@@ -2012,8 +2015,12 @@ class OrderController extends Controller
 
                 $postResponseJson = $post_api_response->json();
                 $fbr_invoice_number = data_get($postResponseJson, 'invoiceNumber');
-                $postErrorCode = data_get($postResponseJson, 'validationResponse.errorCode') ?? data_get($postResponseJson, 'errorCode');
-                $postErrorMessage = data_get($postResponseJson, 'validationResponse.error') ?? data_get($postResponseJson, 'error');
+                $postErrorCode = data_get($postResponseJson, 'validationResponse.errorCode') ?: data_get($postResponseJson, 'errorCode')
+                    ?: data_get($postResponseJson, 'validationResponse.invoiceStatuses.0.errorCode');
+                $postErrorMessage = data_get($postResponseJson, 'validationResponse.error') ?: data_get($postResponseJson, 'error')
+                    ?: data_get($postResponseJson, 'validationResponse.invoiceStatuses.0.error');
+
+
 
                 Log::info('FBR Payload', [
                     'order_id' => $order->id ?? null,
@@ -2049,8 +2056,6 @@ class OrderController extends Controller
                         'error_message' => $postErrorMessage ?? 'FBR post call failed with no invoice number returned',
                     ]);
 
-                    PosCart::where('user_id', auth()->id())->delete();
-
                     return response()->json([
                         'error' => 'Order was validated and saved, but FBR post failed. It will need to be retried.',
                         'error_code' => $postErrorCode,
@@ -2064,8 +2069,6 @@ class OrderController extends Controller
                     'fbr_invoice_no' => $fbr_invoice_number,
                     'order_stage' => 'submitted',
                 ]);
-
-                PosCart::where('user_id', auth()->id())->delete();
 
                 return response()->json([
                     'message' => 'Order completed successfully!',
