@@ -1554,6 +1554,8 @@ class OrderController extends Controller
             'po_number' => $request->po_number ?? null,
             'invoice_environment' => $invoiceEnvironment,
             'fbr_integration_enabled' => $isFbrIntegrationEnabled,
+            'order_stage' => 'draft',
+
         ]);
 
         $totalAmountOrder = 0;
@@ -2061,10 +2063,6 @@ class OrderController extends Controller
                 ], 200);
             }
         } else {
-
-            Order::where('id', $order->id)->update([
-                'order_stage' => 'draft',
-            ]);
 
             DB::commit();
 
