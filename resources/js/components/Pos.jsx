@@ -556,7 +556,7 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
                 const orderId = res?.data?.order?.id;
 
                 if (!orderId) {
-                    toast.error("Order ID not found, cannot redirect.");
+                    // toast.error("Order ID not found, cannot redirect.");
                     return;
                 } else {
                     // FBR enabled → show invoice
@@ -567,7 +567,7 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
             })
             .catch((err) => {
                 console.error(err);
-                toast.error("Order creation failed.");
+                toast.error("Order Could Not Be Posted On FBR Right Now.");
             })
             .finally(() => {
                 setIsSubmitting(false); // enable button again
