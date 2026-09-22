@@ -706,6 +706,8 @@ export default function PosDigital({
                 console.error(err);
                 const backendMsg = err?.response?.data?.error_message || err?.response?.data?.error;
                 toast.error(backendMsg || "Order Could Not Be Posted On FBR  Right Now.", { duration: 6000 });
+                setCartUpdated((prev) => !prev);
+                setProductUpdated((prev) => !prev);
             })
             .finally(() => {
                 setIsSubmitting(false);
