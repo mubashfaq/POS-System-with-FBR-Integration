@@ -2,22 +2,17 @@
 @section('title', 'New Digital Invoice')
 @section('content')
     <div id="cartDigitalInvoiceNew" data-draft-button="{{ $draftButtonEnabled ? '1' : '0' }}"
-        data-custom-field-button="{{ $customFieldButton ? '1' : '0' }}"
+        data-fbr-enabled="{{ $fbrEnabled ? '1' : '0' }}" data-custom-field-button="{{ $customFieldButton ? '1' : '0' }}"
         data-is-super-admin="{{ auth()->user()->hasRole('super_admin') ? 1 : 0 }}"
         data-custom-invoice-number="{{ $invoiceNumber ? '1' : '0' }}" data-po-number="{{ $poNumber ? '1' : '0' }}"></div>
     @push('style')
         <style>
             .products-card-container {
                 max-height: 400px;
-                /* Set a fixed height for the container */
                 overflow-y: auto;
-                /* Enable vertical scrolling */
                 overflow-x: hidden;
-                /* Hide horizontal scrolling */
                 border: 1px solid #ddd;
-                /* Optional: add a border for better visibility */
                 padding: 10px;
-                /* Optional: add some padding */
             }
 
             .product-name {

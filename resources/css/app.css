@@ -1,42 +1,117 @@
-.my-actions {
+.checkout-popup {
+    border-radius: 14px !important;
+    padding: 24px !important;
+    width: 472px !important;
+    max-width: 95vw !important;
+}
+
+.checkout-content {
+    text-align: center;
+}
+
+/* Top icon */
+.checkout-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 12px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background: #fff3e8;
+    color: #fd6802;
+
+    font-size: 21px;
+}
+
+/* Title */
+.checkout-title {
+    max-width: 350px;
+    margin: 0 auto 6px;
+
+    font-size: 20px !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+
+    color: #333;
+}
+
+/* Subtitle */
+.checkout-subtitle {
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.4;
+
+    color: #777;
+
+    margin-bottom: 18px;
+}
+
+/* Buttons */
+.checkout-actions {
     display: flex;
     justify-content: center;
-    gap: 10px;
-    margin-top: 18px;
+    align-items: center;
+    gap: 9px;
+
+    margin-top: 0;
+    flex-wrap: nowrap;
 }
 
 .cb-btn {
     border: none;
-    border-radius: 6px;
-    padding: 9px 18px;
-    font-size: 14px;
-    font-weight: 500;
+    border-radius: 7px;
+
+    padding: 9px 15px;
+    min-width: 105px;
+
+    font-size: 13px;
+    font-weight: 600;
+
     color: #fff;
+
     cursor: pointer;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+
+    white-space: nowrap;
+
     transition: all 0.2s ease;
-}
-
-.cb-confirm {
-    background: #28a745;
-}
-
-.cb-extra {
-    background: #7066e0;
-}
-
-.cb-deny {
-    background: #dc3545;
 }
 
 .cb-btn:hover {
     transform: translateY(-1px);
-    filter: brightness(0.92);
+    filter: brightness(0.94);
 }
 
 .cb-btn:active {
     transform: translateY(0);
 }
 
-.confirm-box-title {
-    font-size: 1.8em !important;
+/* Send to FBR / Create */
+.cb-confirm {
+    background: #fd6802;
+    box-shadow: 0 3px 8px rgba(253, 104, 2, 0.22);
+}
+
+/* Save only */
+.cb-extra {
+    background: #7066e0;
+    box-shadow: 0 3px 8px rgba(112, 102, 224, 0.20);
+}
+
+/* Cancel */
+.cb-deny {
+    background: #dc3545;
+    box-shadow: 0 3px 8px rgba(220, 53, 69, 0.20);
+}
+
+.cb-btn i {
+    font-size: 13px;
 }
