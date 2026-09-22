@@ -513,7 +513,13 @@ export default function PosDigital({
     async function cartEmpty() {
         if (total <= 0) return;
 
-        const result = await ConfirmBox({ title: "Are you sure you want to delete Cart?" });
+        const result = await ConfirmBox({
+            title: "Are you sure you want to clear the cart?",
+            subtitle: "All products will be removed from the cart.",
+            confirmText: "Clear Cart",
+            denyText: "Cancel",
+            icon: "trash",
+        });
         if (result !== "confirm") return;
 
         axios
@@ -550,7 +556,13 @@ export default function PosDigital({
     };
 
     const handleSaveDraft = async () => {
-        const result = await ConfirmBox({ title: "Are you sure you want to save this order as a draft?" });
+        const result = await ConfirmBox({
+            title: "Are you sure you want to save this order as a draft?",
+            subtitle: "The order will be saved and can be completed later.",
+            confirmText: "Save Draft",
+            denyText: "Cancel",
+            icon: "save",
+        });
         if (result !== "confirm") return;
         orderCreate("draft");
     };
