@@ -10,34 +10,91 @@ export function ConfirmBox({
     extraButton,
     fbrEnabled
 }) {
+    const modalIcon = icon || "shopping-cart";
+
+    // 2-button mode: Yes | No
     if (!extraButton) {
-        return Swal.fire({
-            title,
-            text: subtitle,
-            icon,
-            showDenyButton: true,
-            confirmButtonText: confirmText,
-            denyButtonText: denyText,
+        return new Promise((resolve) => {
+            let resolved = false;
 
-            customClass: {
-                popup: "checkout-popup",
-                title: "checkout-title",
-                htmlContainer: "checkout-subtitle",
-                actions: "checkout-actions",
-                confirmButton: "checkout-confirm",
-                denyButton: "checkout-deny",
-            },
+            const finish = (value) => {
+                if (resolved) return;
 
-            buttonsStyling: false,
-        }).then((result) =>
-            result.isConfirmed
-                ? "confirm"
-                : result.isDenied
-                    ? "deny"
-                    : null
-        );
+                resolved = true;
+                Swal.close();
+                resolve(value);
+            };
+
+            Swal.fire({
+                html: `
+                    <div class="checkout-content">
+
+                        <div class="checkout-icon">
+                            <i class="fas fa-${modalIcon}"></i>
+                        </div>
+
+                        <div class="checkout-title">
+                            ${title}
+                        </div>
+
+                        <div class="checkout-subtitle">
+                            ${subtitle}
+                        </div>
+
+                        <div class="checkout-actions">
+
+                            <button id="cb-confirm" class="cb-btn cb-confirm">
+                                <i class="fas fa-check"></i>
+                                <span>${confirmText}</span>
+                            </button>
+
+                            <button id="cb-deny" class="cb-btn cb-deny">
+                                <i class="fas fa-times"></i>
+                                <span>${denyText}</span>
+                            </button>
+
+                        </div>
+
+                    </div>
+                `,
+
+                showConfirmButton: false,
+                showDenyButton: false,
+                showCancelButton: false,
+
+                allowOutsideClick: false,
+
+                customClass: {
+                    popup: "checkout-popup",
+                },
+
+                didOpen: () => {
+                    const popup = Swal.getPopup();
+
+                    popup
+                        .querySelector("#cb-confirm")
+                        .addEventListener("click", () =>
+                            finish("confirm")
+                        );
+
+                    popup
+                        .querySelector("#cb-deny")
+                        .addEventListener("click", () =>
+                            finish("deny")
+                        );
+                },
+
+                willClose: () => {
+                    if (!resolved) {
+                        resolved = true;
+                        resolve(null);
+                    }
+                },
+            });
+        });
     }
 
+    // 3-button mode: Yes | Extra | No
     const extraButtonHtml = fbrEnabled
         ? `
             <button id="cb-extra" class="cb-btn cb-extra">
@@ -67,7 +124,7 @@ export function ConfirmBox({
                 <div class="checkout-content">
 
                     <div class="checkout-icon">
-                        <i class="fas fa-shopping-cart"></i>
+                        <i class="fas fa-${modalIcon}"></i>
                     </div>
 
                     <div class="checkout-title">

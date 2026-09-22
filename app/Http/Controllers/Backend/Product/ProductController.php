@@ -554,7 +554,8 @@ class ProductController extends Controller
 
     public function checkUOMUsingHsCode(){
         // $token = env('FBR_TOKEN');
-        $token = FbrTokenService::getToken();
+        $tokens = FbrTokenService::getToken();
+        $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
 
         try {
             $response = Http::withHeaders([
@@ -589,7 +590,8 @@ class ProductController extends Controller
     public function getFbrHscodes()
     {
         // $token = env('FBR_TOKEN');
-        $token = FbrTokenService::getToken();
+        $tokens = FbrTokenService::getToken();
+        $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
         try {
             $response = Http::withHeaders([
                'Authorization' => "Bearer $token",
@@ -620,7 +622,8 @@ class ProductController extends Controller
     public function getSroItem()
     {
         // $token = env('FBR_TOKEN');
-        $token = FbrTokenService::getToken();
+        $tokens = FbrTokenService::getToken();
+        $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
         try {
             $response = Http::withHeaders([
                'Authorization' => "Bearer $token",
@@ -652,7 +655,8 @@ class ProductController extends Controller
     public function getFbrSaleTypes()
     {
         // $token = env('FBR_TOKEN');
-        $token = FbrTokenService::getToken();
+        $tokens = FbrTokenService::getToken();
+        $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
         try {
             $response = Http::withHeaders([
                'Authorization' => "Bearer $token",
@@ -705,7 +709,8 @@ class ProductController extends Controller
     public function getFbrUOM()
     {
         // $token = env('FBR_TOKEN');
-        $token = FbrTokenService::getToken();
+        $tokens = FbrTokenService::getToken();
+        $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
 
         try {
             $response = Http::withHeaders([
@@ -737,7 +742,8 @@ class ProductController extends Controller
      public function getTransTypeCode()
     {
         // $token = env('FBR_TOKEN');
-        $token = FbrTokenService::getToken();
+        $tokens = FbrTokenService::getToken();
+        $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
 
         try {
             $response = Http::withHeaders([
@@ -838,7 +844,8 @@ class ProductController extends Controller
         if ($hs) {
 
         //    $token = env('FBR_TOKEN');
-        $token = FbrTokenService::getToken();
+        $tokens = FbrTokenService::getToken();
+        $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
 
             try {
                 $response = Http::withHeaders([
@@ -871,7 +878,8 @@ class ProductController extends Controller
         $saleTypeId = intval($st->transactioN_TYPE_ID);
        
         // $token = env('FBR_TOKEN');
-        $token = FbrTokenService::getToken();
+        $tokens = FbrTokenService::getToken();
+        $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
 
         try {
             $response = Http::withHeaders([
@@ -908,7 +916,8 @@ class ProductController extends Controller
 
        
         // $token = env('FBR_TOKEN');
-        $token = FbrTokenService::getToken();
+        $tokens = FbrTokenService::getToken();
+        $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
 
         try {
             $response = Http::withHeaders([
@@ -943,7 +952,8 @@ class ProductController extends Controller
 
        
         // $token = env('FBR_TOKEN');  
-        $token = FbrTokenService::getToken();
+        $tokens = FbrTokenService::getToken();
+        $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
         try {
             $response = Http::withHeaders([
                'Authorization' => "Bearer $token",
