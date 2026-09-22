@@ -2,7 +2,8 @@
 @section('title', 'Digital Invoice')
 @section('content')
     <div id="cartDigitalInvoice" data-draft-button="{{ $draftButtonEnabled ? '1' : '0' }}"
-        data-custom-invoice-number="{{ $invoiceNumber ? '1' : '0' }}" data-po-number="{{ $poNumber ? '1' : '0' }}"></div>
+        data-fbr-enabled="{{ $fbrEnabled ? '1' : '0' }}" data-custom-invoice-number="{{ $invoiceNumber ? '1' : '0' }}"
+        data-po-number="{{ $poNumber ? '1' : '0' }}"></div>
     @push('style')
         <style>
             .products-card-container {

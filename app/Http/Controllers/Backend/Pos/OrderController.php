@@ -265,9 +265,7 @@ class OrderController extends Controller
             /* Action Buttons */
             $datatable->addColumn('action', function ($data) use ($business, $fbr) {
 
-                $isDraft =
-                    $data->order_stage === 'draft' &&
-                    !$data->is_cancelled;
+                $isDraft = $data->order_stage === 'draft' && !$data->is_cancelled;
 
                 $buttons = [];
 
@@ -283,10 +281,7 @@ class OrderController extends Controller
                 */
                 if ($fbr && $isDraft) {
 
-                    $submitRoute = $this->resolveSubmitRoute(
-                        $business,
-                        $data
-                    );
+                    $submitRoute = $this->resolveSubmitRoute($business, $data);
 
                     $buttons[] = '
                         <button
@@ -1766,7 +1761,6 @@ class OrderController extends Controller
             'total' => round($total, 2),
             'due' => round($due, 2),
             'status' => round($due, 2) <= 0,
-            'order_stage' => $order_stage,
             'type' => 'digital_invoice',
         ]);
 
@@ -1868,6 +1862,10 @@ class OrderController extends Controller
 
 
             if (!$isFbrIntegrationEnabled) {
+
+                Order::where('id', $order->id)->update([
+                    'order_stage' => 'submitted',
+                ]);
 
                 DB::commit();
 
@@ -2050,6 +2048,7 @@ class OrderController extends Controller
                 // ---- only reached on real success ----
                 Order::where('id', $order->id)->update([
                     'fbr_invoice_no' => $fbr_invoice_number,
+                    'order_stage' => 'submitted',
                 ]);
 
                 PosCart::where('user_id', auth()->id())->delete();
@@ -2062,6 +2061,10 @@ class OrderController extends Controller
                 ], 200);
             }
         } else {
+
+            Order::where('id', $order->id)->update([
+                'order_stage' => 'draft',
+            ]);
 
             DB::commit();
 

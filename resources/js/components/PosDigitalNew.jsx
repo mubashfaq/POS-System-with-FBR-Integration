@@ -44,6 +44,7 @@ export default function PosDigital({
     customFieldButtonEnabled,
     customInvoiceNumberEnabled,
     poNumberEnabled,
+    fbrEnabled,
     isSuperAdmin, }) {
     // ── Submission guard ───────────────────────────────────────────────────
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -531,9 +532,13 @@ export default function PosDigital({
     const handleCheckout = async () => {
         const result = await ConfirmBox({
             title: "Are you sure you want to checkout this order?",
-            confirmText: "Send to FBR",
+            subtitle: fbrEnabled
+                ? "Choose how you want to process this order."
+                : "Choose an action for this order.",
+            confirmText: fbrEnabled ? "Send to FBR" : "Create",
             denyText: "Cancel",
             extraButton: { text: "Save only" },
+            fbrEnabled,
         });
 
         if (result === "confirm") {
@@ -983,7 +988,7 @@ export default function PosDigital({
                     </div>
 
                     {/* Save Draft */}
-                    {draftButtonEnabled && (
+                    {draftButtonEnabled && fbrEnabled && (
                         <div className="col-6 col-md-3">
                             <button
                                 onClick={handleSaveDraft}
