@@ -677,17 +677,19 @@ export default function PosDigital({
                 setProductUpdated(!productUpdated);
                 const fbr = res?.data?.fbr_api_response;
 
-                if (!fbrEnabled) {
-                    toast.success(
-                        res?.data?.message || "Order completed successfully!",
-                        { duration: 4000 },
-                    );
-                } else {
+                // Draft order: don't check FBR response
+                if (orderStage === "draft") {
+                    toast.success("Order saved as draft!", { duration: 4000 });
+                }
+                // FBR disabled
+                else if (!fbrEnabled) {
+                    toast.success(res?.data?.message || "Order completed successfully!", { duration: 4000 });
+                }
+                // FBR enabled and submitted
+                else {
                     const fbrValidation = fbr?.validationResponse;
                     if (fbrValidation?.statusCode === "00") {
-                        toast.success("Order completed successfully!", {
-                            duration: 4000,
-                        });
+                        toast.success("Order completed successfully!", { duration: 4000 });
                     } else {
                         const errorMessage = extractFbrErrorMessage(fbr);
                         toast.error(errorMessage || "Order Could Not Be Posted On FBR Right Now.", { duration: 9000 });
