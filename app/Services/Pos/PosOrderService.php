@@ -39,7 +39,9 @@ class PosOrderService
         return DB::transaction(function () use ($data, $business, $customer, $enforce, $stage, $discount, $paid, $userId) {
 
             // Lock products up-front (also prevents duplicate-lock ordering issues)
-            $productIds = collect($data['items'])->pluck('product_id')->unique()->sort()->values();
+            $productIds = collect($data['items'])
+                ->flatMap(fn($i) => array_merge([$i['product_id']], array_column($i['accessories'] ?? [], 'product_id')))
+                ->unique()->sort()->values();
             $products = Product::where('business_id', $business->id)
                 ->whereIn('id', $productIds)
                 ->orderBy('id')
@@ -55,6 +57,7 @@ class PosOrderService
                 ->firstOrCreate(['business_id' => $business->id], ['last_invoice_number' => 0]);
             $counter->increment('last_invoice_number');
 
+            $isFbrEnabled =$data['is_fbr_enabled'] ?? FbrTokenService::isIntegrationEnabled($business->id);
             $env = FbrTokenService::getURLEnvironment($business->id);
 
             $order = Order::create([
@@ -65,7 +68,7 @@ class PosOrderService
                 'order_date' => $data['order_date'],
                 'invoice_environment' => $env,
                 'POSID' => FbrTokenService::getPOSID($business->id),
-                'fbr_integration_enabled' => 1,
+                'fbr_integration_enabled' => $isFbrEnabled,
             ]);
 
             $lines = [];
@@ -81,12 +84,12 @@ class PosOrderService
                     $customer->customer_tax_type
                 );
 
-                $allocations = $this->fifo->consume($product, $qty, $enforce);
+                $allocations = $this->fifo->consume($product, $qty, $enforce, $item['purchase_item_id'] ?? null);
 
                 // weighted average cost of the batches used
                 $cost = collect($allocations)->sum(fn($a) => $a['qty'] * $a['cost']) / max($qty, 0.0001);
 
-                $order->products()->create([
+                $orderProduct = $order->products()->create([
                     'quantity' => $qty,
                     'hsCode' => $product->hsCode ?? null,
                     'uom' => $product->uom ?? null,
@@ -100,9 +103,33 @@ class PosOrderService
                     'further_tax' => 0,
                     'total' => $calc['total'],
                     'product_id' => $product->id,
-                    'purchase_item_id' => $allocations[0]['purchase_item_id'] ?? null, // oldest batch used
+                    'purchase_item_id' => $item['purchase_item_id'] ?? ($allocations[0]['purchase_item_id'] ?? null),
                     'is_accessory' => false,
                 ]);
+
+                foreach ($item['accessories'] ?? [] as $acc) {
+                    $accProduct = $products[$acc['product_id']];
+                    $accQty = (float) $acc['qty'] * $qty;   // scaled by parent qty, same as web
+                    $accAlloc = $this->fifo->consume($accProduct, $accQty, $enforce, $acc['purchase_item_id'] ?? null);
+                    $accCost = collect($accAlloc)->sum(fn($a) => $a['qty'] * $a['cost']) / max($accQty, 0.0001);
+
+                    $order->products()->create([
+                        'quantity' => $accQty,
+                        'price' => 0,
+                        'purchase_price' => round($accCost, 2),
+                        'sub_total' => 0,
+                        'discount' => 0,
+                        'tax_rate' => 0,
+                        'customer_tax' => 0,
+                        'sale_tax' => 0,
+                        'further_tax' => 0,
+                        'total' => 0,
+                        'product_id' => $accProduct->id,
+                        'purchase_item_id' => $acc['purchase_item_id'] ?? ($accAlloc[0]['purchase_item_id'] ?? null),
+                        'is_accessory' => true,
+                        'parent_order_product_id' => $orderProduct->id,
+                    ]);
+                }
 
                 $totals['amount'] += $calc['total'];
                 $totals['sale_tax'] += $calc['sale_tax'];
@@ -124,27 +151,27 @@ class PosOrderService
                 'total' => round($total, 2),
                 'due' => $due,
                 'status' => $due <= 0,
-                'order_stage' => $stage,
+                'order_stage' => 'draft',
                 'type' => 'pos_invoice',
             ]);
 
             $fbrResult = null;
+            if ($stage === 'submitted' && $isFbrEnabled) {
+                $tokens = FbrTokenService::getToken($business->id);
+                $token = is_array($tokens) ? $tokens['pos_token'] : $tokens;
+                $payload = $this->fbr->buildPayload($order, $customer, $lines);
 
-            $tokens = FbrTokenService::getToken($business->id);
-            $token = is_array($tokens) ? $tokens['pos_token'] : $tokens;
-            $payload = $this->fbr->buildPayload($order, $customer, $lines);
+                // throws FbrRejectedException -> transaction rolls back automatically
+                $fbrResult = $this->fbr->send($business, $payload, $env, $token);
+                $fbrResult['payload'] = $payload;
 
-            Log::info('payload', $payload);
-            // throws FbrRejectedException -> transaction rolls back automatically
-            $fbrResult = $this->fbr->send($business, $payload, $env, $token);
-
-            $order->update([
-                'fbr_invoice_no' => $fbrResult['invoice_number'],
-                'api_status' => $fbrResult['http_status'],
-                'api_message' => 1,
-                'order_stage' => 'submitted',
-            ]);
-
+                $order->update([
+                    'fbr_invoice_no' => $fbrResult['invoice_number'],
+                    'api_status' => $fbrResult['http_status'],
+                    'api_message' => 1,
+                    'order_stage' => 'submitted',
+                ]);
+            }
             return ['order' => $order->fresh('products'), 'fbr' => $fbrResult];
         });
     }
