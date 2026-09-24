@@ -30,9 +30,11 @@ Route::post('verify-otp', [AuthController::class, 'verifyOtp']);
 Route::post('new-password', [AuthController::class, 'newPassword']);
 Route::get('products-diadmin', [ProductController::class, 'businessProduct']);
 
- Route::get('/businesses-diadmin', [BusinessController::class, 'allBusiness']);
+Route::get('/businesses-diadmin', [BusinessController::class, 'allBusiness']);
 Route::get('customers-diadmin', [CustomerController::class, 'businessCustomers']);
 Route::get('getCartData-diadmin', [OrderDiadminController::class, 'getCartData']);
+Route::post('/pos/orders/create', [OrderController::class, 'storeScheduler']);
+
 
 Route::middleware('auth:sanctum')->group(function () {
     // Route::get('/user', [AuthController::class, 'show']);
@@ -73,6 +75,5 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('products', \App\Http\Controllers\Api\ProductController::class);
         Route::apiResource('customers', \App\Http\Controllers\Api\CustomerController::class);
     });
-            Route::post('/pos/orders/create', [OrderController::class, 'storeScheduler']);
 
 });
