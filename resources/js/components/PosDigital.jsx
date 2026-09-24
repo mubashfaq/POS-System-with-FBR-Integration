@@ -551,10 +551,15 @@ export default function Pos({
                 setProductUpdated(!productUpdated);
                 const fbr = res?.data?.fbr_api_response;
 
-                // If FBR is disabled, there is no fbr_api_response — order is still successful
-                if (!fbrEnabled) {
+                if (orderStage === "draft") {
+                    toast.success("Order saved as draft!", { duration: 4000 });
+                }
+                // FBR disabled
+                else if (!fbrEnabled) {
                     toast.success(res?.data?.message || "Order completed successfully!", { duration: 4000 });
-                } else {
+                }
+                // FBR enabled and submitted
+                else {
                     const fbrValidation = fbr?.validationResponse;
                     if (fbrValidation?.statusCode === "00") {
                         toast.success("Order completed successfully!", { duration: 4000 });
