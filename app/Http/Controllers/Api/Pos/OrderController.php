@@ -8,26 +8,22 @@ use App\Models\Business;
 use App\Models\BusinessCounter;
 use App\Models\Customer;
 use App\Models\Order;
-use App\Models\OrderLog;
-use App\Models\OrderProduct;
-use App\Models\OrderTransaction;
-use App\Models\PosCart;
 use App\Models\Product;
-use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Yajra\DataTables\DataTables;
 use App\Services\FbrTokenService;
 use App\Services\DuplicateOrderService;
+use App\Exceptions\{FbrRejectedException, InsufficientStockException};
+use App\Services\Pos\PosOrderService;
 
 class OrderController extends Controller
 {
     protected $duplicateOrderService;
 
-    public function __construct(DuplicateOrderService $duplicateOrderService)
+    public function __construct(DuplicateOrderService $duplicateOrderService, private PosOrderService $orders)
     {
         $this->duplicateOrderService = $duplicateOrderService;
     }
@@ -162,6 +158,52 @@ class OrderController extends Controller
     }
 
 // <<<<<<<<<<<<<<<<<<<<< first sennd fbi ten save in  >>>>>>>>>>>>>>>>>>>>>
+
+
+    public function storeScheduler(Request $request)
+    {
+        $data = $request->validate([
+            'business_id' => ['required', 'integer', 'exists:businesses,id'],
+            'customer_id' => ['required', 'integer', 'exists:customers,id'],
+            'order_date' => ['required', 'date_format:Y-m-d'],
+            'order_stage' => ['nullable', 'in:draft,submitted'],
+            'order_discount' => ['nullable', 'numeric', 'min:0'],
+            'paid' => ['nullable', 'numeric', 'min:0'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
+            'items.*.qty' => ['required', 'numeric', 'gt:0'],
+            'items.*.price' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        // IMPORTANT: make sure this user is allowed to use this business
+        abort_unless(
+            $request->user()->businesses()->whereKey($data['business_id'])->exists(),
+            403,
+            'You do not have access to this business'
+        );
+
+        try {
+            $result = $this->orders->create($data, $request->user()->id);
+        } catch (InsufficientStockException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        } catch (FbrRejectedException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+                'error_code' => $e->fbrCode,
+                'fbr_api_response' => $e->fbrResponse,
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json(['error' => 'Something went wrong'], 500);
+        }
+
+        return response()->json([
+            'message' => 'Order completed successfully',
+            'order' => $result['order'],
+            'fbr_invoice_no' => $result['fbr']['invoice_number'] ?? null,
+            'fbr_api_response' => $result['fbr']['raw'] ?? null,
+        ], 201);
+    }
 
 public function store(Request $request)
 {
