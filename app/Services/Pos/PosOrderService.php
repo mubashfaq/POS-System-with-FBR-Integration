@@ -2,7 +2,7 @@
 // app/Services/Pos/PosOrderService.php
 namespace App\Services\Pos;
 
-use App\Models\{Business, BusinessCounter, Customer, Order, Product, quantity_validation};
+use App\Models\{Business, BusinessCounter, Customer, Order, Product, quantity_validation, OrderLog};
 use App\Services\Fbr\FbrInvoiceService;
 use App\Services\FbrTokenService;
 use Illuminate\Support\Facades\DB;
@@ -57,7 +57,7 @@ class PosOrderService
                 ->firstOrCreate(['business_id' => $business->id], ['last_invoice_number' => 0]);
             $counter->increment('last_invoice_number');
 
-            $isFbrEnabled =$data['is_fbr_enabled'] ?? FbrTokenService::isIntegrationEnabled($business->id);
+            $isFbrEnabled = $data['is_fbr_enabled'] ?? FbrTokenService::isIntegrationEnabled($business->id);
             $env = FbrTokenService::getURLEnvironment($business->id);
 
             $order = Order::create([
@@ -170,6 +170,16 @@ class PosOrderService
                     'api_status' => $fbrResult['http_status'],
                     'api_message' => 1,
                     'order_stage' => 'submitted',
+                ]);
+
+                OrderLog::create([
+                    'order_id' => $order->id,
+                    'user_id' => $userId,
+                    'business_id' => $business->id,
+                    'request_payload' => $payload,
+                    'response' => $fbrResult['raw']['Response'] ?? null,
+                    'status_code' => $fbrResult['raw']['Code'] ?? null,
+                    'success' => true,
                 ]);
             }
             return ['order' => $order->fresh('products'), 'fbr' => $fbrResult];

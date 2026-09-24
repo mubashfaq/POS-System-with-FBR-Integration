@@ -60,7 +60,8 @@ class FbrInvoiceService
                 ->post($url, $payload);
         } catch (\Throwable $e) {
             Log::channel('fbr')->error('FBR request failed', ['error' => $e->getMessage(), 'payload' => $payload]);
-            throw new FbrRejectedException('FBR request failed: ' . $e->getMessage());
+            
+            throw new FbrRejectedException('FBR request failed: ' . $e->getMessage(), null, [], $payload);
         }
 
         $json = $response->json() ?? [];
@@ -72,10 +73,20 @@ class FbrInvoiceService
         ]);
 
         if (($json['Response'] ?? null) !== 'Invoice received successfully') {
+            $errorCode = $json['Code']
+                ?? $json['fault']['code']
+                ?? null;
+
+            $errorMessage = $json['Response']
+                ?? $json['fault']['message']
+                ?? $json['fault']['description']
+                ?? 'Unexpected FBR response';
+
             throw new FbrRejectedException(
-                $json['Response'] ?? 'Unexpected FBR response',
-                $json['Code'] ?? null,
-                $json
+                $errorMessage,
+                $errorCode !== null ? (string) $errorCode : null,
+                $json,
+                $payload
             );
         }
 

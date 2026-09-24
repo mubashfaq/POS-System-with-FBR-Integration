@@ -8,6 +8,7 @@ use App\Models\Business;
 use App\Models\BusinessCounter;
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\OrderLog;
 use App\Models\Product;
 use App\Models\PurchaseItem;
 use Illuminate\Http\Request;
@@ -192,6 +193,15 @@ class OrderController extends Controller
         } catch (InsufficientStockException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         } catch (FbrRejectedException $e) {
+            OrderLog::create([
+                'user_id' => $userId,
+                'business_id' => $data['business_id'],
+                'request_payload' => $e->payload,
+                'response' => $e->fbrResponse,
+                'error_code' => $e->fbrCode,
+                'error_message' => $e->getMessage(),
+                'success' => false,
+             ]);
             return response()->json([
                 'error' => $e->getMessage(),
                 'error_code' => $e->fbrCode,
