@@ -7,9 +7,9 @@ use App\Models\Business;
 
 class FbrTokenService
 {
-    public static function getSettings()
+    public static function getSettings($businessId = null)
     {
-        $businessId = session('business_id');
+        $businessId = $businessId ?? session('business_id');
 
         return DB::table('fbr_tokens')
             ->where('business_id', $businessId)
@@ -17,9 +17,9 @@ class FbrTokenService
             ->first();
     }
 
-    public static function isIntegrationEnabled()
+    public static function isIntegrationEnabled($businessId = null)
     {
-        $settings = self::getSettings();
+        $settings = self::getSettings($businessId);
 
         if (!$settings) {
             return false;
@@ -28,15 +28,15 @@ class FbrTokenService
         return $settings->fbr_integration === 'enabled';
     }
 
-    public static function getToken()
+    public static function getToken($businessId = null)
     {
-        $settings = self::getSettings();
+        $settings = self::getSettings($businessId);
 
-        if (!$settings || $settings->fbr_integration !== 'enabled') {
-            return null;
-        }
+        // if (!$settings || $settings->fbr_integration !== 'enabled') {
+        //     return null;
+        // }
 
-        $businessId = session('business_id');
+        $businessId = $businessId ?? session('business_id');
         $business = Business::find($businessId);
 
         if (!$business) {
@@ -66,16 +66,16 @@ class FbrTokenService
         }
     }
 
-    public static function getPOSID()
+    public static function getPOSID($businessId = null)
     {
-        $settings = self::getSettings();
+        $settings = self::getSettings($businessId);
 
         return $settings->environment == 1 ? $settings->POSID_production : $settings->POSID_sandbox;
     }
 
-    public static function getURLEnvironment()
+    public static function getURLEnvironment($businessId = null)
     {
-        $settings = self::getSettings();
+        $settings = self::getSettings($businessId);
 
         // if (!$settings || $settings->fbr_integration !== 'enabled') {
         //     return null;
@@ -84,9 +84,9 @@ class FbrTokenService
         return $settings->environment == 1 ? 'production' : 'sandbox';
     }
 
-    public static function getTokenURL()
+    public static function getTokenURL($businessId = null)
     {
-        $settings = self::getSettings();
+        $settings = self::getSettings($businessId);
 
         if (!$settings || $settings->fbr_integration !== 'enabled') {
             return null;
