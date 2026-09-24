@@ -238,13 +238,13 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                             <p>Sale List</p>
                         </a>
                     </li>
-                    <li class="nav-item">
+                    <!-- <li class="nav-item">
                         <a href="{{route('backend.admin.fbr.reconciliation.index')}}"
                             class="nav-link {{ request()->routeIs(['backend.admin.fbr.reconciliation.index']) ? 'active' : '' }}">
                             <i class="fas fa-circle nav-icon"></i>
                             <p>FBR Invoice Reconciliation</p>
                         </a>
-                    </li>
+                    </li> -->
                 </ul>
             </li>
             @endif

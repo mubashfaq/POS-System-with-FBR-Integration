@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\Business;
+
 
 class BusinessController extends Controller
 {
@@ -14,6 +16,15 @@ class BusinessController extends Controller
             ->businesses()
             ->get();
 
+        return response()->json([
+            'status' => true,
+            'businesses' => $businesses
+        ]);
+    }
+    
+    public function allBusiness(Request $request)
+    {
+        $businesses = Business::all();
         return response()->json([
             'status' => true,
             'businesses' => $businesses

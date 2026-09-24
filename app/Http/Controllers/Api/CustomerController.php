@@ -43,6 +43,37 @@ class CustomerController extends Controller
             'data' => $customers
         ]);
     }
+    
+    
+    public function businessCustomers(Request $request)
+    {
+        $business_id = $request->query('business_id');
+
+        if (!$business_id) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Business context required.'
+            ], 400);
+        }
+
+        $query = Customer::where('business_id', $business_id);
+
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                  ->orWhere('phone', 'LIKE', "%{$search}%")
+                  ->orWhere('address', 'LIKE', "%{$search}%");
+            });
+        }
+
+        $customers = $query->latest()->get();
+
+        return response()->json([
+            'message' => 'Customers retrieved successfully',
+            'data' => $customers
+        ]);
+    }
 
     /**
      * Store a newly created resource in storage.

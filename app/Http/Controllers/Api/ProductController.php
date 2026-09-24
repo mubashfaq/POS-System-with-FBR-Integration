@@ -49,6 +49,32 @@ class ProductController extends Controller
         ]);
     }
 
+public function businessProduct(Request $request)
+    {
+       $business_id = $request->query('business_id');
+        
+
+        if (!$business_id) {
+            return response()->json(['message' => 'Business context required.'], 400);
+        }
+
+        $query = Product::where('business_id', $business_id);
+
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                  ->orWhere('sku', $search);
+            });
+        }
+
+        $products = $query->latest()->get();
+
+        return response()->json([
+            'message' => 'Products retrieved successfully',
+            'data' => ProductResource::collection($products)
+        ]);
+    }
     /**
      * Store a newly created product in storage.
      */
