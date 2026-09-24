@@ -9,8 +9,8 @@ class OrderLineCalculator
     {
         $unitPrice = $priceOverride ?? $product->discounted_price;
         $lineTotal = round($unitPrice * $qty, 2);          // ex-tax
-        $subTotal = round($product->price * $qty, 2);
-        $discount = round(($product->price - $unitPrice) * $qty, 2);
+        $subTotal = round($unitPrice * $qty, 2);
+        // $discount = round(($product->price - $unitPrice) * $qty, 2);
 
         $rateText = trim((string) $product->pos_sale_tax);
         if (str_ends_with($rateText, '%')) {
@@ -33,7 +33,7 @@ class OrderLineCalculator
             'unit_price' => $unitPrice,
             'line_total' => $lineTotal,   // value ex tax
             'sub_total' => $subTotal,
-            'discount' => $discount,
+            // 'discount' => $discount,
             'rate_text' => $rateText,
             'tax_rate' => $taxRate,
             'sale_tax' => $saleTax,
