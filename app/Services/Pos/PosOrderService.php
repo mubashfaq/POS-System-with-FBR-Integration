@@ -96,7 +96,7 @@ class PosOrderService
                     'price' => $calc['unit_price'],
                     'purchase_price' => round($cost, 2),
                     'sub_total' => $calc['sub_total'],
-                    'discount' => $calc['discount'],
+                    'discount' => 0,
                     'tax_rate' => $calc['rate_text'],
                     'sale_tax' => $calc['sale_tax'],
                     'customer_tax' => $calc['customer_tax'],
