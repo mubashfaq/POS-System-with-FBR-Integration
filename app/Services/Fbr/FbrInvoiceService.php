@@ -26,7 +26,7 @@ class FbrInvoiceService
         return [
             'POSID' => $order->POSID,
             'USIN' => 'USIN-' . $order->business_id . '-' . str_pad($order->invoice_number, 4, '0', STR_PAD_LEFT),
-            'DateTime' => $order->order_date,
+            'DateTime' => \Carbon\Carbon::parse($order->order_date)->format('Y-m-d'),
             'buyerNTN' => $customer->ntn_cnic,
             'buyerCNIC' => $customer->ntn_cnic,
             'BuyerName' => $customer->name,
