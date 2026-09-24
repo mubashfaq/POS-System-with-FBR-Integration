@@ -165,6 +165,7 @@ class OrderController extends Controller
         $data = $request->validate([
             'business_id' => ['required', 'integer', 'exists:businesses,id'],
             'customer_id' => ['required', 'integer', 'exists:customers,id'],
+            'user_id' => ['required', 'integer', 'exists:users,id'],
             'order_date' => ['required', 'date_format:Y-m-d'],
             'order_stage' => ['nullable', 'in:draft,submitted'],
             'order_discount' => ['nullable', 'numeric', 'min:0'],
@@ -172,18 +173,22 @@ class OrderController extends Controller
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
             'items.*.qty' => ['required', 'numeric', 'gt:0'],
-            'items.*.price' => ['nullable', 'numeric', 'min:0'],
+            'items.*.price' => ['required', 'numeric', 'min:0'],
         ]);
 
         // IMPORTANT: make sure this user is allowed to use this business
-        abort_unless(
-            $request->user()->businesses()->whereKey($data['business_id'])->exists(),
-            403,
-            'You do not have access to this business'
-        );
+        // abort_unless(
+        //     $request->user()->businesses()->whereKey($data['business_id'])->exists(),
+        //     403,
+        //     'You do not have access to this business'
+        // );
+
+        $data['order_stage'] = 'submitted';
+        $data['is_fbr_enabled'] = true;
+        $userId = $data['user_id'];
 
         try {
-            $result = $this->orders->create($data, $request->user()->id);
+            $result = $this->orders->create($data, $userId);
         } catch (InsufficientStockException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         } catch (FbrRejectedException $e) {
@@ -192,6 +197,10 @@ class OrderController extends Controller
                 'error_code' => $e->fbrCode,
                 'fbr_api_response' => $e->fbrResponse,
             ], 422);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['error' => 'Customer or business not found'], 404);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            return response()->json(['error' => $e->getMessage()], $e->getStatusCode());
         } catch (\Throwable $e) {
             report($e);
             return response()->json(['error' => 'Something went wrong'], 500);

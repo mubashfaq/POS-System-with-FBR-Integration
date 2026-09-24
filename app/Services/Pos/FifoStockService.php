@@ -12,8 +12,24 @@ class FifoStockService
      * Consume qty from the oldest batches. Returns the allocations:
      * [['purchase_item_id' => id|null, 'qty' => x, 'cost' => y], ...]
      */
-    public function consume(Product $product, float $qty, bool $enforce): array
+    public function consume(Product $product, float $qty, bool $enforce, ?int $purchaseItemId = null): array
     {
+        // Same as web: a batch chosen on the cart is used directly
+        if ($purchaseItemId) {
+            $batch = PurchaseItem::lockForUpdate()->find($purchaseItemId);
+            if ($batch) {
+                $batch->decrement('remaining_qty', $qty);
+                $product->decrement('quantity', $qty);
+
+                return [
+                    [
+                        'purchase_item_id' => $batch->id,
+                        'qty' => $qty,
+                        'cost' => $batch->purchase_price,
+                    ]
+                ];
+            }
+        }
         $batches = PurchaseItem::where('product_id', $product->id)
             ->where('remaining_qty', '>', 0)
             ->orderBy('created_at')->orderBy('id')
