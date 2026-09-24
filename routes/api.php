@@ -65,4 +65,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('products', \App\Http\Controllers\Api\ProductController::class);
         Route::apiResource('customers', \App\Http\Controllers\Api\CustomerController::class);
     });
+            Route::post('/pos/orders/create', [OrderController::class, 'storeScheduler']);
+
 });
