@@ -36,7 +36,7 @@ Route::get('getCartData-diadmin', [OrderDiadminController::class, 'getCartData']
 Route::post('/pos/orders/create', [OrderController::class, 'storeScheduler']);
 
 
-Route::post('/pos/orders/create', [OrderController::class, 'storeScheduler']);
+// Route::post('/pos/orders/create', [OrderController::class, 'storeScheduler']);
 
 Route::middleware('auth:sanctum')->group(function () {
     // Route::get('/user', [AuthController::class, 'show']);

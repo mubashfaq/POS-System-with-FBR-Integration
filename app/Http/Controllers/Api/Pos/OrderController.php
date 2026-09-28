@@ -162,10 +162,12 @@ class OrderController extends Controller
 
     public function storeScheduler(Request $request)
     {
+       
+
         $data = $request->validate([
             'business_id' => ['required', 'integer', 'exists:businesses,id'],
             'customer_id' => ['required', 'integer', 'exists:customers,id'],
-            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'user_id' => [ 'integer'],
             'order_date' => ['required', 'date_format:Y-m-d'],
             'order_stage' => ['nullable', 'in:draft,submitted'],
             'order_discount' => ['nullable', 'numeric', 'min:0'],
@@ -176,6 +178,7 @@ class OrderController extends Controller
             'items.*.price' => ['required', 'numeric', 'min:0'],
         ]);
 
+
         // IMPORTANT: make sure this user is allowed to use this business
         // abort_unless(
         //     $request->user()->businesses()->whereKey($data['business_id'])->exists(),
@@ -185,7 +188,7 @@ class OrderController extends Controller
 
         $data['order_stage'] = 'submitted';
         $data['is_fbr_enabled'] = true;
-        $userId = $data['user_id'];
+        $userId = 0;
 
         try {
             $result = $this->orders->create($data, $userId);
@@ -245,6 +248,7 @@ public function store(Request $request)
     //  Request items ko cart jaisi collection mein convert karo
     $itemsInput = collect($request->items);
 
+
     $productIds = $itemsInput->pluck('product_id')->toArray();
     $purchaseItemIds = $itemsInput->pluck('purchase_item_id')->filter()->toArray();
 
@@ -264,6 +268,8 @@ public function store(Request $request)
         $obj->price_override  = $item['price_override'] ?? null;
         return $obj;
     });
+
+    
 
     // Validate products exist
     if ($carts->contains(fn($c) => is_null($c->product))) {
@@ -323,7 +329,7 @@ public function store(Request $request)
         $unitPrice = $cart->price_override ?? $product->discounted_price;
         $qty = $cart->quantity;
         $lineTotal = round($unitPrice * $qty, 2);
-        $subTotal  = round($product->price * $qty, 2);
+        $subTotal  = round($unitPrice * $qty, 2);
         $discount  = round(($product->price - $unitPrice) * $qty, 2);
 
         // Sale TAX (NEW)
@@ -532,8 +538,8 @@ public function store(Request $request)
     
 
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
-            // info('Connection Exception: ' . $e->getMessage());
-            dd("im here"); 
+            info('Connection Exception: ' . $e->getMessage());
+            // dd("im here"); 
         }
 
 
