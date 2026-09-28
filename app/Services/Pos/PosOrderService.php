@@ -151,7 +151,7 @@ class PosOrderService
                 'total' => round($total, 2),
                 'due' => $due,
                 'status' => $due <= 0,
-                'order_stage' => 'draft',
+                'order_stage' => $isFbrEnabled ? 'draft' : $stage,
                 'type' => 'pos_invoice',
             ]);
 
