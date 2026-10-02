@@ -279,6 +279,8 @@
                     </div>
                 </div>
 
+                @include('backend.products._variations', ['mode' => 'create'])
+
                 {{-- ========== ACCESSORIES SECTION ========== --}}
                 <div class="card border mt-3">
                     <div class="card-header bg-light d-flex align-items-center justify-content-between">

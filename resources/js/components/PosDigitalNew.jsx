@@ -15,6 +15,8 @@ import { ConfirmBox } from "./ConfirmBox";
 import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
+import VariationModal from "./modals/VariationModal";
+import BatchModal from "./modals/BatchModal";
 
 const ORANGE = "#fd6802";
 
@@ -77,6 +79,8 @@ export default function PosDigital({
 
     // ── Batch modal ────────────────────────────────────────────────────────
     const [showBatchModal, setShowBatchModal] = useState(false);
+    const [showVariationModal, setShowVariationModal] = useState(false);
+    const [pendingProduct, setPendingProduct] = useState(null);
     const [availableBatches, setAvailableBatches] = useState([]);
     const [targetProduct, setTargetProduct] = useState(null);
     const [quantityValidation, setQuantityValidation] = useState(null);
@@ -206,7 +210,15 @@ export default function PosDigital({
                 const productsData = res.data;
                 setProducts((prev) => [...prev, ...productsData.data]);
                 if (productsData.data.length === 1 && barcode !== "") {
-                    addProductToCart(productsData.data[0].id, customerId);
+                    const matched = productsData.data[0];
+                    const scanned = matched.has_variations ? (matched.variations || []).find((v) => v.sku && v.sku === barcode) : null;
+
+                    if (matched.has_variations && !scanned) {
+                        setPendingProduct(matched);
+                        setShowVariationModal(true);
+                    } else {
+                        addProductToCart(matched, null, null, scanned?.id ?? null);
+                    }
                     getCarts();
                 }
                 setTotalPages(productsData.meta.last_page);
@@ -318,46 +330,6 @@ export default function PosDigital({
         );
     };
 
-    // const handleQuantityChange = (cartId, newQty) => {
-    //     // Update local state immediately so UI remains responsive
-    //     setCarts((prev) =>
-    //         prev.map((item) =>
-    //             item.id === cartId ? { ...item, quantity: newQty } : item,
-    //         ),
-    //     );
-
-    //     const qty = parseFloat(newQty);
-    //     if (isNaN(qty) || qty <= 0) return;
-
-    //     // Stock validation check if quantityValidation is disabled
-    //     const item = carts.find((c) => c.id === cartId);
-    //     if (item) {
-    //         const isAccessory = !!item.parent_cart_id || !!item.is_accessory;
-    //         const stockEnforced = quantityValidation === "disabled";
-    //         if (!isAccessory && stockEnforced && qty > item.product.quantity) {
-    //             playSound(WarningSound);
-    //             toast.error(`Only ${item.product.quantity} items available in stock`);
-    //             // Reset to max stock
-    //             setCarts((prev) =>
-    //                 prev.map((item) =>
-    //                     item.id === cartId ? { ...item, quantity: item.product.quantity } : item,
-    //                 ),
-    //             );
-    //             // Sync max stock with backend
-    //             axios
-    //                 .put("/admin/cart/update-quantity", { id: cartId, quantity: item.product.quantity })
-    //                 .then(() => setCartUpdated((prev) => !prev))
-    //                 .catch((err) => console.error("Quantity update failed", err));
-    //             return;
-    //         }
-    //     }
-
-    //     axios
-    //         .put("/admin/cart/update-quantity", { id: cartId, quantity: qty })
-    //         .then(() => setCartUpdated((prev) => !prev))
-    //         .catch((err) => console.error("Quantity update failed", err));
-    // };
-
     const handleCartTotals = (
         subTotalCalc,
         saleTaxCalc,
@@ -375,115 +347,71 @@ export default function PosDigital({
         setFurtherTaxTotal(furtherTaxCalc.toFixed(2));
     };
 
-    function addProductToCart(id, cId, purchaseItemId = null) {
+    function addProductToCart(product, cId, purchaseItemId = null, variationId = null) {
         const resolvedCustomerId = cId || customerIdRef.current;
         if (!resolvedCustomerId) {
             toast.error("Please Select Customer");
             return;
         }
-        if (!purchaseItemId) {
-            axios
-                .get(`/admin/product/${id}/batches`)
-                .then((res) => {
-                    const batches = res.data.batches;
-                    const product = {
-                        id: res.data.product_id,
-                        name: res.data.product_name,
-                    };
-                    if (batches.length <= 0) {
-                        toast.error("Insufficient stock or no batches found.");
-                        return;
-                    }
 
-                    const batchEnabled =
-                        res.data.is_batch_enabled === true ||
-                        res.data.is_batch_enabled === 1;
-
-                    if (!batchEnabled) {
-                        submitToCart(id, null);
-                    } else {
-                        if (batches.length === 1) {
-                            submitToCart(id, batches[0].id);
-                        } else {
-                            setTargetProduct(product);
-                            setAvailableBatches(batches);
-                            setShowBatchModal(true);
-                        }
-                    }
-                })
-                .catch(() => toast.error("Failed to fetch product batches."));
-        } else {
-            submitToCart(id, purchaseItemId);
+        if (product.has_variations && !variationId) {
+            if (!product.variations?.length) {
+                toast.error("This product has no active variations.");
+                return;
+            }
+            setPendingProduct(product);
+            setShowVariationModal(true);
+            return;
         }
+
+        const id = product.id;
+
+        if (purchaseItemId) {
+            submitToCart(id, purchaseItemId, variationId);
+            return;
+        }
+
+        const url = variationId ? `/admin/product/${id}/batches/${variationId}` : `/admin/product/${id}/batches`;
+        axios
+            .get(url)
+            .then((res) => {
+                const batches = res.data.batches;
+                const target = {
+                    id: res.data.product_id,
+                    name: res.data.variation_label ? `${res.data.product_name} – ${res.data.variation_label}` : res.data.product_name,
+                    variationId: res.data.variation_id ?? null,
+                };
+                if (batches.length <= 0) {
+                    toast.error("Insufficient stock or no batches found.");
+                    return;
+                }
+                const batchEnabled = res.data.is_batch_enabled === true || res.data.is_batch_enabled == 1;
+
+                if (!batchEnabled) submitToCart(id, null, variationId);
+                else if (batches.length === 1) submitToCart(id, batches[0].id, variationId);
+                else {
+                    setTargetProduct(target);
+                    setAvailableBatches(batches);
+                    setShowBatchModal(true);
+                }
+            })
+            .catch((err) => toast.error(err?.response?.data?.message || "Failed to fetch product batches."));
     }
 
-    // function submitToCart(productId, purchaseItemId) {
-    //     setCarts((prev) => {
-    //         const existing = prev.find(
-    //             (c) =>
-    //                 c.product?.id === productId &&
-    //                 c.purchase_item_id === purchaseItemId,
-    //         );
-    //         if (existing) {
-    //             return prev.map((c) =>
-    //                 c.product?.id === productId &&
-    //                     c.purchase_item_id === purchaseItemId
-    //                     ? { ...c, quantity: c.quantity + 1 }
-    //                     : c,
-    //             );
-    //         }
-    //         return [
-    //             ...prev,
-    //             {
-    //                 id: `optimistic-${productId}-${Date.now()}`,
-    //                 product: {
-    //                     id: productId,
-    //                     name: "...",
-    //                     discounted_price: 0,
-    //                     price: 0,
-    //                     rate_of_tax: "0",
-    //                     sale_type: "",
-    //                 },
-    //                 quantity: 1,
-    //                 purchase_item_id: purchaseItemId,
-    //                 unit_price: null,
-    //             },
-    //         ];
-    //     });
+    const handleVariationSelect = (variation) => {
+        setShowVariationModal(false);
+        if (!pendingProduct) return;
+        addProductToCart(pendingProduct, null, null, variation.id);
+        setPendingProduct(null);
+    };
 
-    //     axios
-    //         .post("/admin/cart", {
-    //             id: productId,
-    //             purchase_item_id: purchaseItemId,
-    //         })
-    //         .then((res) => {
-    //             setCartUpdated((prev) => !prev);
-    //             playSound(SuccessSound);
-    //             toast.success(res?.data?.message);
-    //             setShowBatchModal(false);
-    //         })
-    //         .catch((err) => {
-    //             setCartUpdated((prev) => !prev);
-    //             playSound(WarningSound);
-    //             toast.error(
-    //                 err.response?.data?.message || "Failed to add product",
-    //             );
-    //         });
-    // }
-
-    function submitToCart(productId, purchaseItemId) {
+    function submitToCart(productId, purchaseItemId, variationId = null) {
         setCarts((prev) => [
             ...prev,
             {
-                id: `optimistic-${productId}-${Date.now()}-${Math.random()}`,
-                product: {
-                    id: productId,
-                    name: "...",
-                    discounted_price: 0,
-                    price: 0,
-                    rate_of_tax: "0",
-                    sale_type: "",
-                },
+                id: `optimistic-${productId}-${variationId ?? 0}-${Date.now()}-${Math.random()}`,
+                product: { id: productId, name: "...", discounted_price: 0, price: 0, rate_of_tax: "0", sale_type: "" },
+                product_variation_id: variationId,
                 quantity: 1,
                 purchase_item_id: purchaseItemId,
                 unit_price: null,
@@ -491,8 +419,9 @@ export default function PosDigital({
         ]);
 
         axios
-            .post("/admin/cartNewDigital", {
+            .post("/admin/cart", {
                 id: productId,
+                product_variation_id: variationId,
                 purchase_item_id: purchaseItemId,
             })
             .then((res) => {
@@ -504,9 +433,7 @@ export default function PosDigital({
             .catch((err) => {
                 setCartUpdated((prev) => !prev);
                 playSound(WarningSound);
-                toast.error(
-                    err.response?.data?.message || "Failed to add product",
-                );
+                toast.error(err.response?.data?.message || "Failed to add product");
             });
     }
 
@@ -716,18 +643,11 @@ export default function PosDigital({
             });
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
     // Product modal handlers
-    // ═══════════════════════════════════════════════════════════════════════
-
     const handleProductCreated = (newProductId) => {
         getUpdatedProducts();
-        addProductToCart(newProductId, customerId);
+        addProductToCart({ id: newProductId, has_variations: false }, null);
     };
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Render
-    // ═══════════════════════════════════════════════════════════════════════
 
     return (
         <>
@@ -1039,103 +959,31 @@ export default function PosDigital({
                 </div>
             </div>
 
-            {/* ── Batch selection modal ──────────────────────────────────── */}
-            {showBatchModal && (
-                <div
-                    className="modal show d-block"
-                    tabIndex="-1"
-                    style={{
-                        backgroundColor: "rgba(0,0,0,0.5)",
-                        overflowY: "auto",
-                    }}
-                >
-                    <div className="modal-dialog modal-lg">
-                        <div className="modal-content">
-                            <div
-                                className="modal-header text-white"
-                                style={{ backgroundColor: ORANGE }}
-                            >
-                                <h5 className="modal-title">
-                                    Select Batch for {targetProduct?.name}
-                                </h5>
-                                <button
-                                    type="button"
-                                    className="close text-white"
-                                    onClick={() => setShowBatchModal(false)}
-                                >
-                                    <span>&times;</span>
-                                </button>
-                            </div>
-                            <div className="modal-body">
-                                <div className="table-responsive">
-                                    <table className="table table-bordered table-hover">
-                                        <thead className="bg-light">
-                                            <tr>
-                                                <th>Purchase Date</th>
-                                                <th>Available Qty</th>
-                                                <th>Original Qty</th>
-                                                <th>Purchase Price</th>
-                                                <th>Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {availableBatches.map((batch) => (
-                                                <tr key={batch.id}>
-                                                    <td>
-                                                        {batch.purchase_date}
-                                                    </td>
-                                                    <td className="text-bold text-success">
-                                                        {batch.remaining_qty}
-                                                    </td>
-                                                    <td>{batch.quantity}</td>
-                                                    <td>
-                                                        {batch.purchase_price}
-                                                    </td>
-                                                    <td>
-                                                        <button
-                                                            className="btn btn-sm text-white"
-                                                            style={{
-                                                                backgroundColor:
-                                                                    ORANGE,
-                                                            }}
-                                                            onClick={() =>
-                                                                addProductToCart(
-                                                                    targetProduct.id,
-                                                                    customerId,
-                                                                    batch.id,
-                                                                )
-                                                            }
-                                                        >
-                                                            Select
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            {quantityValidation === 'enabled' && (
-                                <div className="px-3 pb-2 mt-n4">
-                                    <small className="text-muted">
-                                        <i className="fas fa-info-circle mr-1"></i>
-                                        Batches with less than 1 quantity available can also be selected.
-                                    </small>
-                                </div>
-                            )}
-                            <div className="modal-footer">
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary"
-                                    onClick={() => setShowBatchModal(false)}
-                                >
-                                    Close
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <VariationModal
+                show={showVariationModal}
+                product={pendingProduct}
+                quantityValidation={quantityValidation}
+                onClose={() => {
+                    setShowVariationModal(false);
+                    setPendingProduct(null);
+                }}
+                onSelect={handleVariationSelect}
+            />
+
+            <BatchModal
+                show={showBatchModal}
+                product={targetProduct}
+                batches={availableBatches}
+                quantityValidation={quantityValidation}
+                onClose={() => setShowBatchModal(false)}
+                onSelect={(batch) =>
+                    submitToCart(
+                        targetProduct.id,
+                        batch.id,
+                        targetProduct.variationId
+                    )
+                }
+            />
 
             <Toaster position="top-right" reverseOrder={false} />
         </>

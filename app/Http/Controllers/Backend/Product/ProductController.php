@@ -19,6 +19,8 @@ use App\Models\PurchaseItem;
 use App\Models\SaleType;
 use App\Models\SroItemCode;
 use App\Models\Uom;
+use App\Services\ProductVariationService;
+use App\Services\StockReconciliationService;
 use App\Trait\FileHandler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -47,18 +49,18 @@ class ProductController extends Controller
 
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_view'), 403);
- 
+
         // abort_if(!auth()->user()->can('product_view'), 403);        
         $businessId = session('business_id');
         if ($request->ajax()) {
-            $products = Product::where('business_id', $businessId) // 👈 filter by business
-            ->latest()
-            ->get();
-            
+            $products = Product::with(['unit', 'variations' => fn($q) => $q->withSum('purchaseItems as stock_sum', 'remaining_qty')])
+                ->withSum('purchaseItems as stock_sum', 'remaining_qty')->where('business_id', $businessId)->latest()->get();
+
             return DataTables::of($products)
                 ->addIndexColumn()
                 ->addColumn('image', fn($data) => '<img src="' . asset('storage/' . $data->image) . '" loading="lazy" alt="' . $data->name . '" class="img-thumb img-fluid" onerror="this.onerror=null; this.src=\'' . asset('assets/images/no-image.png') . '\';" height="80" width="60" />')
-                ->addColumn('name', fn($data) => $data->name)
+                ->addColumn('name', fn($d) => e($d->name) . ($d->has_variations
+                    ? '<br><small class="text-muted">' . $d->variations->count() . ' variations</small>' : ''))
                 ->addColumn(
                     'price',
                     fn($data) => $data->discounted_price .
@@ -66,7 +68,7 @@ class ProductController extends Controller
                             ? '<br><del>' . $data->price . '</del>'
                             : '')
                 )
-                ->addColumn('quantity', fn($data) => $data->quantity . ' ' . optional($data->unit)->short_name)
+                ->addColumn('quantity', fn($d) => $d->quantity . ' ' . optional($d->unit)->short_name)
                 ->addColumn('created_at', fn($data) => $data->created_at->format('d M, Y'))
                 ->addColumn('status', fn($data) => $data->status
                     ? '<span class="badge bg-primary">Active</span>'
@@ -78,7 +80,7 @@ class ProductController extends Controller
                       <span class="sr-only">Toggle Dropdown</span>
                     </button>
                     <div class="dropdown-menu" role="menu">
-                      <a class="dropdown-item" href="'.route('backend.admin.products.edit', $data->id). '">
+                      <a class="dropdown-item" href="' . route('backend.admin.products.edit', $data->id) . '">
                     <i class="fas fa-edit"></i> Edit
                 </a> <div class="dropdown-divider"></div>
 <form action="' . route('backend.admin.products.destroy', $data->id) . '"method="POST" style="display:inline;">
@@ -102,17 +104,23 @@ class ProductController extends Controller
             ]);
 
             // Initialize the query
-           
+
 
             $products = Product::query();
 
             // Apply filters based on the search term
-            $products = $products->where(function ($query) use ($request) {
-                $query->where('name', 'LIKE', "%{$request->search}%")
-                    ->orWhere('sku', $request->search);
-            });
-            // Get the results
-            $products = $products->where('business_id', $businessId)->get();
+            $term = $request->search;
+
+            $products = Product::with([
+                'variations' => fn($q) => $q->where('status', 1)
+                    ->withSum('purchaseItems as stock_sum', 'remaining_qty')->with('values')
+            ])
+                ->where('business_id', $businessId)
+                ->where(fn($q) => $q
+                    ->where('name', 'LIKE', "%{$term}%")
+                    ->orWhere('sku', $term)
+                    ->orWhereHas('variations', fn($v) => $v->where('sku', $term)->where('status', 1)))
+                ->get();
             // Return the results as a JSON response
             return ProductResource::collection($products);
         }
@@ -144,10 +152,10 @@ class ProductController extends Controller
             })
             ->get();
 
-        $hsCodes   = hsCode::all();
-        $units     = Uom::all();
+        $hsCodes = hsCode::all();
+        $units = Uom::all();
         $saleTypes = SaleType::all();
-        $sroItems  = SroItemCode::all();
+        $sroItems = SroItemCode::all();
 
         // All products available as accessories
         $allProducts = Product::where('business_id', $businessId)
@@ -157,14 +165,22 @@ class ProductController extends Controller
         $fbrIntegration = FbrTokenService::isIntegrationEnabled();
 
         return view('backend.products.create', compact(
-            'brands', 'categories', 'units', 'hsCodes', 'saleTypes', 'sroItems', 'business_type', 'allProducts', 'fbrIntegration'
+            'brands',
+            'categories',
+            'units',
+            'hsCodes',
+            'saleTypes',
+            'sroItems',
+            'business_type',
+            'allProducts',
+            'fbrIntegration'
         ));
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreProductRequest $request)
+    public function store(StoreProductRequest $request, ProductVariationService $variations)
     {
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_create'), 403);
@@ -172,12 +188,10 @@ class ProductController extends Controller
         $validated = $request->validated();
 
         $businessId = session('business_id');
-
         $validated['business_id'] = $businessId;
 
         $openingQty = (float) ($validated['quantity'] ?? 0);
 
-        // Product table quantity starts from 0
         $validated['quantity'] = 0;
 
         DB::beginTransaction();
@@ -187,16 +201,9 @@ class ProductController extends Controller
             $product = Product::create($validated);
 
             if ($request->hasFile('product_image')) {
-
-                $product->image =
-                    $this->fileHandler->fileUploadAndGetPath(
-                        $request->file('product_image'),
-                        '/public/media/products'
-                    );
-
+                $product->image = $this->fileHandler->fileUploadAndGetPath($request->file('product_image'), '/public/media/products');
                 $product->save();
             }
-
 
             if ($request->has('accessories')) {
 
@@ -206,103 +213,46 @@ class ProductController extends Controller
 
                     // Prevent product from being its own accessory
                     if ((int) $accId !== $product->id) {
-
-                        $accessoryData[$accId] = [
-                            'quantity' => max(1, (float) $qty)
-                        ];
+                        $accessoryData[$accId] = ['quantity' => max(1, (float) $qty)];
                     }
                 }
 
                 $product->accessories()->sync($accessoryData);
 
             } else {
-
                 $product->accessories()->detach();
             }
 
+            $hasVariations = $request->boolean('has_variations');
 
-            /*
-            |--------------------------------------------------------------------------
-            | ALWAYS CREATE OPENING PURCHASE BATCH
-            |--------------------------------------------------------------------------
-            |
-            | Even if quantity is 0.
-            |
-            | Example:
-            |
-            | quantity       = 0
-            | remaining_qty  = 0
-            |
-            | This allows the batch to become negative later
-            | when stock restriction is disabled.
-            |
-            */
+            if ($hasVariations) {
 
-            $purchasePrice = (float) ($validated['purchase_price'] ?? 0);
-            $price = (float) ($validated['price'] ?? 0);
+                $units = collect($request->input('variations', []))->map(function ($row) use ($variations, $product, $businessId) {
 
+                    $variation = $variations->create($product, $row, $businessId);
 
-            /* Create Purchase */
+                    return [
+                        'variation' => $variation,
+                        'purchase_price' => (float) $product->purchase_price,
+                        'price' => (float) $row['price'],
+                        'qty' => (float) ($row['quantity'] ?? 0),
+                    ];
+                });
 
-            $purchase = Purchase::create([
-
-                'supplier_id' => $validated['supplier_id'] ?? null,
-
-                'user_id' => auth()->id(),
-
-                'business_id' => $businessId,
-
-                'sub_total' => $purchasePrice * $openingQty,
-
-                'tax' => 0,
-
-                'discount_value' => 0,
-
-                'shipping' => 0,
-
-                'grand_total' => $purchasePrice * $openingQty,
-
-                'date' => Carbon::now()->toDateString(),
-
-                'status' => 1,
-            ]);
-
-
-            /* Create Purchase Item / Batch */
-
-            $purchaseItem = PurchaseItem::create([
-
-                'purchase_id' => $purchase->id,
-
-                'product_id' => $product->id,
-
-                'purchase_price' => $purchasePrice,
-
-                'price' => $price,
-
-                'quantity' => $openingQty,
-
-                'remaining_qty' => $openingQty,
-            ]);
-
-
-            /* Reconcile Negative Stock */
-
-            \App\Services\StockReconciliationService::reconcileNewBatch(
-                $purchaseItem
-            );
-
-            if ($openingQty != 0) {
-
-                $product->increment(
-                    'quantity',
-                    $openingQty
-                );
+            } else {
+                $units = collect([
+                    [
+                        'variation' => null,
+                        'purchase_price' => (float) ($product->purchase_price ?? 0),
+                        'price' => (float) ($validated['price'] ?? 0),
+                        'qty' => $openingQty,
+                    ]
+                ]);
             }
 
+            $variations->postOpeningBatch($product, $units, $validated['supplier_id'] ?? null, $businessId);
 
             DB::commit();
-
 
             return redirect()->route('backend.admin.products.index')->with('success', 'Product created successfully!');
 
@@ -310,13 +260,7 @@ class ProductController extends Controller
 
             DB::rollBack();
 
-            return redirect()
-                ->back()
-                ->withInput()
-                ->with(
-                    'error',
-                    'Product creation failed: ' . $e->getMessage()
-                );
+            return redirect()->back()->withInput()->with('error', 'Product creation failed: ' . $e->getMessage());
         }
     }
 
@@ -339,13 +283,13 @@ class ProductController extends Controller
         $businessId = session('business_id');
         $business_type = Business::where('id', $businessId)->value('business_type');
 
-        $product    = Product::with('accessories')->findOrFail($id);
-        $brands     = Brand::whereStatus(true)->get();
+        $product = Product::with(['accessories', 'variations.values.attribute'])->findOrFail($id);
+        $brands = Brand::whereStatus(true)->get();
         $categories = Category::whereStatus(true)->get();
-        $units      = Uom::all();
-        $hsCodes    = hsCode::all();
-        $saleTypes  = SaleType::all();
-        $sroItems   = SroItemCode::all();
+        $units = Uom::all();
+        $hsCodes = hsCode::all();
+        $saleTypes = SaleType::all();
+        $sroItems = SroItemCode::all();
 
         // All products available as accessories (exclude self)
         $allProducts = Product::where('business_id', $businessId)
@@ -359,42 +303,92 @@ class ProductController extends Controller
         });
 
         $fbrIntegration = FbrTokenService::isIntegrationEnabled();
-        
+
         return view('backend.products.edit', compact(
-            'brands', 'categories', 'units', 'product', 'hsCodes', 'saleTypes', 'sroItems',
-            'business_type', 'allProducts', 'selectedAccessories', 'fbrIntegration'
+            'brands',
+            'categories',
+            'units',
+            'product',
+            'hsCodes',
+            'saleTypes',
+            'sroItems',
+            'business_type',
+            'allProducts',
+            'selectedAccessories',
+            'fbrIntegration'
         ));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateProductRequest $request, $id)
+    public function update(UpdateProductRequest $request, $id, ProductVariationService $variations)
     {
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_update'), 403);
 
+        $businessId = session('business_id');
         $validated = $request->validated();
-        $product   = Product::findOrFail($id);
-        $oldImage  = $product->image;
-        $product->update($validated);
-        if ($request->hasFile("product_image")) {
-            $product->image = $this->fileHandler->fileUploadAndGetPath($request->file("product_image"), "/public/media/products");
-            $product->save();
-            $this->fileHandler->secureUnlink($oldImage);
-        }
 
-        // Sync accessories
-        if ($request->has('accessories')) {
-            $accessoryData = [];
-            foreach ($request->accessories as $accId => $qty) {
-                if ((int)$accId !== $product->id) {
-                    $accessoryData[$accId] = ['quantity' => max(1, (float)$qty)];
+        // Scope by business so one business can't edit another's product
+        $product = Product::where('business_id', $businessId)->findOrFail($id);
+        $oldImage = $product->image;
+
+        // Stock and variation mode are never changed from the edit form.
+        // Stock moves through purchases/sales/adjustments only.
+        unset($validated['quantity'], $validated['has_variations'], $validated['variations']);
+
+        $imageReplaced = false;
+
+        DB::beginTransaction();
+
+        try {
+            $product->update($validated);
+
+            if ($request->hasFile('product_image')) {
+                $product->image = $this->fileHandler->fileUploadAndGetPath($request->file('product_image'), '/public/media/products');
+                $product->save();
+                $imageReplaced = true;
+            }
+
+            // Accessories
+            if ($request->has('accessories')) {
+                $accessoryData = [];
+                foreach ($request->accessories as $accId => $qty) {
+                    if ((int) $accId !== $product->id) {
+                        $accessoryData[$accId] = ['quantity' => max(1, (float) $qty)];
+                    }
+                }
+                $product->accessories()->sync($accessoryData);
+            } else {
+                $product->accessories()->detach();
+            }
+
+            // Variations
+            if ($product->has_variations) {
+                $newUnits = $variations->sync($product, $request->input('variations', []), $businessId);
+
+                if ($newUnits->isNotEmpty()) {
+                    $variations->postOpeningBatch(
+                        $product,
+                        $newUnits,
+                        $validated['supplier_id'] ?? null,
+                        $businessId
+                    );
                 }
             }
-            $product->accessories()->sync($accessoryData);
-        } else {
-            $product->accessories()->detach();
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return redirect()->back()->withInput()
+                ->with('error', 'Product update failed: ' . $e->getMessage());
+        }
+
+        // Delete the old file only after the database commit succeeded
+        if ($imageReplaced) {
+            $this->fileHandler->secureUnlink($oldImage);
         }
 
         return redirect()->route('backend.admin.products.index')->with('success', 'Product updated successfully!');
@@ -416,17 +410,6 @@ class ProductController extends Controller
         $product->delete();
         return redirect()->back()->with('success', 'Product Deleted Successfully');
     }
-    // public function import(Request $request)
-    // {
-    //     if ($request->query('download-demo')) {
-    //         return Excel::download(new DemoProductsExport, 'demo_products.xlsx');
-    //     }
-    //     if ($request->isMethod('post') && $request->hasFile('file')) {
-    //         Excel::import(new ProductsImport, $request->file('file'));
-    //         return redirect()->back()->with('success', 'Products imported successfully.');
-    //     }
-    //     return view('backend.products.import');
-    // }
 
     public function import(Request $request)
     {
@@ -434,24 +417,24 @@ class ProductController extends Controller
             return Excel::download(new DemoProductsExport, 'demo_products.xlsx');
         }
         if ($request->isMethod('post') && $request->hasFile('file')) {
-            
+
             $file = $request->file('file');
-            $businessId = session('business_id'); 
-            
+            $businessId = session('business_id');
+
             try {
                 // Convert formulas to values before importing
                 $processedFile = $this->convertExcelFormulasToValues($file);
-                
+
                 // Import using the processed file
                 Excel::import(new ProductsImport($businessId), $processedFile);
-                
+
                 // Clean up temporary file if it's different from original
                 if ($processedFile !== $file->getRealPath() && file_exists($processedFile)) {
                     unlink($processedFile);
                 }
-                
+
                 return redirect()->back()->with('success', 'Products imported successfully.');
-                
+
             } catch (\Exception $e) {
                 Log::error('❌ Import failed: ' . $e->getMessage());
                 return redirect()->back()->with('error', 'Import failed: ' . $e->getMessage());
@@ -470,37 +453,37 @@ class ProductController extends Controller
         try {
             // Load the Excel file
             $inputFileName = $uploadedFile->getRealPath();
-            
+
             // Try to load with PhpSpreadsheet
             $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($inputFileName);
             $worksheet = $spreadsheet->getActiveSheet();
-            
+
             // Check if file has formulas
             $hasFormulas = false;
             $cellE9 = $worksheet->getCell('E9')->getValue();
-            
+
             if (is_string($cellE9) && strpos($cellE9, '=') === 0) {
                 $hasFormulas = true;
             }
-            
+
             if (!$hasFormulas) {
                 return $inputFileName;
             }
-            
+
             // Create a new spreadsheet for output
             $newSpreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
             $newWorksheet = $newSpreadsheet->getActiveSheet();
-            
+
             // Copy all cell values (formulas will be evaluated)
             $highestRow = $worksheet->getHighestRow();
             $highestColumn = $worksheet->getHighestColumn();
             $highestColumnIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestColumn);
-            
+
             for ($row = 1; $row <= $highestRow; $row++) {
                 for ($col = 1; $col <= $highestColumnIndex; $col++) {
                     $cellCoordinate = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col) . $row;
                     $cell = $worksheet->getCell($cellCoordinate);
-                    
+
                     // Get calculated value (this will evaluate formulas)
                     try {
                         $value = $cell->getCalculatedValue();
@@ -508,58 +491,59 @@ class ProductController extends Controller
                         // If formula can't be calculated, use the raw value
                         $value = $cell->getValue();
                     }
-                    
+
                     // Special handling for column B (HS CODE) to preserve trailing zeros
                     if ($col === 2 && $row >= 9) { // Column B, data rows
                         // Force as string to preserve trailing zeros like 8544.4290
                         $value = strval($value);
                         $newWorksheet->setCellValueExplicit(
-                            $cellCoordinate, 
-                            $value, 
+                            $cellCoordinate,
+                            $value,
                             \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING
                         );
                     } else {
                         // Set the value in new worksheet
                         $newWorksheet->setCellValue($cellCoordinate, $value);
                     }
-                    
+
                     // Copy formatting
                     $newWorksheet->getCell($cellCoordinate)->getStyle()
                         ->applyFromArray($cell->getStyle()->exportArray());
                 }
             }
-            
+
             // Copy column widths
             foreach ($worksheet->getColumnDimensions() as $col => $dimension) {
                 $newWorksheet->getColumnDimension($col)->setWidth($dimension->getWidth());
             }
-            
+
             // Copy row heights
             foreach ($worksheet->getRowDimensions() as $row => $dimension) {
                 $newWorksheet->getRowDimension($row)->setRowHeight($dimension->getRowHeight());
             }
-            
+
             // Save to temporary file
             $tempFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'import_' . time() . '_' . uniqid() . '.xlsx';
             $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($newSpreadsheet);
             $writer->save($tempFile);
-                        
+
             return $tempFile;
-            
+
         } catch (\Exception $e) {
             Log::warning('⚠️ Could not convert formulas: ' . $e->getMessage());
             return $uploadedFile->getRealPath();
         }
     }
 
-    public function checkUOMUsingHsCode(){
+    public function checkUOMUsingHsCode()
+    {
         // $token = env('FBR_TOKEN');
         $tokens = FbrTokenService::getToken();
         $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
 
         try {
             $response = Http::withHeaders([
-               'Authorization' => "Bearer $token",
+                'Authorization' => "Bearer $token",
                 'Content-Type' => 'application/json',
                 'Accept-Encoding' => 'gzip, deflate, br',
                 'Accept' => 'application/json'
@@ -573,18 +557,18 @@ class ProductController extends Controller
 
             dd($data);
             // dd($data);
-             // Make sure JSON is valid
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return []; // return empty array if JSON is invalid
-        }
+            // Make sure JSON is valid
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return []; // return empty array if JSON is invalid
+            }
 
-        // return the data array
-        return $data; 
+            // return the data array
+            return $data;
 
         } catch (\Exception $e) {
             dd('Exception: ' . $e->getMessage());
         }
-         
+
     }
 
     public function getFbrHscodes()
@@ -594,7 +578,7 @@ class ProductController extends Controller
         $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
         try {
             $response = Http::withHeaders([
-               'Authorization' => "Bearer $token",
+                'Authorization' => "Bearer $token",
                 'Content-Type' => 'application/json',
                 'Accept-Encoding' => 'gzip, deflate, br',
                 'Accept' => 'application/json'
@@ -606,13 +590,13 @@ class ProductController extends Controller
             // Optional: decode JSON if needed
             $data = json_decode($response->body(), true);
             // dd($data);
-             // Make sure JSON is valid
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return []; // return empty array if JSON is invalid
-        }
+            // Make sure JSON is valid
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return []; // return empty array if JSON is invalid
+            }
 
-        // return the data array
-        return $data; 
+            // return the data array
+            return $data;
 
         } catch (\Exception $e) {
             dd('Exception: ' . $e->getMessage());
@@ -626,7 +610,7 @@ class ProductController extends Controller
         $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
         try {
             $response = Http::withHeaders([
-               'Authorization' => "Bearer $token",
+                'Authorization' => "Bearer $token",
                 'Content-Type' => 'application/json',
                 'Accept-Encoding' => 'gzip, deflate, br',
                 'Accept' => 'application/json'
@@ -638,13 +622,13 @@ class ProductController extends Controller
             // Optional: decode JSON if needed
             $data = json_decode($response->body(), true);
             // dd($data);
-             // Make sure JSON is valid
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return []; // return empty array if JSON is invalid
-        }
+            // Make sure JSON is valid
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return []; // return empty array if JSON is invalid
+            }
 
-        // return the data array
-        return $data; 
+            // return the data array
+            return $data;
 
         } catch (\Exception $e) {
             dd('Exception: ' . $e->getMessage());
@@ -659,7 +643,7 @@ class ProductController extends Controller
         $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
         try {
             $response = Http::withHeaders([
-               'Authorization' => "Bearer $token",
+                'Authorization' => "Bearer $token",
                 'Content-Type' => 'application/json',
                 'Accept-Encoding' => 'gzip, deflate, br',
                 'Accept' => 'application/json'
@@ -671,13 +655,13 @@ class ProductController extends Controller
             // Optional: decode JSON if needed
             $data = json_decode($response->body(), true);
             // dd($data);
-             // Make sure JSON is valid
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return []; // return empty array if JSON is invalid
-        }
+            // Make sure JSON is valid
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return []; // return empty array if JSON is invalid
+            }
 
-        // return the data array
-        return $data; 
+            // return the data array
+            return $data;
 
         } catch (\Exception $e) {
             dd('Exception: ' . $e->getMessage());
@@ -687,7 +671,7 @@ class ProductController extends Controller
     public function saveHsCodes()
     {
         $hsCodes = $this->getFbrHscodes(); // API call
-       
+
         if (empty($hsCodes)) {
             return "No data received!";
         }
@@ -714,7 +698,7 @@ class ProductController extends Controller
 
         try {
             $response = Http::withHeaders([
-               'Authorization' => "Bearer $token",
+                'Authorization' => "Bearer $token",
                 'Content-Type' => 'application/json',
                 'Accept-Encoding' => 'gzip, deflate, br',
                 'Accept' => 'application/json'
@@ -726,20 +710,20 @@ class ProductController extends Controller
             // Optional: decode JSON if needed
             $data = json_decode($response->body(), true);
             // dd($data);
-             // Make sure JSON is valid
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return []; // return empty array if JSON is invalid
-        }
+            // Make sure JSON is valid
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return []; // return empty array if JSON is invalid
+            }
 
-        // return the data array
-        return $data; 
+            // return the data array
+            return $data;
 
         } catch (\Exception $e) {
             dd('Exception: ' . $e->getMessage());
         }
     }
 
-     public function getTransTypeCode()
+    public function getTransTypeCode()
     {
         // $token = env('FBR_TOKEN');
         $tokens = FbrTokenService::getToken();
@@ -747,7 +731,7 @@ class ProductController extends Controller
 
         try {
             $response = Http::withHeaders([
-               'Authorization' => "Bearer $token",
+                'Authorization' => "Bearer $token",
                 'Content-Type' => 'application/json',
                 'Accept-Encoding' => 'gzip, deflate, br',
                 'Accept' => 'application/json'
@@ -760,23 +744,23 @@ class ProductController extends Controller
             $data = json_decode($response->body(), true);
             dd($data);
             // dd($data);
-             // Make sure JSON is valid
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return []; // return empty array if JSON is invalid
-        }
+            // Make sure JSON is valid
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return []; // return empty array if JSON is invalid
+            }
 
-        // return the data array
-        return $data; 
+            // return the data array
+            return $data;
 
         } catch (\Exception $e) {
             dd('Exception: ' . $e->getMessage());
         }
     }
 
-     public function saveUoms()
+    public function saveUoms()
     {
         $UoM = $this->getFbrUOM(); // API call
-       
+
         if (empty($UoM)) {
             return "No data received!";
         }
@@ -797,7 +781,7 @@ class ProductController extends Controller
     public function saveSroItem()
     {
         $sroItem = $this->getSroItem(); // API call
-       
+
         if (empty($sroItem)) {
             return "No data received!";
         }
@@ -818,7 +802,7 @@ class ProductController extends Controller
     public function saveSaleTypes()
     {
         $saleType = $this->getFbrSaleTypes(); // API call
-       
+
         if (empty($saleType)) {
             return "No data received!";
         }
@@ -838,22 +822,22 @@ class ProductController extends Controller
 
     public function getDescription($hs_code)
     {
-        
-        $hs = HsCode::where("hs_code",$hs_code)->first();
+
+        $hs = HsCode::where("hs_code", $hs_code)->first();
 
         if ($hs) {
 
-        //    $token = env('FBR_TOKEN');
-        $tokens = FbrTokenService::getToken();
-        $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
+            //    $token = env('FBR_TOKEN');
+            $tokens = FbrTokenService::getToken();
+            $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
 
             try {
                 $response = Http::withHeaders([
-                'Authorization' => "Bearer $token",
+                    'Authorization' => "Bearer $token",
                     'Content-Type' => 'application/json',
                     'Accept-Encoding' => 'gzip, deflate, br',
                     'Accept' => 'application/json'
-                ])->timeout(30)->get('https://gw.fbr.gov.pk/pdi/v2/HS_UOM?hs_code='.$hs_code.'&annexure_id=3');
+                ])->timeout(30)->get('https://gw.fbr.gov.pk/pdi/v2/HS_UOM?hs_code=' . $hs_code . '&annexure_id=3');
 
                 $uom = json_decode($response->body(), true);
 
@@ -862,9 +846,9 @@ class ProductController extends Controller
             }
 
 
-            
 
-            return response()->json(['description' => $hs->item_desc , 'uom' => $uom]);
+
+            return response()->json(['description' => $hs->item_desc, 'uom' => $uom]);
         } else {
             return response()->json(['description' => 'Description not found'], 404);
         }
@@ -872,37 +856,37 @@ class ProductController extends Controller
 
     public function getSaleTypeId($sale_type)
     {
-        
-        $st = SaleType::where("transactioN_DESC",$sale_type)->first();
-       
+
+        $st = SaleType::where("transactioN_DESC", $sale_type)->first();
+
         $saleTypeId = intval($st->transactioN_TYPE_ID);
-       
+
         // $token = env('FBR_TOKEN');
         $tokens = FbrTokenService::getToken();
         $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
 
         try {
             $response = Http::withHeaders([
-               'Authorization' => "Bearer $token",
+                'Authorization' => "Bearer $token",
                 'Content-Type' => 'application/json',
                 'Accept-Encoding' => 'gzip, deflate, br',
                 'Accept' => 'application/json'
-            ])->timeout(60)->get('https://gw.fbr.gov.pk/pdi/v2/SaleTypeToRate?date=24-Feb2024&transTypeId='.$saleTypeId.'&originationSupplier=1');
+            ])->timeout(60)->get('https://gw.fbr.gov.pk/pdi/v2/SaleTypeToRate?date=24-Feb2024&transTypeId=' . $saleTypeId . '&originationSupplier=1');
 
-         
+
             $data = json_decode($response->body(), true);
             if ($data) {
                 return response()->json(['sale_data' => $data]);
             } else {
                 return response()->json(['sale_type_id' => 'Sale Type not found'], 404);
             }
-            
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return []; // return empty array if JSON is invalid
-        }
 
-        // return the data array
-        return $data; 
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return []; // return empty array if JSON is invalid
+            }
+
+            // return the data array
+            return $data;
 
         } catch (\Exception $e) {
             dd('Exception: ' . $e->getMessage());
@@ -914,33 +898,33 @@ class ProductController extends Controller
     public function getSroSchedule($rate_tax_id)
     {
 
-       
+
         // $token = env('FBR_TOKEN');
         $tokens = FbrTokenService::getToken();
         $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
 
         try {
             $response = Http::withHeaders([
-               'Authorization' => "Bearer $token",
+                'Authorization' => "Bearer $token",
                 'Content-Type' => 'application/json',
                 'Accept-Encoding' => 'gzip, deflate, br',
                 'Accept' => 'application/json'
-            ])->timeout(60)->get('https://gw.fbr.gov.pk/pdi/v1/SroSchedule?rate_id='.$rate_tax_id.'&date=04-Feb2024&origination_supplier_csv=1');
+            ])->timeout(60)->get('https://gw.fbr.gov.pk/pdi/v1/SroSchedule?rate_id=' . $rate_tax_id . '&date=04-Feb2024&origination_supplier_csv=1');
 
-         
+
             $data = json_decode($response->body(), true);
             if ($data) {
                 return response()->json(['sro_data' => $data]);
             } else {
                 return response()->json(['sro_item' => 'SRO Item not found'], 404);
             }
-            
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return []; // return empty array if JSON is invalid
-        }
 
-        // return the data array
-        return $data; 
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return []; // return empty array if JSON is invalid
+            }
+
+            // return the data array
+            return $data;
 
         } catch (\Exception $e) {
             dd('Exception: ' . $e->getMessage());
@@ -950,34 +934,34 @@ class ProductController extends Controller
     public function getSroItemDetail($sro_schedule_id)
     {
 
-       
+
         // $token = env('FBR_TOKEN');  
         $tokens = FbrTokenService::getToken();
         $token = is_array($tokens) ? $tokens['digital_token'] : $tokens;
         try {
             $response = Http::withHeaders([
-               'Authorization' => "Bearer $token",
+                'Authorization' => "Bearer $token",
                 'Content-Type' => 'application/json',
                 'Accept-Encoding' => 'gzip, deflate, br',
                 'Accept' => 'application/json'
-            ])->timeout(60)->get('https://gw.fbr.gov.pk/pdi/v2/SROItem?date=2025-03-25&sro_id='.$sro_schedule_id);
+            ])->timeout(60)->get('https://gw.fbr.gov.pk/pdi/v2/SROItem?date=2025-03-25&sro_id=' . $sro_schedule_id);
 
-         
+
             $data = json_decode($response->body(), true);
 
-           
+
             if ($data) {
                 return response()->json(['sro_data' => $data]);
             } else {
                 return response()->json(['sro_item' => 'SRO Item not found'], 404);
             }
-            
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return []; // return empty array if JSON is invalid
-        }
 
-        // return the data array
-        return $data; 
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return []; // return empty array if JSON is invalid
+            }
+
+            // return the data array
+            return $data;
 
         } catch (\Exception $e) {
             dd('Exception: ' . $e->getMessage());
@@ -996,11 +980,11 @@ class ProductController extends Controller
         $units = Cache::remember('form_data.units', now()->addHours(6), function () {
             return Uom::select('id', 'description')->get();
         });
-    
+
         $hsCodes = Cache::remember('form_data.hs_codes', now()->addHours(6), function () {
             return HsCode::select('id', 'hs_code')->get();
         });
-    
+
         $saleTypes = Cache::remember('form_data.sale_types', now()->addHours(6), function () {
             return SaleType::select('id', 'transactioN_DESC')->get();
         });
@@ -1169,7 +1153,7 @@ class ProductController extends Controller
     {
         $base = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $name)); // strip spaces & special chars
         $base = substr($base, 0, 12);                                   // max 12 chars from name
-        $sku  = $base . '-' . time();                                   // e.g. APPLEJUICE-1743300000
+        $sku = $base . '-' . time();                                   // e.g. APPLEJUICE-1743300000
 
         // Fallback: if somehow duplicate (same name, same second), append microseconds
         if (Product::where('sku', $sku)->exists()) {
@@ -1194,24 +1178,24 @@ class ProductController extends Controller
     // }
 
     public function updateStockSetting(Request $request)
-{
-    $businessId = session('business_id');
+    {
+        $businessId = session('business_id');
 
-    $request->validate([
-        'status' => 'required|in:enabled,disabled'
-    ]);
+        $request->validate([
+            'status' => 'required|in:enabled,disabled'
+        ]);
 
-    quantity_validation::updateOrInsert(
-        ['business_id' => $businessId], // condition
-        ['product_quantity_validation' => $request->status] // values to insert/update
-    );
+        quantity_validation::updateOrInsert(
+            ['business_id' => $businessId], // condition
+            ['product_quantity_validation' => $request->status] // values to insert/update
+        );
 
-    return response()->json([
-        'success' => true,
-        'status' => $request->status,
-        'message' => $request->status === 'enabled'
-            ? 'Stock validation disabled successfully.'
-            : 'Stock validation enabled successfully.'
-    ]);
-}
+        return response()->json([
+            'success' => true,
+            'status' => $request->status,
+            'message' => $request->status === 'enabled'
+                ? 'Stock validation disabled successfully.'
+                : 'Stock validation enabled successfully.'
+        ]);
+    }
 }

@@ -115,6 +115,10 @@
                                 <td>{{$loop->index + 1}}</td>
                                 <td>
                                     {{ $item->product->name }}
+                                    @if ($item->variation)
+                                        <br>
+                                        <small>{{ $item->variation->label }}</small>
+                                    @endif
                                 </td>
                                 @foreach ($customFields as $field)
                                     <td>{{ $item->custom_fields[$field->field_name] ?? '—' }}</td>

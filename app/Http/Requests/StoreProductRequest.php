@@ -3,18 +3,8 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Contracts\Validation\Validator;
-use Illuminate\Http\Exceptions\HttpResponseException;
 class StoreProductRequest extends FormRequest
 {
-    protected function failedValidation(Validator $validator)
-    {
-        throw new HttpResponseException(response()->json([
-            'status' => false,
-            'message' => 'Validation errors',
-            'errors' => $validator->errors()
-        ], 422));
-    }
 
     /**
      * Determine if the user is authorized to make this request.
@@ -38,8 +28,8 @@ class StoreProductRequest extends FormRequest
         }
 
         $businessType = \App\Models\Business::where('id', $businessId)
-                        ->value('business_type');
-        $rules =  [
+            ->value('business_type');
+        $rules = [
             'product_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'name' => 'required|string|max:255',
             'slug' => 'nullable|string|max:100|unique:products,slug',
@@ -55,11 +45,18 @@ class StoreProductRequest extends FormRequest
             'quantity' => 'nullable|integer|min:0',
             'expire_date' => 'nullable|date',
             'status' => 'nullable|boolean',
+            'has_variations' => 'nullable|boolean',
+            'variations' => 'required_if:has_variations,1|array',
+            'variations.*.options' => 'required|array|min:1',
+            'variations.*.options.*' => 'required|string|max:100',
+            'variations.*.sku' => 'nullable|string|max:100|distinct|unique:product_variations,sku',
+            'variations.*.price' => 'required|numeric|min:0',
+            // 'variations.*.purchase_price' => 'required|numeric|min:0',
         ];
         if ($businessType === 'pos' || $businessType === 'pral') {
             $rules['PCTCode'] = 'required|string|max:255';
             $rules['pos_sale_tax'] = 'required|string|max:255';
-        }else{
+        } else {
             // ✅ New fields
             $rules['hsCode'] = 'required|string|max:255';
             $rules['hs_description'] = 'required|string';
@@ -70,7 +67,7 @@ class StoreProductRequest extends FormRequest
             $rules['uom'] = 'required|string|max:255';
             $rules['sro_schedule'] = 'nullable|string|max:255';
         }
-            
+
         return $rules;
     }
 }

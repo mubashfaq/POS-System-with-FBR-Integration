@@ -12,6 +12,7 @@ class PurchaseItem extends Model
     protected $fillable = [
         'purchase_id',
         'product_id',
+        'product_variation_id',
         'purchase_price',
         'price',
         'discount_value',
@@ -36,15 +37,25 @@ class PurchaseItem extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
+    public function variation()
+    {
+        return $this->belongsTo(ProductVariation::class, 'product_variation_id');
+    }
     // Accessor for Product Name
     public function getNameAttribute()
     {
         return $this->product ? $this->product->name : null;
     }
 
-    // Accessor for Current Stock Quantity
+    public function getVariationLabelAttribute()
+    {
+        return $this->variation?->label;
+    }
+
+    // Make your existing stock accessor variation-aware
     public function getStockAttribute()
     {
-        return $this->product ? $this->product->quantity : null;
+        return $this->variation ? $this->variation->quantity : $this->product?->quantity;
     }
 }

@@ -189,7 +189,13 @@
                     @foreach ($order->products->where('is_accessory', 0) as $item)
                         <tr>
                             <td>{{ $loop->index + 1 }}</td>
-                            <td>{{ $item->product->name }}</td>
+                            <td>
+                                {{ $item->product->name }}
+                                @if ($item->variation)
+                                    <br>
+                                    <small>{{ $item->variation->label }}</small>
+                                @endif
+                            </td>
                             @foreach ($customFields as $field)
                                 <td>{{ $item->custom_fields[$field->field_name] ?? '—' }}</td>
                             @endforeach

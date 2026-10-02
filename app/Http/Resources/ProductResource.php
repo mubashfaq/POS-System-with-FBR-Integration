@@ -29,6 +29,16 @@ class ProductResource extends JsonResource
             'status' => $this->status,
             'created_at' => $this->created_at,
             // 'image_url' => $this->getImageUrl(),
+            'has_variations' => (bool) $this->has_variations,
+            'variations' => $this->when($this->has_variations, fn() =>
+                $this->variations->where('status', 1)->values()->map(fn($v) => [
+                    'id' => $v->id,
+                    'sku' => $v->sku,
+                    'label' => $v->label,
+                    'price' => $v->price,
+                    'purchase_price' => $v->purchase_price,
+                    'stock' => (float) ($v->quantity ?? 0),
+                ])),
         ];
     }
 }

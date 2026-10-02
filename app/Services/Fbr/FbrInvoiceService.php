@@ -12,7 +12,7 @@ class FbrInvoiceService
     {
         $items = array_map(fn($l) => [
             'ItemCode' => $l['product']->sku,
-            'ItemName' => $l['product']->name,
+            'ItemName' => $l['variation'] ? $l['product']->name . ' - ' . $l['variation']->label : $l['product']->name,
             'quantity' => round($l['qty'], 2),
             'PCTCode' => $l['product']->PCTCode,
             'TaxRate' => $l['calc']['tax_rate'],
@@ -60,7 +60,7 @@ class FbrInvoiceService
                 ->post($url, $payload);
         } catch (\Throwable $e) {
             Log::channel('fbr')->error('FBR request failed', ['error' => $e->getMessage(), 'payload' => $payload]);
-            
+
             throw new FbrRejectedException('FBR request failed: ' . $e->getMessage(), null, [], $payload);
         }
 

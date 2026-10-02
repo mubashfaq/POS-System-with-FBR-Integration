@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Product;
+use App\Models\ProductVariation;
 use App\Models\PurchaseItem;
 
 class StockReconciliationService
@@ -16,44 +17,47 @@ class StockReconciliationService
      */
     public static function reconcileNewBatch(PurchaseItem $purchaseItem)
     {
-        // 1. Lock product row
         $product = Product::lockForUpdate()->find($purchaseItem->product_id);
         if (!$product) {
             return;
         }
 
+        // Only require a real variation row when this batch actually has one.
+        // product_variation_id is legitimately null for simple products.
+        if ($purchaseItem->product_variation_id) {
+            $variation = ProductVariation::lockForUpdate()->find($purchaseItem->product_variation_id);
+            if (!$variation) {
+                return;
+            }
+        }
+
         $purchaseQty = $purchaseItem->quantity;
 
-        // If the product's quantity before this purchase was negative
-        if ($product->quantity < 0) {
-            $oversoldQty = abs($product->quantity);
+        // Oversold amount for this exact unit (product + variation), from the
+        // batches, not from a product-level column.
+        $unitStock = PurchaseItem::where('product_id', $purchaseItem->product_id)
+            ->where('product_variation_id', $purchaseItem->product_variation_id) // null === null
+            ->where('id', '!=', $purchaseItem->id)
+            ->sum('remaining_qty');
+
+        if ($unitStock < 0) {
             $remaining = $purchaseQty;
 
-            // 2. Lock and fetch negative batches (oldest first)
-            $negativeBatches = PurchaseItem::where('product_id', $product->id)
+            $negativeBatches = PurchaseItem::where('product_id', $purchaseItem->product_id)
+                ->where('product_variation_id', $purchaseItem->product_variation_id)
                 ->where('remaining_qty', '<', 0)
                 ->orderBy('created_at', 'asc')
                 ->lockForUpdate()
                 ->get();
 
             foreach ($negativeBatches as $batch) {
-                if ($remaining <= 0) {
+                if ($remaining <= 0)
                     break;
-                }
 
-                $batchNegQty = abs($batch->remaining_qty);
-                $offset = min($remaining, $batchNegQty);
-
+                $offset = min($remaining, abs($batch->remaining_qty));
                 $batch->remaining_qty += $offset;
                 $batch->save();
-
                 $remaining -= $offset;
-                $oversoldQty -= $offset;
-            }
-
-            // 3. Deduct any remaining oversold quantity (e.g. from FIFO/new products)
-            if ($oversoldQty > 0) {
-                $remaining = max(0, $remaining - $oversoldQty);
             }
 
             $purchaseItem->remaining_qty = $remaining;
