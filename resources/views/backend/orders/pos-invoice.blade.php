@@ -122,7 +122,13 @@
 
             @endphp
             <tr>
-              <td>{{ $item->product->name }} </td>
+              <td>
+                {{ $item->product->name }}
+                @if ($item->variation)
+                    <br>
+                    <small>{{ $item->variation->label }}</small>
+                @endif
+            </td>
               <!-- <br> <small>(Tax: {{ $item->product->rate_of_tax }})</small> -->
               <td class="text-center">{{ $item->quantity }} * {{ number_format($pfinalPricePerUnit, 2) }}</td>
               <td class="text-right">{{ number_format($pfinalLineTotal, 2) }}</td>

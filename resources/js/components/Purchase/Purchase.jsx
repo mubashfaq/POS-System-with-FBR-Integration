@@ -21,6 +21,8 @@ export default function Purchase() {
     const [shipping, setShipping] = useState(0);
     const [products, setProducts] = useState([]);
     const [searchResults, setSearchResults] = useState([]);
+    const round2 = (n) => parseFloat((Number(n) || 0).toFixed(2));
+    const lineKey = (l) => `${l.id}-${l.product_variation_id ?? 0}`;
     useEffect(() => {
         const searchParams = new URLSearchParams(window.location.search);
         const barcodeParam = searchParams.get("barcode");
@@ -50,127 +52,114 @@ export default function Purchase() {
             const purchaseProducts = purchaseData?.items?.map((item) => ({
                 item_id: item.id,
                 id: item.product_id,
+                product_variation_id: item.product_variation_id ?? null,
                 name: item.name,
-                price: item.price,
-                purchase_price: item.purchase_price,
+                variation_label: item.variation_label ?? null,
+                purchase_price: Number(item.purchase_price),
+                price: Number(item.price),
                 stock: item.stock,
-                qty: item.quantity,
+                qty: Number(item.quantity),
                 subTotal: item.purchase_price * item.quantity,
             }));
+            console.log(purchaseProducts);
             setProducts(purchaseProducts);
             setDate(purchaseData?.date ? purchaseData.date.split(" ")[0] : "");
             setSelectedSupplier({
                 value: purchaseData?.supplier_id,
                 label: purchaseData?.supplier?.name,
             });
-            setTax(purchaseData?.tax);
-            setDiscount(purchaseData?.discount_value);
-            setShipping(purchaseData?.shipping);
+            setTax(Number(purchaseData?.tax) || 0);
+            setDiscount(Number(purchaseData?.discount_value) || 0);
+            setShipping(Number(purchaseData?.shipping) || 0);
         } catch (error) {
             console.error("Error fetching products:", error);
         } finally {
         }
     }, [purchaseId]);
 
-    const getProducts = useCallback(async () => {
-        if (!searchTerm.trim()) {
-            console.log("Search term is empty");
-            return;
-        }
+    const addLine = (product, variation = null) => {
+        const purchasePrice = Number(variation ? variation.purchase_price : product.purchase_price) || 0;
 
-        // Optional: Uncomment if you want to show loading state
-        // setLoading(true);
+        const line = {
+            id: product.id,
+            product_variation_id: variation?.id ?? null,
+            name: product.name,
+            variation_label: variation?.label ?? null,
+            price: Number(variation ? variation.price : product.price) || 0,
+            purchase_price: purchasePrice,
+            stock: variation ? Number(variation.stock ?? 0) : Number(product.quantity ?? 0),
+            qty: 1,
+            subTotal: purchasePrice,
+        };
+
+        setProducts((prev) => {
+            const i = prev.findIndex((p) => lineKey(p) === lineKey(line));
+            if (i === -1) return [...prev, line];
+            return prev.map((p, idx) =>
+                idx === i
+                    ? { ...p, qty: Number(p.qty) + 1, subTotal: round2(p.purchase_price * (Number(p.qty) + 1)) }
+                    : p
+            );
+        });
+    };
+
+    const getProducts = useCallback(async () => {
+        const term = searchTerm.trim();
+        if (!term) return;
+
+        let needsChoice = false;
 
         try {
-            const res = await axios.get("/admin/products", {
-                params: { search: searchTerm },
+            const res = await axios.get("/admin/products", { params: { search: term } });
+            console.log(res);
+
+            (res.data?.data || []).forEach((product) => {
+                if (!product.has_variations) {
+                    addLine(product);
+                    return;
+                }
+                // A variation SKU scan adds exactly that variation
+                const exact = product.variations.find((v) => v.sku && v.sku === term);
+                if (exact) {
+                    addLine(product, exact);
+                } else {
+                    needsChoice = true;
+                    toast(`Choose a variation for ${product.name} from the list.`);
+                }
             });
-
-            const productsData = res.data;
-
-            // Ensure productsData and productsData.data exist
-            if (productsData?.data && productsData.data.length) {
-                productsData.data.forEach((product) => {
-                    const existingProductIndex = products.findIndex(
-                        (p) => p.id === product.id
-                    );
-                    if (existingProductIndex !== -1) {
-                        // Product exists, increment qty
-                        setProducts((prevProducts) => {
-                            const updatedProducts = [...prevProducts];
-                            updatedProducts[existingProductIndex].qty += 1; // Increment qty
-                            updatedProducts[existingProductIndex].subTotal =
-                                updatedProducts[existingProductIndex]
-                                    .purchase_price *
-                                updatedProducts[existingProductIndex].qty; // Update subTotal
-                            return updatedProducts;
-                        });
-                    } else {
-                        // New product, add to the list
-                        const newProduct = {
-                            id: product.id,
-                            name: product.name,
-                            price: product.price,
-                            purchase_price: product.purchase_price,
-                            stock: product.quantity,
-                            qty: 1,
-                            subTotal: product.purchase_price,
-                        };
-                        setProducts((prevProducts) => [
-                            ...prevProducts,
-                            newProduct,
-                        ]);
-                    }
-                });
-            }
         } catch (error) {
             console.error("Error fetching products:", error);
         } finally {
-            // Optional: Uncomment if you want to hide loading state
-            // setLoading(false);
-
-            // Clear searchTerm if needed
-            setSearchTerm("");
+            // Keep the list open when the user still has to pick a variation
+            if (!needsChoice) setSearchTerm("");
         }
-    }, [searchTerm]); // Don't forget to add searchTerm as a dependency
+    }, [searchTerm]);
 
     // Handle deletion of a product
-    const handleDelete = (id) => {
-        setProducts(products.filter((product) => product.id !== id));
+    const handleDelete = (key) => {
+        setProducts((prev) => prev.filter((p) => lineKey(p) !== key));
     };
 
-    // Update quantity and recalculate subtotal
-    const handleQtyChange = (id, value) => {
-        const updatedProducts = products.map((product) => {
-            if (product.id === id) {
-                const newQty = parseInt(value) || 0;
-                return {
-                    ...product,
-                    qty: newQty,
-                    subTotal: parseFloat(
-                        (product.purchase_price * newQty).toFixed(2)
-                    ),
-                };
-            }
-            return product;
-        });
-        setProducts(updatedProducts);
+    const handleQtyChange = (key, value) => {
+        const newQty = parseInt(value) || 0;
+        setProducts((prev) =>
+            prev.map((p) =>
+                lineKey(p) === key
+                    ? { ...p, qty: newQty, subTotal: round2(p.purchase_price * newQty) }
+                    : p
+            )
+        );
     };
 
-    // Update purchase price and recalculate subtotal
-    const handlePriceChange = (id, value) => {
-        const updatedProducts = products.map((product) => {
-            if (product.id === id) {
-                const newPrice = parseFloat(value) || 0;
-                return {
-                    ...product,
-                    purchase_price: newPrice,
-                    subTotal: parseFloat((product.qty * newPrice).toFixed(2)),
-                };
-            }
-            return product;
-        });
-        setProducts(updatedProducts);
+    const handlePriceChange = (key, value) => {
+        const newPrice = parseFloat(value) || 0;
+        setProducts((prev) =>
+            prev.map((p) =>
+                lineKey(p) === key
+                    ? { ...p, purchase_price: newPrice, subTotal: round2(p.qty * newPrice) }
+                    : p
+            )
+        );
     };
     // Add a new product by searching
     const handleSearchAdd = () => {
@@ -208,7 +197,7 @@ export default function Purchase() {
     const totals = calculateTotals();
     const handleSubmit = async () => {
         if (totals.grandTotal <= 0) {
-               toast.error("Total must be greater than zero.");
+            toast.error("Total must be greater than zero.");
             return;
         }
         if (!date) {
@@ -282,41 +271,18 @@ export default function Purchase() {
         // Call the async function inside useEffect
         getProducts();
     }, [searchTerm]);
-    // Handle adding selected product to the products list
-    // Handle adding selected product to the products list
-    const handleProductSelect = (product) => {
-        const existingProductIndex = products.findIndex(
-            (p) => p.id === product.id
-        );
 
-        if (existingProductIndex !== -1) {
-            // If product exists, increment quantity
-            setProducts((prevProducts) => {
-                const updatedProducts = [...prevProducts];
-                updatedProducts[existingProductIndex].qty += 1;
-                updatedProducts[existingProductIndex].subTotal =
-                    updatedProducts[existingProductIndex].purchase_price *
-                    updatedProducts[existingProductIndex].qty;
-                return updatedProducts;
-            });
-        } else {
-            // Add new product to the list
-            const newProduct = {
-                id: product.id,
-                name: product.name,
-                price: product.price,
-                purchase_price: product.purchase_price,
-                stock: product.quantity,
-                qty: 1,
-                subTotal: product.purchase_price,
-            };
-            setProducts((prevProducts) => [...prevProducts, newProduct]);
-        }
-
-        // Clear search term and results
+    // Handle adding selected product to the products list
+    const handleProductSelect = (product, variation = null) => {
+        addLine(product, variation);
         setSearchTerm("");
         setSearchResults([]);
     };
+
+    const resultLines = searchResults.flatMap((product) =>
+        product.has_variations ? product.variations.map((variation) => ({ product, variation })) : [{ product, variation: null }]
+    );
+
     return (
         <>
             <div className="container-fluid">
@@ -338,8 +304,8 @@ export default function Purchase() {
                                         onChange={(date) => {
                                             const formattedDate = date
                                                 ? date
-                                                      .toISOString()
-                                                      .split("T")[0]
+                                                    .toISOString()
+                                                    .split("T")[0]
                                                 : null;
                                             setDate(formattedDate);
                                         }}
@@ -389,27 +355,26 @@ export default function Purchase() {
                             </div>
                         </div>
                         {/* Display search results below the input */}
-                        {searchResults.length > 0 && (
+                        {resultLines.length > 0 && (
                             <div className="row mb-2">
-                                <div
-                                    className="col-6"
-                                    style={{
-                                        maxHeight: "200px",
-                                        overflowY: "auto",
-                                    }}
-                                >
+                                <div className="col-6" style={{ maxHeight: "200px", overflowY: "auto" }}>
                                     <ul className="list-group">
-                                        {searchResults.map((product) => (
+                                        {resultLines.map(({ product, variation }) => (
                                             <li
-                                                key={product.id}
-                                                className="list-group-item"
-                                                onClick={() =>
-                                                    handleProductSelect(product)
-                                                }
+                                                key={`${product.id}-${variation?.id ?? 0}`}
+                                                className="list-group-item d-flex justify-content-between"
                                                 style={{ cursor: "pointer" }}
+                                                onClick={() => handleProductSelect(product, variation)}
                                             >
-                                                {product.name} - $
-                                                {product.price}
+                                                <span>
+                                                    {product.name}
+                                                    {variation && (
+                                                        <span className="text-muted"> – {variation.label}</span>
+                                                    )}
+                                                </span>
+                                                <span className="text-muted">
+                                                    Stock: {variation ? variation.stock : product.quantity}
+                                                </span>
                                             </li>
                                         ))}
                                     </ul>
@@ -432,23 +397,21 @@ export default function Purchase() {
                                     </thead>
                                     <tbody>
                                         {products.map((product, index) => (
-                                            <tr key={product.id}>
+                                            <tr key={lineKey(product)}>
                                                 <td>{index + 1}</td>
-                                                <td>{product.name}</td>
+                                                <td>
+                                                    {product.name}
+                                                    {product.variation_label && (
+                                                        <div className="small text-muted">{product.variation_label}</div>
+                                                    )}
+                                                </td>
                                                 <td className="d-flex align-items-center justify-content-center">
                                                     <input
                                                         type="number"
                                                         min="1"
                                                         className="form-control w-50"
-                                                        value={
-                                                            product.purchase_price
-                                                        }
-                                                        onChange={(e) =>
-                                                            handlePriceChange(
-                                                                product.id,
-                                                                e.target.value
-                                                            )
-                                                        }
+                                                        value={product.purchase_price}
+                                                        onChange={(e) => handlePriceChange(lineKey(product), e.target.value)}
                                                     />
                                                 </td>
                                                 <td>{product.stock}</td>
@@ -458,27 +421,12 @@ export default function Purchase() {
                                                         min="1"
                                                         className="form-control w-50"
                                                         value={product.qty}
-                                                        onChange={(e) =>
-                                                            handleQtyChange(
-                                                                product.id,
-                                                                e.target.value
-                                                            )
-                                                        }
+                                                        onChange={(e) => handleQtyChange(lineKey(product), e.target.value)}
                                                     />
                                                 </td>
-                                                <td>     
-                                                    {parseFloat(product.subTotal || 0).toFixed(2)}
-
-                                                </td>
+                                                <td>{parseFloat(product.subTotal || 0).toFixed(2)}</td>
                                                 <td>
-                                                    <button
-                                                        className="btn btn-danger btn-sm"
-                                                        onClick={() =>
-                                                            handleDelete(
-                                                                product.id
-                                                            )
-                                                        }
-                                                    >
+                                                    <button className="btn btn-danger btn-sm" onClick={() => handleDelete(lineKey(product))}>
                                                         Delete
                                                     </button>
                                                 </td>

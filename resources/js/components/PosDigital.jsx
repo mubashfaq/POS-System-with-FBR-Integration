@@ -10,6 +10,8 @@ import { ConfirmBox } from "./ConfirmBox";
 import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
+import VariationModal from "./modals/VariationModal";
+import BatchModal from "./modals/BatchModal";
 
 const Field = ({ label, required, children, alignStart }) => (
     <div
@@ -66,6 +68,8 @@ export default function Pos({
     const [poNumber, setPoNumber] = useState("");
 
     const [showBatchModal, setShowBatchModal] = useState(false);
+    const [showVariationModal, setShowVariationModal] = useState(false);
+    const [pendingProduct, setPendingProduct] = useState(null);
     const [availableBatches, setAvailableBatches] = useState([]);
     const [targetProduct, setTargetProduct] = useState(null);
     const [quantityValidation, setQuantityValidation] = useState(null);
@@ -75,7 +79,7 @@ export default function Pos({
     const handleCreateProduct = () => setShowProductModal(true);
     const handleProductCreated = (newProductId) => {
         getUpdatedProducts();
-        addProductToCart(newProductId, customerId);
+        addProductToCart({ id: newProductId, has_variations: false }, null);
     };
 
     useEffect(() => {
@@ -94,16 +98,7 @@ export default function Pos({
         }
 
         // Update React cart state immediately
-        setCarts(prev =>
-            prev.map(item =>
-                item.id === cartId
-                    ? {
-                        ...item,
-                        unit_price: price
-                    }
-                    : item
-            )
-        );
+        setCarts(prev => prev.map(item => item.id === cartId ? { ...item, unit_price: price } : item));
 
     };
 
@@ -120,14 +115,10 @@ export default function Pos({
             price: price,
         })
             .then(() => {
-
                 setCartUpdated(prev => !prev);
-
             })
             .catch(err => {
-
                 console.error("Price update failed", err);
-
             });
 
     };
@@ -155,8 +146,7 @@ export default function Pos({
     };
 
 
-    const fullDomainWithPort = `${protocol}//${hostname}${port ? `:${port}` : ""
-        }`;
+    const fullDomainWithPort = `${protocol}//${hostname}${port ? `:${port}` : ""}`;
     const getProducts = useCallback(
         async (search = "", page = 1, barcode = "") => {
             setLoading(true);
@@ -167,7 +157,17 @@ export default function Pos({
                 const productsData = res.data;
                 setProducts((prev) => [...prev, ...productsData.data]); // Append new products
                 if (productsData.data.length === 1 && barcode != "") {
-                    addProductToCart(productsData.data[0].id, customerId);
+                    const matched = productsData.data[0];
+                    const scannedVariation = matched.has_variations
+                        ? (matched.variations || []).find((v) => v.sku && v.sku === barcode)
+                        : null;
+
+                    if (matched.has_variations && !scannedVariation) {
+                        setPendingProduct(matched);
+                        setShowVariationModal(true);
+                    } else {
+                        addProductToCart(matched, null, null, scannedVariation?.id ?? null);
+                    }
                     getCarts();
                 }
                 setTotalPages(productsData.meta.last_page); // Get total pages
@@ -271,7 +271,7 @@ export default function Pos({
         };
     }, [currentPage, totalPages]);
 
-    function addProductToCart(id, customerId, purchaseItemId = null) {
+    function addProductToCart(product, customerId, purchaseItemId = null, variationId = null) {
         // Use ref as fallback so this works immediately after customer selection
         const resolvedCustomerId = customerId || customerIdRef.current;
         if (!resolvedCustomerId) {
@@ -279,14 +279,31 @@ export default function Pos({
             return;
         }
 
+        const id = product.id;
+
+        // Step 1: variable product with no variation chosen yet -> ask which one
+        if (product.has_variations && !variationId) {
+            if (!product.variations || product.variations.length === 0) {
+                toast.error("This product has no active variations.");
+                return;
+            }
+            setPendingProduct(product);
+            setShowVariationModal(true);
+            return;
+        }
+
         if (!purchaseItemId) {
+            const url = variationId ? `/admin/product/${id}/batches/${variationId}` : `/admin/product/${id}/batches`;
             axios
-                .get(`/admin/product/${id}/batches`)
+                .get(url)
                 .then((res) => {
                     const batches = res.data.batches;
-                    const product = {
+                    const targetInfo = {
                         id: res.data.product_id,
-                        name: res.data.product_name,
+                        name: res.data.variation_label
+                            ? `${res.data.product_name} – ${res.data.variation_label}`
+                            : res.data.product_name,
+                        variationId: res.data.variation_id ?? null,
                     };
 
                     if (batches.length <= 0) {
@@ -297,48 +314,50 @@ export default function Pos({
                     const batchEnabled = res.data.is_batch_enabled === true || res.data.is_batch_enabled == 1;
 
                     if (!batchEnabled) {
-                        submitToCart(id, null);
+                        submitToCart(id, null, variationId);
+                    } else if (batches.length === 1) {
+                        submitToCart(id, batches[0].id, variationId);
                     } else {
-                        if (batches.length === 1) {
-                            // Only one batch? Add directly
-                            submitToCart(id, batches[0].id);
-                        } else {
-                            // Show selection modal
-                            setTargetProduct(product);
-                            setAvailableBatches(batches);
-                            setShowBatchModal(true);
-                        }
+                        // Show selection modal
+                        setTargetProduct(targetInfo);
+                        setAvailableBatches(batches);
+                        setShowBatchModal(true);
                     }
                 })
                 .catch((err) => {
-                    toast.error("Failed to fetch product batches.");
+                    toast.error(err?.response?.data?.message || "Failed to fetch product batches.");
                 });
         } else {
-            submitToCart(id, purchaseItemId);
+            submitToCart(id, purchaseItemId, variationId);
         }
     }
 
-    function submitToCart(productId, purchaseItemId) {
+    // Variation picked in the modal -> continue the same flow with variationId set
+    const handleVariationSelect = (variation) => {
+        setShowVariationModal(false);
+        if (!pendingProduct) return;
+        addProductToCart(pendingProduct, null, null, variation.id);   // was (pendingProduct, null, variation.id)
+        setPendingProduct(null);
+    };
+
+    function submitToCart(productId, purchaseItemId, variationId = null) {
         // Optimistic update: find an existing cart item for this product
         // and temporarily increment its quantity so the UI updates instantly
         setCarts((prev) => {
-            const existing = prev.find(
-                (c) => c.product?.id === productId && c.purchase_item_id === purchaseItemId
-            );
-            if (existing) {
-                // increment quantity optimistically
-                return prev.map((c) =>
-                    c.product?.id === productId && c.purchase_item_id === purchaseItemId
-                        ? { ...c, quantity: c.quantity + 1 }
-                        : c
-                );
+            const same = (c) =>
+                c.product?.id === productId &&
+                c.purchase_item_id === purchaseItemId &&
+                (c.product_variation_id ?? null) === (variationId ?? null);
+
+            if (prev.find(same)) {
+                return prev.map((c) => (same(c) ? { ...c, quantity: c.quantity + 1 } : c));
             }
-            // New item — add a thin placeholder so something appears immediately
             return [
                 ...prev,
                 {
-                    id: `optimistic-${productId}-${Date.now()}`,
+                    id: `optimistic-${productId}-${variationId ?? 0}-${Date.now()}`,
                     product: { id: productId, name: "...", discounted_price: 0, price: 0, rate_of_tax: "0", sale_type: "" },
+                    product_variation_id: variationId,
                     quantity: 1,
                     purchase_item_id: purchaseItemId,
                     unit_price: null,
@@ -349,6 +368,7 @@ export default function Pos({
         axios
             .post("/admin/cart", {
                 id: productId,
+                product_variation_id: variationId,
                 purchase_item_id: purchaseItemId,
             })
             .then((res) => {
@@ -885,14 +905,8 @@ export default function Pos({
                                 </div>
                                 {products.length > 0 &&
                                     products.map((product, index) => (
-                                        <div
-                                            onClick={() =>
-                                                addProductToCart(product.id, customerId)
-                                            }
-                                            className="col-6 col-md-4 col-lg-3 mb-3"
-                                            key={index}
-                                            style={{ cursor: "pointer" }}
-                                        >
+                                        <div onClick={() => addProductToCart(product)} style={{ cursor: "pointer" }}
+                                            className="col-6 col-md-4 col-lg-3 mb-3" key={index}>
                                             <div className="text-center">
                                                 <img
                                                     src={`${fullDomainWithPort}/storage/${product.image}`}
@@ -911,13 +925,13 @@ export default function Pos({
                                                             ? `${product.name.substring(0, 18)}...`
                                                             : product.name}{" "}
                                                         ({product.quantity})
+                                                        {product.has_variations && (
+                                                            <span className="badge badge-info ml-1" style={{ fontSize: "0.65em" }}>
+                                                                Options
+                                                            </span>
+                                                        )}
                                                     </p>
-                                                    <p>
-                                                        Price:{" "}
-                                                        {
-                                                            product?.discounted_price
-                                                        }
-                                                    </p>
+                                                    <p>Price: {product?.discounted_price}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -932,64 +946,30 @@ export default function Pos({
                     </div>
                 </div>
             </div>
-            {showBatchModal && (
-                <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', overflowY: 'auto' }}>
-                    <div className="modal-dialog modal-lg">
-                        <div className="modal-content">
-                            <div className="modal-header bg-primary text-white">
-                                <h5 className="modal-title">Select Batch for {targetProduct?.name}</h5>
-                                <button type="button" className="close text-white" onClick={() => setShowBatchModal(false)}>
-                                    <span>&times;</span>
-                                </button>
-                            </div>
-                            <div className="modal-body">
-                                <div className="table-responsive">
-                                    <table className="table table-bordered table-hover">
-                                        <thead className="bg-light">
-                                            <tr>
-                                                <th>Purchase Date</th>
-                                                <th>Available Qty</th>
-                                                <th>Original Qty</th>
-                                                <th>Purchase Price</th>
-                                                <th>Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {availableBatches.map((batch) => (
-                                                <tr key={batch.id}>
-                                                    <td>{batch.purchase_date}</td>
-                                                    <td className="text-bold text-success">{batch.remaining_qty}</td>
-                                                    <td>{batch.quantity}</td>
-                                                    <td>{batch.purchase_price}</td>
-                                                    <td>
-                                                        <button
-                                                            className="btn btn-sm btn-primary"
-                                                            onClick={() => addProductToCart(targetProduct.id, customerId, batch.id)}
-                                                        >
-                                                            Select
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            {quantityValidation === 'enabled' && (
-                                <div className="px-3 pb-2 mt-n4">
-                                    <small className="text-muted">
-                                        <i className="fas fa-info-circle mr-1"></i>
-                                        Batches with less than 1 quantity available can also be selected.
-                                    </small>
-                                </div>
-                            )}
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={() => setShowBatchModal(false)}>Close</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <VariationModal
+                show={showVariationModal}
+                product={pendingProduct}
+                quantityValidation={quantityValidation}
+                onClose={() => {
+                    setShowVariationModal(false);
+                    setPendingProduct(null);
+                }}
+                onSelect={handleVariationSelect}
+            />
+            <BatchModal
+                show={showBatchModal}
+                product={targetProduct}
+                batches={availableBatches}
+                quantityValidation={quantityValidation}
+                onClose={() => setShowBatchModal(false)}
+                onSelect={(batch) =>
+                    submitToCart(
+                        targetProduct.id,
+                        batch.id,
+                        targetProduct.variationId
+                    )
+                }
+            />
 
             <ProductCreateDigitalModal
                 show={showProductModal}

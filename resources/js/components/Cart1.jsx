@@ -162,6 +162,8 @@ export default function Cart1({
         }
     }, [carts, registrationStatus]);
 
+    const stockOf = (item) => Number(item.available_stock ?? item.product.quantity);
+
     function updateQuantity(id, newQuantity) {
         axios
             .put("/admin/cart/update-quantity", {
@@ -197,31 +199,15 @@ export default function Cart1({
         }
 
         // Block only when: main product AND stock is being enforced AND exceeds stock
-        if (!isAccessory && stockEnforced && newQuantity > item.product.quantity) {
+        if (!isAccessory && stockEnforced && newQuantity > stockOf(item)) {
             playSound(WarningSound);
-            toast.error(`Only ${item.product.quantity} items available in stock`);
+            toast.error(`Only ${stockOf(item)} items available in stock`);
             setEditingQuantity((prev) => ({ ...prev, [id]: false }));
             return;
         }
 
         updateQuantity(id, newQuantity);
     }
-
-    // function increment(id) {
-    //     const item = carts.find((cart) => cart.id === id);
-    //     if (!item) return;
-
-    //     const isAccessory = !!item.parent_cart_id || !!item.is_accessory;
-    //     const stockEnforced = quantityValidation == "disabled"; // disabled = enforce stock
-
-    //     // Accessories: always allow
-    //     // Main product + validation enabled: always allow (backend handles it)
-    //     // Main product + validation disabled: respect stock limit
-    //     if (isAccessory || !stockEnforced || item.quantity < item.product.quantity) {
-    //         updateQuantity(id, item.quantity + 1);
-    //     }
-    // }
-
 
     function increment(id) {
         const item = carts.find((cart) => cart.id === id);
@@ -232,7 +218,7 @@ export default function Cart1({
 
         const currentQty = Number(item.quantity);
 
-        if (isAccessory || !stockEnforced || currentQty < item.product.quantity) {
+        if (isAccessory || !stockEnforced || currentQty < stockOf(item)) {
             updateQuantity(id, currentQty + 1);
         }
     }
@@ -323,6 +309,9 @@ export default function Cart1({
                                                     <tr>
                                                         <td>
                                                             <strong>{item.product.name}</strong>
+                                                            {item.variation_label && (
+                                                                <div className="small text-muted">{item.variation_label}</div>
+                                                            )}
                                                             {itemAccessories.length > 0 && (
                                                                 <span className="badge badge-info ml-1" style={{ fontSize: "0.7em" }}>
                                                                     <i className="fas fa-puzzle-piece"></i> {itemAccessories.length}
@@ -335,7 +324,7 @@ export default function Cart1({
                                                             </button>
                                                             {editingQuantity[item.id] ? (
                                                                 <input type="number" className="form-control form-control-sm qty ml-1 mr-1"
-                                                                    defaultValue={item.quantity} min="0.01" step="0.01" max={item.product.quantity} autoFocus
+                                                                    defaultValue={item.quantity} min="0.01" step="0.01" max={stockOf(item)} autoFocus
                                                                     onBlur={(e) => handleQuantityBlur(item.id, e.target.value)}
                                                                     onKeyPress={(e) => { if (e.key === "Enter") handleQuantityBlur(item.id, e.target.value); }}
                                                                     style={{ width: "60px" }} />
@@ -347,7 +336,7 @@ export default function Cart1({
                                                                 </div>
                                                             )}
                                                             <button className="btn btn-success btn-sm" onClick={() => increment(item.id)}
-                                                                disabled={quantityValidation == "disabled" && item.quantity >= item.product.quantity}>
+                                                                disabled={quantityValidation == "disabled" && item.quantity >= stockOf(item)}>
                                                                 <i className="fas fa-plus"></i>
                                                             </button>
                                                         </td>
@@ -397,40 +386,6 @@ export default function Cart1({
                                                         </td>
                                                     </tr>
 
-                                                    {/* ── ACCESSORY SUB-ROWS ── */}
-                                                    {/* {itemAccessories.map((acc) => (
-                                                        <tr key={acc.id} style={{ backgroundColor: "#f9f9f9", borderLeft: "3px solid #6c757d" }}>
-                                                            <td style={{ paddingLeft: "28px", color: "#6c757d" }}>
-                                                                <i className="fas fa-angle-right mr-1" style={{ fontSize: "0.8em" }}></i>
-                                                                <em>{acc.product.name}</em>
-                                                                <span className="badge badge-secondary ml-1" style={{ fontSize: "0.65em" }}>accessory</span>
-                                                            </td>
-                                                            <td className="d-flex align-items-center">
-                                                                <button className="btn btn-warning btn-sm" onClick={() => decrement(acc.id)} disabled={acc.quantity <= 1}>
-                                                                    <i className="fas fa-minus"></i>
-                                                                </button>
-                                                                {editingQuantity[acc.id] ? (
-                                                                    <input type="number" className="form-control form-control-sm qty ml-1 mr-1"
-                                                                        defaultValue={acc.quantity} min="1" autoFocus
-                                                                        onBlur={(e) => handleQuantityBlur(acc.id, e.target.value)}
-                                                                        onKeyPress={(e) => { if (e.key === "Enter") handleQuantityBlur(acc.id, e.target.value); }}
-                                                                        style={{ width: "60px" }} />
-                                                                ) : (
-                                                                    <div className="form-control form-control-sm qty ml-1 mr-1 text-center"
-                                                                        style={{ width: "60px", cursor: "pointer", backgroundColor: "#f0f0f0" }}
-                                                                        onClick={() => setEditingQuantity((prev) => ({ ...prev, [acc.id]: true }))}>
-                                                                        {acc.quantity}
-                                                                    </div>
-                                                                )}
-                                                                <button className="btn btn-success btn-sm" onClick={() => increment(acc.id)}>
-                                                                    <i className="fas fa-plus"></i>
-                                                                </button>
-                                                            </td>
-                                                            <td></td>
-                                                            <td className="text-right text-muted"><small>—</small></td>
-                                                            <td className="text-right text-muted"><small>stock only</small></td>
-                                                        </tr>
-                                                    ))} */}
                                                 </React.Fragment>
                                             );
                                         })

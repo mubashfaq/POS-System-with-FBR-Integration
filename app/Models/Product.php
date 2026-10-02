@@ -26,6 +26,7 @@ class Product extends Model
         'discount_type',
         'purchase_price',
         'quantity',
+        'has_variations',
         'expire_date',
         'status',
         'hsCode',
@@ -43,6 +44,10 @@ class Product extends Model
 
     ];
     protected $appends = ['discounted_price'];
+
+    protected $casts = [
+        'has_variations' => 'boolean',
+    ];
 
     public function setNameAttribute($value)
     {
@@ -65,7 +70,7 @@ class Product extends Model
 
         return $count ? "{$slug}-{$count}" : $slug;
     }
-   public function purchaseItems()
+    public function purchaseItems()
     {
         return $this->hasMany(PurchaseItem::class, 'product_id');
     }
@@ -97,14 +102,11 @@ class Product extends Model
         )->withPivot('quantity')->withTimestamps();
     }
 
-    // agar scope active hai
-   
-
     public function brand()
     {
         return $this->belongsTo(Brand::class);
     }
-    
+
     public function category()
     {
         return $this->belongsTo(Category::class);
@@ -113,13 +115,29 @@ class Product extends Model
     {
         return $this->belongsTo(Unit::class);
     }
+
+    public function variations()
+    {
+        return $this->hasMany(ProductVariation::class);
+    }
+
+    public function getQuantityAttribute($value): float
+    {
+        if (array_key_exists('stock_sum', $this->attributes)) {
+            return (float) $this->attributes['stock_sum'];
+        }
+
+        return (float) $this->purchaseItems()->sum('remaining_qty');
+    }
     public function scopeActive($query)
     {
         return $query->where('status', 1);
     }
     public function scopeStocked($query)
     {
-        return $query->where('quantity','>=',1);
+        return $query->whereRaw(
+            '(select coalesce(sum(pi.remaining_qty), 0) from purchase_items pi where pi.product_id = products.id) >= 1'
+        );
     }
 
     /**

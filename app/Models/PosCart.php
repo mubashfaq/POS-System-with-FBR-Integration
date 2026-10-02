@@ -13,6 +13,11 @@ class PosCart extends Model
 
     protected $casts = ['custom_fields' => 'array'];
 
+    protected $appends = [
+        'variation_label',
+        'available_stock',
+    ];
+
     public function product()
     {
         return $this->belongsTo(Product::class);
@@ -37,6 +42,28 @@ class PosCart extends Model
     public function accessoryCartItems()
     {
         return $this->hasMany(PosCart::class, 'parent_cart_id');
+    }
+
+    public function variation()
+    {
+        return $this->belongsTo(ProductVariation::class, 'product_variation_id');
+    }
+
+    public function getVariationLabelAttribute()
+    {
+        return $this->variation?->label;
+    }
+
+    /**
+     * Available stock for this cart row.
+     */
+    public function getAvailableStockAttribute(): float
+    {
+        if ($this->purchase_item_id) {
+            return (float) optional($this->purchaseItem)->remaining_qty;
+        }
+
+        return $this->variation ? $this->variation->quantity : (float) ($this->product->quantity ?? 0);
     }
 
     /**

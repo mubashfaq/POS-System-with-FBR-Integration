@@ -61,13 +61,9 @@ class Order extends Model
     }
     public function getTotalItemAttribute()
     {
-        $value = $this->products()
-            ->where('is_accessory', 0)
-            ->sum('quantity');
+        $value = $this->products()->where('is_accessory', 0)->sum('quantity');
 
-        return $value == (int) $value
-            ? (string) (int) $value
-            : number_format($value, 2, '.', '');
+        return $value == (int) $value ? (string) (int) $value : number_format($value, 2, '.', '');
     }
 
 
@@ -79,10 +75,7 @@ class Order extends Model
 
     public function getDisplayInvoiceNumberAttribute()
     {
-        if (
-            $this->business?->invoiceSetting?->invoice_number == 1 &&
-            filled($this->custom_invoice_number)
-        ) {
+        if ($this->business?->invoiceSetting?->invoice_number == 1 && filled($this->custom_invoice_number)) {
             return $this->custom_invoice_number;
         }
 

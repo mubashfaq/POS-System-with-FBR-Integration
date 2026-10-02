@@ -1,6 +1,6 @@
 {
   "resources/js/app.css": {
-    "file": "assets/app-1e12199b.css",
+    "file": "assets/app-f0deb2b4.css",
     "src": "resources/js/app.css"
   },
   "resources/js/app.jsx": {
@@ -9,9 +9,9 @@
       "assets/beep-02-4c77c523.mp3"
     ],
     "css": [
-      "assets/app-1e12199b.css"
+      "assets/app-f0deb2b4.css"
     ],
-    "file": "assets/app-6519ccbf.js",
+    "file": "assets/app-6bcd2910.js",
     "isEntry": true,
     "src": "resources/js/app.jsx"
   },
