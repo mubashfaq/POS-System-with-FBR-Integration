@@ -37,7 +37,8 @@ class Product extends Model
         'uom',
         'PCTCode',
         'pos_sale_tax',
-        'sro_schedule'
+        'sro_schedule',
+        'fixed_notified_value_or_retail_price'
 
 
 

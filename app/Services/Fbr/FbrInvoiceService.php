@@ -47,7 +47,10 @@ class FbrInvoiceService
     {
         $url = $business->business_type === 'pral'
             ? "https://ims.pral.com.pk/ims/{$env}/api/Live/PostData"
-            : "https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData";
+            : "https://gw.fbr.gov.pk/imsp/v1/api/Live/PostData";
+
+            // production  https://gw.fbr.gov.pk/imsp/v1/api/Live/PostData
+            // sandbox  https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData
 
         try {
             $response = Http::withOptions([

@@ -222,7 +222,7 @@ class OrderController extends Controller
 
         if ($orderTotal > 40000) {
             return response()->json([
-                'error' => 'Total amount is greater than  40000, please check this or make ist from Pakkhata.',
+                'error' => 'Total amount is greater than  40000, please check this or make it from Pakkhata.',
                 'order_total' => $orderTotal,
             ], 422);
         }
@@ -232,6 +232,7 @@ class OrderController extends Controller
         } catch (InsufficientStockException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         } catch (FbrRejectedException $e) {
+            Log::info($e);
             OrderLog::create([
                 'user_id' => $userId,
                 'business_id' => $data['business_id'],

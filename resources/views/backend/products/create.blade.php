@@ -57,7 +57,7 @@
                             Price
                             <span class="text-danger">*</span>
                         </label>
-                        <input type="number" step="0.01" min="0" class="form-control" placeholder="Enter price"
+                        <input type="number" step="1" min="1" class="form-control" placeholder="Enter price"
                             name="price" value="{{ old('price') }}" required>
                     </div>
                     @if ($business_type === 'pos' || $business_type === 'pral')
@@ -133,26 +133,30 @@
                         
                         {{-- ========================= SALE TYPE -> RATE OF TAX -> SRO SCHEDULE -> SRO ITEM ========================= --}}
                         @if ($fbrIntegration)
-                            <div class="mb-3 col-md-6">
-                                <label for="sale_type" class="form-label">Sale Type <span class="text-danger">*</span></label>
-                                <input type="hidden" name="sale_type_id" id="sale_type_id">
-                                <select class="form-control select2" style="width: 100%;" name="sale_type" id="sale_type" required>
-                                    <option value="">Select Sale Type</option>
-                                    @foreach ($saleTypes as $st)
-                                    <option value="{{ $st->transactioN_DESC }}" {{ old('id') == $st->id ? 'selected' : '' }}>
-                                        {{ $st->transactioN_DESC }}
-                                    </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        
-                            <div class="mb-3 col-md-6">
-                                <label for="rate_of_tax_id" class="form-label">Rate of Tax <span class="text-danger">*</span></label>
-                                <select class="form-control select2" style="width: 100%;" name="rate_of_tax" id="rate_of_tax" required>
-                                    <option value="">Select Sale Tax</option>
-                                </select>
-                                <input type="hidden" name="rate_of_tax_id" id="rate_of_tax_id">
-                            </div>
+                                <div class="mb-3 col-md-6">
+                                    <label for="sale_type" class="form-label">Sale Type <span class="text-danger">*</span></label>
+                                    <input type="hidden" name="sale_type_id" id="sale_type_id">
+                                    <select class="form-control select2" style="width: 100%;" name="sale_type" id="sale_type" required>
+                                        <option value="">Select Sale Type</option>
+                                        @foreach ($saleTypes as $st)
+                                        <!-- <option value="{{ $st->transactioN_DESC }}" {{ old('id') == $st->id ? 'selected' : '' }}>
+                                            {{ $st->transactioN_DESC }}
+                                        </option> -->
+                                        <option value="{{ $st->transactioN_DESC }}"
+                                            {{ old('sale_type', $product->sale_type ?? '') == $st->transactioN_DESC ? 'selected' : '' }}>
+                                            {{ $st->transactioN_DESC }}
+                                        </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            
+                                <div class="mb-3 col-md-6">
+                                    <label for="rate_of_tax_id" class="form-label">Rate of Tax <span class="text-danger">*</span></label>
+                                    <select class="form-control select2" style="width: 100%;" name="rate_of_tax" id="rate_of_tax" required>
+                                        <option value="">Select Sale Tax</option>
+                                    </select>
+                                    <input type="hidden" name="rate_of_tax_id" id="rate_of_tax_id">
+                                </div>
                         
                             <div class="mb-3 col-md-6">
                                 <label for="sro_schedule" class="form-label">Sro Schedule</label>
@@ -168,6 +172,18 @@
                                     <option value="">Select SRO Item</option>
                                 </select>
                                 <input type="hidden" id="sro_item_id" name="sro_item_id">
+                            </div>
+
+                            <div class="mb-3 col-md-6" id="retail_price_wrapper" style="display:none;">
+                                <label for="fixed_notified_value_or_retail_price" class="form-label">
+                                    Retail Price (MRP) <span class="text-danger">*</span>
+                                </label>
+                                <input type="number" step="0.01"  min="1"
+                                    class="form-control"
+                                    name="fixed_notified_value_or_retail_price"
+                                    id="fixed_notified_value_or_retail_price"
+                                    value="{{ old('fixed_notified_value_or_retail_price', $product->fixed_notified_value_or_retail_price ?? '') }}"
+                                    placeholder="Enter retail price">
                             </div>
                         @else
                             <div class="mb-3 col-md-6">
@@ -192,6 +208,18 @@
                                 <label for="sro_item" class="form-label">Sro Item Code</label>
                                 <input type="text" class="form-control" name="sro_item" id="sro_item"
                                     placeholder="Enter Sro Item Code" value="{{ old('sro_item') }}">
+                            </div>
+
+                            <div class="mb-3 col-md-6" id="retail_price_wrapper" style="display:none;">
+                                <label for="fixed_notified_value_or_retail_price" class="form-label">
+                                    Retail Price (MRP) <span class="text-danger">*</span>
+                                </label>
+                                <input type="number" step="0.01" min="1"
+                                    class="form-control"
+                                    name="fixed_notified_value_or_retail_price"
+                                    id="fixed_notified_value_or_retail_price"
+                                    value="{{ old('fixed_notified_value_or_retail_price', $product->fixed_notified_value_or_retail_price ?? '') }}"
+                                    placeholder="Enter retail price">
                             </div>
                         @endif
                     @endif
@@ -375,116 +403,7 @@ $(document).ready(function() {
             });
         });
 
-    // get sale id on sale type change
-    // $('#sale_type').on('change', function() {
-
-    //     var selectedSaleType = $(this).val();
-
-    //     let saleData = [];
-
-    //     // AJAX call
-    //     $.ajax({
-    //         url: "{{ route('backend.admin.products.sale-type', ':sale_type') }}".replace(
-    //             ':sale_type', selectedSaleType),
-    //         type: 'GET',
-    //         dataType: 'json',
-    //         success: function(response) {
-    //             console.log(response);
-
-    //             saleData = response.sale_data; // store globally
-
-    //             // Clear the select first
-    //             $('#rate_of_tax').empty().append(
-    //                 '<option value="">Select Sale Tax</option>');
-
-    //             // Add all options
-    //             saleData.forEach(function(item) {
-    //                 if ($('#rate_of_tax option[value="' + item.ratE_DESC + '"]')
-    //                     .length === 0) {
-    //                     let newOption = new Option(
-    //                         item.ratE_DESC, // text
-    //                         item.ratE_DESC, // value
-    //                         false,
-    //                         false
-    //                     );
-    //                     $('#rate_of_tax').append(newOption);
-    //                 }
-    //             });
-
-    //             // Optional: select first item
-    //             if (saleData.length > 0) {
-    //                 // $('#rate_of_tax').val(saleData[0].ratE_DESC).trigger('change');
-    //                 $('#rate_of_tax_id').val(saleData[0].ratE_ID);
-    //             }
-    //         },
-    //         error: function(xhr, status, error) {
-    //             console.log(xhr);
-    //             console.error('Error fetching sale type id:', error);
-    //         }
-    //     });
-
-    //     // Update rate_of_tax_id whenever the dropdown changes
-    //     $('#rate_of_tax').on('change', function() {
-    //         let selectedDesc = $(this).val();
-    //         let selectedItem = saleData.find(item => item.ratE_DESC === selectedDesc);
-
-    //         if (selectedItem) {
-    //             $('#rate_of_tax_id').val(selectedItem.ratE_ID);
-    //         } else {
-    //             $('#rate_of_tax_id').val(''); // clear if nothing selected
-    //         }
-
-
-    //        let rate_of_tax_id =$('#rate_of_tax_id').val();
-
-    //         let sro_data = [];
-    //         // AJAX call
-    //         $.ajax({
-    //             url: "{{ route('backend.admin.products.sro-schedule', ':rate_tax_id') }}".replace(
-    //                 ':rate_tax_id', rate_of_tax_id),
-    //             type: 'GET',
-    //             dataType: 'json',
-    //             success: function(response) {
-    //                 console.log(response);
-
-    //                 sro_data = response.sro_data; // store globally
-
-    //                 // Clear the select first
-    //                 $('#sro_schedule').empty().append(
-    //                     '<option value="">Select SRO Schedule</option>');
-
-    //                 // Add all options
-    //                 sro_data.forEach(function(item) {
-    //                     if ($('#sro_schedule option[value="' + item.srO_DESC + '"]')
-    //                         .length === 0) {
-    //                         let newOption = new Option(
-    //                             item.srO_DESC, // text
-    //                             item.srO_DESC, // value
-    //                             false,
-    //                             false
-    //                         );
-    //                         $('#sro_schedule').append(newOption);
-    //                     }
-    //                 });
-
-    //                 // Optional: select first item
-    //                 if (sro_data.length > 0) {
-    //                     // $('#rate_of_tax').val(saleData[0].ratE_DESC).trigger('change');
-    //                     // $('#rate_of_tax_id').val(saleData[0].ratE_ID);
-    //                 }
-    //             },
-    //             error: function(xhr, status, error) {
-    //                 console.log(xhr);
-    //                 console.error('Error fetching sale type id:', error);
-    //             }
-    //         });
-
-
-    //     });     
-
-    // });
-
-
+ 
 
         let saleData = [];
         let sroData = [];
@@ -530,6 +449,23 @@ $(document).ready(function() {
                 }
             });
         });
+
+
+        function toggleRetailPrice() {
+            const saleType = ($('#sale_type').val() || '').trim().toLowerCase();
+            const isThirdSchedule = saleType === '3rd schedule goods';
+
+            if (isThirdSchedule) {
+                $('#retail_price_wrapper').show();
+                $('#fixed_notified_value_or_retail_price').prop('required', true);
+            } else {
+                $('#retail_price_wrapper').hide();
+                $('#fixed_notified_value_or_retail_price').prop('required', false).val('');
+            }
+        }
+
+        $('#sale_type').on('change', toggleRetailPrice);
+        toggleRetailPrice(); // page load par (edit form ya validation error ke baad)
 
         // ===============================
         //  Rate of Tax → SRO Schedule

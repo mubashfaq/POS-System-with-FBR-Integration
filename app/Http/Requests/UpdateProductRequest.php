@@ -69,6 +69,7 @@ class UpdateProductRequest extends FormRequest
             'quantity' => 'nullable|integer|min:0',
             'expire_date' => 'nullable|date',
             'status' => 'nullable|boolean',
+            'fixed_notified_value_or_retail_price' => 'nullable|string|min:1',
         ];
 
         if ($businessType === 'pos' || $businessType === 'pral') {
