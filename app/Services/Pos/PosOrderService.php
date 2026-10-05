@@ -165,6 +165,12 @@ class PosOrderService
                 $tokens = FbrTokenService::getToken($business->id);
                 $token = is_array($tokens) ? $tokens['pos_token'] : $tokens;
                 $payload = $this->fbr->buildPayload($order, $customer, $lines);
+                \Log::info('FBR payload DateTime', [
+                    'DateTime'   => $payload['DateTime'] ?? null,
+                    'order_date_raw' => $order->getRawOriginal('order_date'),
+                    'order_date_cast' => (string) $order->order_date,
+                ]);
+
 
                 // throws FbrRejectedException -> transaction rolls back automatically
                 $fbrResult = $this->fbr->send($business, $payload, $env, $token);

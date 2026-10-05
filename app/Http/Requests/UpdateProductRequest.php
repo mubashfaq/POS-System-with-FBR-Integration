@@ -55,9 +55,9 @@ class UpdateProductRequest extends FormRequest
             'variations.*.options.*' => 'required|string|max:100',
             'variations.*.sku' => ['nullable', 'string', 'max:100', 'distinct'],
             'variations.*.price' => 'required|numeric|min:0',
-            // 'variations.*.purchase_price' => 'required|numeric|min:0',
+            'fixed_notified_value_or_retail_price' => 'nullable|string|min:1',
         ];
-        
+
         foreach ($this->input('variations', []) as $i => $row) {
             $rules["variations.$i.sku"][] = Rule::unique('product_variations', 'sku')
                 ->ignore($row['id'] ?? null);

@@ -5,6 +5,9 @@ use App\Http\Controllers\Api\BusinessController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\Pos\CartController;
 use App\Http\Controllers\Api\Pos\OrderController;
+use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\Pos\OrderDiadminController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -25,8 +28,15 @@ Route::post('forget-password', [AuthController::class, 'forgetPassword']);
 Route::post('resend-otp', [AuthController::class, 'resendOtp']);
 Route::post('verify-otp', [AuthController::class, 'verifyOtp']);
 Route::post('new-password', [AuthController::class, 'newPassword']);
+Route::get('products-diadmin', [ProductController::class, 'businessProduct']);
 
+Route::get('/businesses-diadmin', [BusinessController::class, 'allBusiness']);
+Route::get('customers-diadmin', [CustomerController::class, 'businessCustomers']);
+Route::get('getCartData-diadmin', [OrderDiadminController::class, 'getCartData']);
 Route::post('/pos/orders/create', [OrderController::class, 'storeScheduler']);
+
+
+// Route::post('/pos/orders/create', [OrderController::class, 'storeScheduler']);
 
 Route::middleware('auth:sanctum')->group(function () {
     // Route::get('/user', [AuthController::class, 'show']);

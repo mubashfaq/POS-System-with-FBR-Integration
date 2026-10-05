@@ -167,10 +167,12 @@ class OrderController extends Controller
 
     public function storeScheduler(Request $request)
     {
+       
+
         $data = $request->validate([
             'business_id' => ['required', 'integer', 'exists:businesses,id'],
             'customer_id' => ['required', 'integer', 'exists:customers,id'],
-            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'user_id' => [ 'integer'],
             'order_date' => ['required', 'date_format:Y-m-d'],
             'order_stage' => ['nullable', 'in:draft,submitted'],
             'order_discount' => ['nullable', 'numeric', 'min:0'],
@@ -181,6 +183,7 @@ class OrderController extends Controller
             'items.*.price' => ['required', 'numeric', 'min:0'],
         ]);
 
+
         // IMPORTANT: make sure this user is allowed to use this business
         // abort_unless(
         //     $request->user()->businesses()->whereKey($data['business_id'])->exists(),
@@ -190,7 +193,7 @@ class OrderController extends Controller
 
         $data['order_stage'] = 'submitted';
         $data['is_fbr_enabled'] = true;
-        $userId = $data['user_id'];
+        $userId = 0;
 
         $customer = Customer::where('business_id', $data['business_id'])
             ->findOrFail($data['customer_id']);
@@ -219,7 +222,7 @@ class OrderController extends Controller
 
         if ($orderTotal > 40000) {
             return response()->json([
-                'error' => 'Total amount is greater than  40000, please check this or make ist from Pakkhata.',
+                'error' => 'Total amount is greater than  40000, please check this or make it from Pakkhata.',
                 'order_total' => $orderTotal,
             ], 422);
         }
@@ -229,6 +232,7 @@ class OrderController extends Controller
         } catch (InsufficientStockException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         } catch (FbrRejectedException $e) {
+            Log::info($e);
             OrderLog::create([
                 'user_id' => $userId,
                 'business_id' => $data['business_id'],

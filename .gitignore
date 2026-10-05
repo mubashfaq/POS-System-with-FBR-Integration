@@ -33,3 +33,4 @@ resources/views/backend/reports/sale-report.blade - Copy.php
 resources/views/backend/settings/website-settings/general.blade - Copy.php
 resources/views/frontend/authentication/business-selection.blade - Copy.php
 .gitignore
+vendor.zip

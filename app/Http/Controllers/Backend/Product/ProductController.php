@@ -324,6 +324,7 @@ class ProductController extends Controller
      */
     public function update(UpdateProductRequest $request, $id, ProductVariationService $variations)
     {
+       
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_update'), 403);
 

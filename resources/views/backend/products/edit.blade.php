@@ -199,6 +199,18 @@
                                 </select>
                             </div>
 
+                            <div class="mb-3 col-md-6" id="retail_price_wrapper" style="display:none;">
+                                <label for="fixed_notified_value_or_retail_price" class="form-label">
+                                    Retail Price (MRP) <span class="text-danger">*</span>
+                                </label>
+                                <input type="number" step="0.01" min="1"
+                                    class="form-control"
+                                    name="fixed_notified_value_or_retail_price"
+                                    id="fixed_notified_value_or_retail_price"
+                                    value="{{ old('fixed_notified_value_or_retail_price', $product->fixed_notified_value_or_retail_price) }}"
+                                    placeholder="Enter retail price">
+                            </div>
+
                         @else
                             <div class="mb-3 col-md-6">
                                 <label for="hsCode" class="form-label">Hs Code <span class="text-danger">*</span></label>
@@ -248,6 +260,18 @@
                                 <label for="sro_item" class="form-label">Sro Item Code</label>
                                 <input type="text" class="form-control" name="sro_item" id="sro_item"
                                     placeholder="Enter Sro Item Code" value="{{ $product->sro_item }}">
+                            </div>
+
+                            <div class="mb-3 col-md-6" id="retail_price_wrapper" style="display:none;">
+                                <label for="fixed_notified_value_or_retail_price" class="form-label">
+                                    Retail Price (MRP) <span class="text-danger">*</span>
+                                </label>
+                                <input type="number" step="0.01"  min="1"
+                                    class="form-control"
+                                    name="fixed_notified_value_or_retail_price"
+                                    id="fixed_notified_value_or_retail_price"
+                                    value="{{ old('fixed_notified_value_or_retail_price', $product->fixed_notified_value_or_retail_price) }}"
+                                    placeholder="Enter retail price">
                             </div>
                                 
                         @endif
@@ -386,215 +410,6 @@ $(function() {
     });
 })
 
-// $(document).ready(function() {
-//     // Initialize Select2 Elements
-//     $('.select2').select2();
-
-//     let selectedUomFromDb = "{{ $product->uom ?? '' }}";
-
-//     // On page load (EDIT mode)
-//     if ($('#hsCode').val()) {
-//         loadUoms($('#hsCode').val(), selectedUomFromDb);
-//     }
-
-//     // On HS Code change
-//     $('#hsCode').on('change', function () {
-//         loadUoms($(this).val(), null);
-//     });
-
-//     function loadUoms(selectedHsCode, selectedUom) {
-//         $.ajax({
-//             url: "{{ route('backend.admin.products.hsCode-desc', ':hs_code') }}"
-//                 .replace(':hs_code', selectedHsCode),
-//             type: 'GET',
-//             dataType: 'json',
-//             success: function (response) {
-
-//                 // Description set
-//                 $('#description').val(response.description);
-
-//                 // Reset UOM dropdown
-//                 $('#uom').empty().append('<option value="">Select Unit</option>');
-
-//                 // Append UOMs
-//                 $.each(response.uom, function (index, uom) {
-
-//                     let isSelected = selectedUom === uom.description;
-
-//                     let option = new Option(
-//                         uom.description, // text
-//                         uom.description, // value
-//                         isSelected,
-//                         isSelected
-//                     );
-
-//                     $('#uom').append(option);
-//                 });
-
-//                 // Important for Select2
-//                 $('#uom').trigger('change');
-//             },
-//             error: function (xhr, status, error) {
-//                 console.error('Error fetching units:', error);
-//             }
-//         });
-//     }
-
-
-//     let saleData = [];
-//     let sroData = [];
-//     let sroItemData = [];
-
-//     // ===============================
-//     //  Sale Type → Rate of Tax
-//     // ===============================
-//     $('#sale_type').on('change', function() {
-
-//         let sale_type = $(this).val();
-
-//         // Reset all dependents
-//         $('#rate_of_tax').empty().append('<option value="">Select Sale Tax</option>');
-//         $('#rate_of_tax_id').val('');
-
-//         $('#sro_schedule').empty().append('<option value="">Select SRO Schedule</option>');
-//         $('#sro_schedule_id').val('');
-
-//         $('#sro_item').empty().append('<option value="">Select SRO Item</option>');
-//         $('#sro_item_id').val('');
-
-//         saleData = [];
-//         sroData = [];
-//         sroItemData = [];
-
-//         if (!sale_type) return;
-
-//         $.ajax({
-//             url: "{{ route('backend.admin.products.sale-type', ':sale_type') }}"
-//                 .replace(':sale_type', sale_type),
-//             type: 'GET',
-//             dataType: 'json',
-//             success: function(response) {
-
-//                 saleData = response.sale_data || [];
-
-//                 saleData.forEach(function(item) {
-//                     $('#rate_of_tax').append(
-//                         new Option(item.ratE_DESC, item.ratE_DESC)
-//                     );
-//                 });
-//             }
-//         });
-//     });
-
-//     // ===============================
-//     //  Rate of Tax → SRO Schedule
-//     // ===============================
-//     $('#rate_of_tax').on('change', function() {
-
-//         let selectedDesc = $(this).val();
-
-//         $('#sro_schedule').empty().append('<option value="">Select SRO Schedule</option>');
-//         $('#sro_schedule_id').val('');
-
-//         $('#sro_item').empty().append('<option value="">Select SRO Item</option>');
-//         $('#sro_item_id').val('');
-
-//         sroData = [];
-//         sroItemData = [];
-
-//         let selectedItem = saleData.find(
-//             item => item.ratE_DESC === selectedDesc
-//         );
-
-//         if (!selectedItem) {
-//             $('#rate_of_tax_id').val('');
-//             return;
-//         }
-
-//         $('#rate_of_tax_id').val(selectedItem.ratE_ID);
-
-//         $.ajax({
-//             url: "{{ route('backend.admin.products.sro-schedule', ':rate_tax_id') }}"
-//                 .replace(':rate_tax_id', selectedItem.ratE_ID),
-//             type: 'GET',
-//             dataType: 'json',
-//             success: function(response) {
-
-//                 sroData = response.sro_data || [];
-
-//                 sroData.forEach(function(item) {
-//                     $('#sro_schedule').append(
-//                         new Option(item.srO_DESC, item.srO_DESC)
-//                     );
-//                 });
-//             }
-//         });
-//     });
-
-//     // ===============================
-//     //  SRO Schedule → SRO Item
-//     // ===============================
-//     $('#sro_schedule').on('change', function() {
-
-//         let selectedDesc = $(this).val();
-
-//         $('#sro_item').empty().append('<option value="">Select SRO Item</option>');
-//         $('#sro_item_id').val('');
-//         sroItemData = [];
-
-//         let selectedItem = sroData.find(
-//             item => item.srO_DESC === selectedDesc
-//         );
-
-//         if (!selectedItem) {
-//             $('#sro_schedule_id').val('');
-//             return;
-//         }
-
-//         $('#sro_schedule_id').val(selectedItem.srO_ID);
-
-//         $.ajax({
-//             url: "{{ route('backend.admin.products.sro-Items-details', ':sro_schedule_id') }}"
-//                 .replace(':sro_schedule_id', selectedItem.srO_ID),
-//             type: 'GET',
-//             dataType: 'json',
-//             success: function(response) {
-//                 console.log(response);
-//                 sroItemData = Array.isArray(response.sro_data) ?
-//                     response.sro_data :
-//                     (response.sro_data?.data || []);
-
-//                 $('#sro_item').empty().append('<option value="">Select SRO Item</option>');
-//                 $('#sro_item_id').val('');
-
-//                 sroItemData.forEach(function(item) {
-//                     $('#sro_item').append(
-//                         new Option(item.srO_ITEM_DESC, item.srO_ITEM_DESC)
-//                     );
-//                 });
-//             }
-//         });
-//     });
-
-//     // ===============================
-//     // SRO Item → set hidden ID
-//     // ===============================
-//     $('#sro_item').on('change', function() {
-
-//         let selectedDesc = $(this).val();
-
-//         let selectedItem = sroItemData.find(
-//             item => item.srO_ITEM_DESC === selectedDesc
-//         );
-
-//         if (selectedItem) {
-//             $('#sro_item_id').val(selectedItem.srO_ITEM_ID);
-//         } else {
-//             $('#sro_item_id').val('');
-//         }
-//     });
-
-// });
 
 $(document).ready(function() {
     // =========================
@@ -717,6 +532,18 @@ $(document).ready(function() {
             loadSaleTypeData(sale_type);
         });
 
+        // Retail Price field sirf 3rd Schedule Goods par dikhao
+        function toggleRetailPrice() {
+            const v = ($('#sale_type').val() || '').toLowerCase().replace(/\s+/g, ' ').trim();
+            const on = v.indexOf('3rd schedule') !== -1;
+
+            $('#retail_price_wrapper').toggle(on);
+            $('#fixed_notified_value_or_retail_price').prop('required', on);
+            if (!on) $('#fixed_notified_value_or_retail_price').val('');
+        }
+
+$('#sale_type').on('change', toggleRetailPrice);
+
         // Rate of Tax → SRO Schedule
         $('#rate_of_tax').on('change', function() {
             let selectedDesc = $(this).val();
@@ -800,6 +627,8 @@ $(document).ready(function() {
         // =========================
         // Trigger Edit Mode Values
         // =========================
+        toggleRetailPrice();                 // pehle field dikhao/chhupao (edit page load par)
+
         if (dbSaleType) {
             loadSaleTypeData(dbSaleType);
         }
