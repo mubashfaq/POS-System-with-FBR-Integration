@@ -52,6 +52,7 @@ class StoreProductRequest extends FormRequest
             'variations.*.sku' => 'nullable|string|max:100|distinct|unique:product_variations,sku',
             'variations.*.price' => 'required|numeric|min:0',
             // 'variations.*.purchase_price' => 'required|numeric|min:0',
+            'fixed_notified_value_or_retail_price' => 'nullable|string|min:1',
         ];
         if ($businessType === 'pos' || $businessType === 'pral') {
             $rules['PCTCode'] = 'required|string|max:255';
