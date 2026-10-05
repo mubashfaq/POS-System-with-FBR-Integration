@@ -929,6 +929,8 @@ class OrderController extends Controller
 
                 $postResponseJson = $post_api_response->json();
 
+                // dd($postResponseJson);
+
                 /* ================= FBR API CALL ================= */
                 Log::info('FBR Payload', [
                     'order_id' => $order->id ?? null,
@@ -1815,7 +1817,7 @@ class OrderController extends Controller
                     "quantity" => number_format((float) $qty, 2, '.', ''),
                     "totalValues" => number_format(($lineTotal + $salesTax + $furtherTax), 2, '.', ''),
                     "valueSalesExcludingST" => number_format((float) $valueExTax, 2, '.', ''),
-                    "fixedNotifiedValueOrRetailPrice" => 0,
+                    "fixedNotifiedValueOrRetailPrice" => number_format((float) ($product->fixed_notified_value_or_retail_price ?? 0),2,'.',''),
                     "salesTaxApplicable" => number_format((float) $salesTax, 2, '.', ''),
 
                     "salesTaxWithheldAtSource" => 0,

@@ -371,6 +371,7 @@ class ProductController extends Controller
      */
     public function update(UpdateProductRequest $request, $id)
     {
+       
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_update'), 403);
 
@@ -378,6 +379,7 @@ class ProductController extends Controller
         $product   = Product::findOrFail($id);
         $oldImage  = $product->image;
         $product->update($validated);
+       
         if ($request->hasFile("product_image")) {
             $product->image = $this->fileHandler->fileUploadAndGetPath($request->file("product_image"), "/public/media/products");
             $product->save();
@@ -872,9 +874,9 @@ class ProductController extends Controller
 
     public function getSaleTypeId($sale_type)
     {
-        
-        $st = SaleType::where("transactioN_DESC",$sale_type)->first();
        
+        $st = SaleType::where("transactioN_DESC",$sale_type)->first();
+        
         $saleTypeId = intval($st->transactioN_TYPE_ID);
        
         // $token = env('FBR_TOKEN');
