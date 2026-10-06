@@ -105,20 +105,17 @@ export default function Pos({
     const savePriceChange = (cartId, newPrice) => {
 
         const price = parseFloat(newPrice);
-
         if (isNaN(price) || price < 0) {
             return;
         }
 
-        axios.put("/admin/cart/update-price", {
-            id: cartId,
-            price: price,
-        })
+        axios.put("/admin/cart/update-price", {id: cartId,price: price,})
             .then(() => {
-                setCartUpdated(prev => !prev);
+                playSound(SuccessSound);
             })
             .catch(err => {
                 console.error("Price update failed", err);
+                setCartUpdated(prev => !prev);
             });
 
     };
@@ -202,7 +199,7 @@ export default function Pos({
 
     const getCarts = async () => {
         try {
-            const res = await axios.get("/admin/digitalCart");
+            const res = await axios.get("/admin/digitalCart/data");
             const data = res.data;
             // setTotal(data?.total);
             // setUpdateTotal(data?.total - orderDiscount);
@@ -356,11 +353,12 @@ export default function Pos({
                 ...prev,
                 {
                     id: `optimistic-${productId}-${variationId ?? 0}-${Date.now()}`,
-                    product: { id: productId, name: "...", discounted_price: 0, price: 0, rate_of_tax: "0", sale_type: "" },
+                    product: { id: productId, name: "Loading...", discounted_price: 0, price: 0, rate_of_tax: "0", sale_type: "" },
                     product_variation_id: variationId,
                     quantity: 1,
                     purchase_item_id: purchaseItemId,
                     unit_price: null,
+                    _optimistic: true,
                 },
             ];
         });
@@ -567,8 +565,8 @@ export default function Pos({
             { headers: { "Content-Type": "application/json" } }
         )
             .then((res) => {
-                setCartUpdated(!cartUpdated);
-                setProductUpdated(!productUpdated);
+                setCartUpdated((prev) => !prev);
+                setProductUpdated((prev) => !prev);
                 const fbr = res?.data?.fbr_api_response;
 
                 if (orderStage === "draft") {
@@ -981,8 +979,4 @@ export default function Pos({
         </>
     );
 }
-
-
-
-
 

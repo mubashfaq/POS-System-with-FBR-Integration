@@ -37,11 +37,16 @@ class UpdateProductRequest extends FormRequest
             'product_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'name' => 'required|string|max:255',
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('products', 'slug')->ignore($productId)],
-            'sku' => ['required', 'string', 'max:255', Rule::unique('products', 'sku')->ignore($productId)],
+            'sku' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('products', 'sku')->where(fn($query) => $query->where('business_id', $businessId))
+                    ->ignore($productId),
+            ],
             'description' => 'nullable|string',
             'category_id' => 'nullable|exists:categories,id',
             'brand_id' => 'nullable|exists:brands,id',
-            // 'unit_id' => 'required|exists:units,id',
             'price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0|required_with:discount_type',
             'discount_type' => 'nullable|required_with:discount',
@@ -57,6 +62,7 @@ class UpdateProductRequest extends FormRequest
             'variations.*.price' => 'required|numeric|min:0',
             'fixed_notified_value_or_retail_price' => 'nullable|string|min:1',
         ];
+
 
         foreach ($this->input('variations', []) as $i => $row) {
             $rules["variations.$i.sku"][] = Rule::unique('product_variations', 'sku')

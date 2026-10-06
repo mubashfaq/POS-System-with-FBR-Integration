@@ -50,12 +50,12 @@ class AuthController extends Controller
             $credentials['password'] = $request->password;
             $credentials['remember'] = $remember;
             $credentials['previous_url'] = $request->previous_url;
-            
+
             $valid = Arr::only($credentials, ['email', 'password']);
 
             if (Auth::attempt($valid, $credentials['remember'])) {
                 session()->regenerate();
-        
+
                 return $this->redirectUser();
             } else {
                 return redirect()->route('login')->with('error', 'Incorrect email or password');
@@ -68,6 +68,60 @@ class AuthController extends Controller
                 return view('frontend.authentication.login');
             }
         }
+    }
+
+    public function superAdminLogin(Request $request)
+    {
+        if ($request->isMethod('post')) {
+
+            $request->validate([
+                'email' => 'required|email',
+                'password' => 'required',
+            ]);
+
+            if (!Auth::validate($request->only('email', 'password'))) {
+                return back()->with('error', 'Incorrect email or password');
+            }
+
+            $user = User::where('email', $request->email)->first();
+
+            if ($user->is_suspended == 1) {
+                return back()->with('error', 'Your account is temporarily suspended');
+            }
+
+            // IMPORTANT: check role BEFORE authenticating
+            if (!$user->hasRole('super_admin')) {
+                return back()->with('error', 'You are not authorized to access this area');
+            }
+
+            $remember = $request->boolean('remember_me');
+
+            if (
+                Auth::attempt([
+                    'email' => $request->email,
+                    'password' => $request->password,
+                ], $remember)
+            ) {
+
+                $request->session()->regenerate();
+
+                return $this->redirectUser();
+            }
+
+            return back()->with('error', 'Incorrect email or password');
+        }
+
+        if (auth()->check()) {
+            if (auth()->user()->hasRole('super_admin')) {
+                return $this->redirectUser();
+            }
+
+            Auth::logout();
+
+            return redirect()->route('super-admin.login');
+        }
+
+        return view('backend.authentication.super-admin-login');
     }
 
     public function register(Request $request)
@@ -85,24 +139,24 @@ class AuthController extends Controller
                 'password' => bcrypt($request->password),
                 'username' => uniqid(),
             ]);
-            
-        if ($newUser) {
-            $request->session()->regenerate();
-            Auth::login($newUser);
 
-            // ✅ Check if this user has any business
-            if ($newUser->businesses()->count() == 0) {
-                // Business-selection page dikhana hai
-                return redirect()->route('business.selection')
-                                ->with('info', 'Please select or create your first business.');
+            if ($newUser) {
+                $request->session()->regenerate();
+                Auth::login($newUser);
+
+                // ✅ Check if this user has any business
+                if ($newUser->businesses()->count() == 0) {
+                    // Business-selection page dikhana hai
+                    return redirect()->route('business.selection')
+                        ->with('info', 'Please select or create your first business.');
+                }
+
+                // Agar already business hai → dashboard bhej do
+                return redirect()->route('backend.admin.dashboard')
+                    ->with('success', 'User registered successfully');
+            } else {
+                return back()->with('error', 'Something went wrong');
             }
-
-            // Agar already business hai → dashboard bhej do
-            return redirect()->route('backend.admin.dashboard')
-                            ->with('success', 'User registered successfully');
-        } else {
-            return back()->with('error', 'Something went wrong');
-        }
         } else {
             return view('frontend.authentication.sign-up');
         }
