@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Yajra\DataTables\DataTables;
+use Illuminate\Validation\Rule;
 
 class SupplierController extends Controller
 {
@@ -17,15 +18,12 @@ class SupplierController extends Controller
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('supplier_view'), 403);
 
-        
-    // abort_if(!auth()->user()->can('supplier_view'), 403);
-
         $businessId = session('business_id');
-        
+
         if ($request->ajax()) {
             $suppliers = Supplier::where('business_id', $businessId) // 👈 filter by business
-            ->latest()
-            ->get();
+                ->latest()
+                ->get();
             return DataTables::of($suppliers)
                 ->addIndexColumn()
                 ->addColumn('name', fn($data) => $data->name)
@@ -70,7 +68,6 @@ class SupplierController extends Controller
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('supplier_create'), 403);
 
-    // abort_if(!auth()->user()->can('supplier_create'), 403);
         return view('backend.suppliers.create');
     }
 
@@ -82,8 +79,11 @@ class SupplierController extends Controller
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('supplier_create'), 403);
 
+        $businessId = session('business_id');
+        if (!$businessId) {
+            return redirect()->back()->with('error', 'No business selected.');
+        }
 
-    // abort_if(!auth()->user()->can('supplier_create'), 403);
         if ($request->wantsJson()) {
             $request->validate([
                 'name' => 'required|string',
@@ -97,20 +97,22 @@ class SupplierController extends Controller
         }
         $request->validate([
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20|unique:suppliers,phone',
+            'phone' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('customers')->where(function ($query) use ($businessId) {
+                    return $query->where('business_id', $businessId);
+                }),
+            ],
             'address' => 'nullable|string|max:255',
-        ]);
-
-        $businessId = session('business_id'); // business_id 
-        if (!$businessId) {
-            return redirect()->back()->with('error', 'No business selected.');
-        }
+        ]);        
 
         $supplier = Supplier::create([
-            'name'        => $request->name,
-            'phone'       => $request->phone,
-            'address'     => $request->address,
-            'business_id' => $businessId, 
+            'name' => $request->name,
+            'phone' => $request->phone,
+            'address' => $request->address,
+            'business_id' => $businessId,
         ]);
 
         session()->flash('success', 'Supplier created successfully.');
@@ -133,7 +135,6 @@ class SupplierController extends Controller
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('supplier_update'), 403);
 
-        // abort_if(!auth()->user()->can('supplier_update'), 403);
         $supplier = Supplier::findOrFail($id);
         return view('backend.suppliers.edit', compact('supplier'));
     }
@@ -146,12 +147,19 @@ class SupplierController extends Controller
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('supplier_update'), 403);
 
-        // abort_if(!auth()->user()->can('supplier_update'), 403);
         $supplier = Supplier::findOrFail($id);
+        $businessId = session('business_id');
 
         $request->validate([
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20|unique:suppliers,phone,' . $supplier->id, // Corrected syntax
+            'phone' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('suppliers')
+                    ->where(fn($query) => $query->where('business_id', $businessId))
+                    ->ignore($supplier->id),
+            ],
             'address' => 'nullable|string|max:255',
         ]);
 
@@ -161,7 +169,6 @@ class SupplierController extends Controller
         return to_route('backend.admin.suppliers.index');
     }
 
-
     /**
      * Remove the specified resource from storage.
      */
@@ -170,18 +177,19 @@ class SupplierController extends Controller
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('supplier_delete'), 403);
 
-        // abort_if(!auth()->user()->can('supplier_delete'), 403);
         $supplier = Supplier::findOrFail($id);
         $supplier->delete();
         session()->flash('success', 'Supplier deleted successfully.');
         return to_route('backend.admin.suppliers.index');
     }
+
     public function getCustomers(Request $request)
     {
         if ($request->wantsJson()) {
             return response()->json(Supplier::latest()->get());
         }
     }
+
     //get orders by supplier id
     public function orders($id)
     {

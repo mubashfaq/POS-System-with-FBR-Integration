@@ -45,12 +45,15 @@ class FbrInvoiceService
     /** @throws FbrRejectedException */
     public function send(Business $business, array $payload, string $env, string $token): array
     {
-        $url = $business->business_type === 'pral'
-            ? "https://ims.pral.com.pk/ims/{$env}/api/Live/PostData"
-            : "https://gw.fbr.gov.pk/imsp/v1/api/Live/PostData";
+        if ($business->business_type === 'pral') {
+            $url = "https://ims.pral.com.pk/ims/{$env}/api/Live/PostData";
+        } else {
+            $url = $env === 'production' ? "https://gw.fbr.gov.pk/imsp/v1/api/Live/PostData"
+                : "https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData";
+        }
 
-            // production  https://gw.fbr.gov.pk/imsp/v1/api/Live/PostData
-            // sandbox  https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData
+        // production  https://gw.fbr.gov.pk/imsp/v1/api/Live/PostData
+        // sandbox  https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData
 
         try {
             $response = Http::withOptions([
