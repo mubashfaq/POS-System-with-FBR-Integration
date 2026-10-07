@@ -112,23 +112,17 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
             price: price,
         })
             .then(() => {
-
-                setCartUpdated(prev => !prev);
-
+                playSound(SuccessSound);
             })
             .catch(err => {
-
                 console.error("Price update failed", err);
-
+                setCartUpdated(prev => !prev);
             });
 
     };
 
     const api = (path) => {
-        const prefix = businessType === "pral"
-            ? "/admin/pral"
-            : "/admin";
-
+        const prefix = businessType === "pral" ? "/admin/pra" : "/admin";
         return `${prefix}${path}`;
     };
 
@@ -207,7 +201,7 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
 
     const getCarts = async () => {
         try {
-            const res = await axios.get(api("/cart"));;
+            const res = await axios.get(api("/cart/data"));;
             const data = res.data;
             setTotal(data?.total);
             setUpdateTotal(data?.total - orderDiscount);
@@ -363,7 +357,7 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
             ...prev,
             {
                 id: tempId,
-                _isOptimistic: true,
+                _optimistic: true,
                 product: { id: productId, name: 'Adding...', discounted_price: 0 },
                 quantity: 1,
                 unit_price: 0,
@@ -456,7 +450,9 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
     function orderCreate(orderStage = "submitted") {
         if (isSubmitting) return;
 
-        if (carts.length === 0) {
+        const cleanCart = carts.filter(c => !c._optimistic);
+
+        if (cleanCart.length === 0) {
             toast.error("Cart is empty");
             return;
         }
@@ -475,7 +471,7 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
                 is_registered: isRegistered,
                 order_discount: parseFloat(orderDiscount) || 0,
                 paid: parseFloat(paid) || 0,
-                cart: carts,
+                cart: cleanCart,
                 check_duplicate: true,
                 orderDate: orderDate,
                 order_stage: orderStage,
@@ -531,13 +527,7 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
 
 
     function createOrder(redirect = false, orderStage = "submitted") {
-        const cartForOrder = carts.map(item => ({
-            id: item.id,
-            product_id: item.product.id,
-            quantity: item.quantity,
-            further_tax: item.further_tax,
-            price: item.product.discounted_price, // ✅ frontend updated price
-        }));
+        const cleanCart = carts.filter(c => !c._optimistic);
         axios.put(
             api("/order/create"),
             {
@@ -545,7 +535,7 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
                 is_registered: isRegistered, // ✅ IMPORTANT: Send registration status
                 order_discount: parseFloat(orderDiscount) || 0,
                 paid: parseFloat(paid) || 0,
-                cart: carts,
+                cart: cleanCart,
                 orderDate: orderDate,
                 order_stage: orderStage,
             },
@@ -553,8 +543,8 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
         )
             .then((res) => {
                 console.log("Order Creation Response:", res);
-                setCartUpdated(prev => !prev); // ✅ functional updater
-                setProductUpdated(!productUpdated);
+                setCartUpdated(prev => !prev);
+                setProductUpdated((prev) => !prev);;
                 const fbr = res?.data?.fbr_api_response;
 
                 // If FBR is disabled, there is no fbr_api_response — order is still successful
@@ -931,7 +921,5 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
         </>
     );
 }
-
-
 
 

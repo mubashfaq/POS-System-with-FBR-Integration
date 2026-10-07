@@ -52,18 +52,21 @@ class BusinessController extends Controller
 
     }
 
+    /**
+     * Store a newly created resource in storage.
+     */
     public function create(Request $request)
     {
         $validated = $request->validate([
             'business_name' => 'required|string|max:255',
             'industry' => 'required|string|max:255',
-            'ntn' => ['nullable', 'string', 'regex:/^(?:[A-Za-z0-9]{7}|[A-Za-z0-9]{13})$/'],
+            'ntn' => ['nullable', 'string', 'regex:/^[A-Za-z0-9-]{7}$|^[A-Za-z0-9-]{9}$|^[A-Za-z0-9-]{13}$/'],
             'business_type' => 'required|in:pos,digital,pral,both',
             'country' => 'required|string|max:255',
             'city' => 'required|string|max:255',
             'email'           => 'nullable|email|max:255',
             'phone'           => 'nullable|string|max:50',
-            'cnic' => ['required', 'string', 'regex:/^(?:[A-Za-z0-9]{7}|[A-Za-z0-9]{13})$/'],
+            'cnic' => ['required', 'string', 'string', 'regex:/^[A-Za-z0-9-]{7}$|^[A-Za-z0-9-]{9}$|^[A-Za-z0-9-]{13}$/'],
             'state'           => 'required|string|max:50',
             'logo'            => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'currency'        => 'nullable|string|max:10',
@@ -74,8 +77,8 @@ class BusinessController extends Controller
             'enable_batch'    => 'nullable|boolean',
             'address'         => 'required|string',
         ],  [
-            'ntn.regex' => 'NTN must contain exactly 7 or 13 characters.',
-            'cnic.regex' => 'CNIC must contain exactly 7 or 13 characters.',
+            'ntn.regex' => 'NTN must contain exactly 7, 9 or 13 characters.',
+            'cnic.regex' => 'CNIC must contain exactly 7, 9 or 13 characters.',
         ]);
         // File Upload
         if ($request->hasFile('logo')) {
@@ -124,56 +127,8 @@ class BusinessController extends Controller
             throw $e;
         }
 
-        return redirect()->route('backend.admin.dashboard')
-            ->with('success', 'Business created successfully');
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'business_name' => 'required|string|max:255',
-            'industry'      => 'nullable|string|max:255',
-            'ntn'           => 'nullable|string|max:255',
-            // 'business_type' => 'required|in:pos,digital,both',
-            'country'       => 'nullable|string|max:255',
-            'city'          => 'nullable|string|max:255',
-            'email'           => 'nullable|email|max:255',
-            'phone'           => 'nullable|string|max:50',
-            'logo'            => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            'currency'        => 'nullable|string|max:10',
-            'facebook_link'   => 'nullable|url|max:255',
-            'whatsapp_link'   => 'nullable|url|max:255',
-            'youtube_link'    => 'nullable|url|max:255',
-            'instagram_link'  => 'nullable|url|max:255',
-            'address'         => 'required|string',
-            'cnic'         => 'required|numeric|digits:13',
-            'state'         => 'required|string|max:255',
-            'enable_batch'    => 'nullable|boolean',
-        ]);
-
-        // Handle logo upload
-        if ($request->hasFile('logo')) {
-            $logoPath = $request->file('logo')->store('logos', 'public');
-            $validated['logo'] = $logoPath;
-        } else {
-            // Assign default logo
-            $validated['logo'] = 'logos/default-business.png';
-        }
-
-        
-        $validated['enable_batch'] = $request->boolean('enable_batch');
-        $business = Business::create($validated);
-        // $business = Business::create($request->only(['business_name','industry','ntn','country','city']));
-
-        
-
-        return redirect()->route('backend.admin.business.index')
-                         ->with('success', 'Business created successfully!');
-    }
-        
+        return redirect()->route('backend.admin.dashboard')->with('success', 'Business created successfully');
+    }        
 
 
     /**
@@ -212,7 +167,7 @@ class BusinessController extends Controller
         $validated = $request->validate([
             'business_name' => 'required|string|max:255',
             'industry'      => 'nullable|string|max:255',
-            'ntn' => ['nullable', 'string', 'regex:/^(?:[A-Za-z0-9]{7}|[A-Za-z0-9]{13})$/'],
+            'ntn' => ['nullable', 'string', 'regex:/^[A-Za-z0-9-]{7}$|^[A-Za-z0-9-]{9}$|^[A-Za-z0-9-]{13}$/'], 
             'country'       => 'nullable|string|max:100',
             'city'          => 'nullable|string|max:100',
             'email'           => 'nullable|email|max:255',
@@ -226,16 +181,16 @@ class BusinessController extends Controller
             'address' => 'nullable',
             'enable_batch'    => 'nullable|boolean',
         ],  [
-            'ntn.regex' => 'NTN must contain exactly 7 or 13 characters.',
+            'ntn.regex' => 'NTN must contain exactly 7, 9 or 13 characters.',
         ]);
 
         $business = Business::findOrFail($id);
         
         if ($request->hasFile('logo')) {
-        // Delete old logo if exists
-        if ($business->logo && Storage::disk('public')->exists($business->logo)) {
-            Storage::disk('public')->delete($business->logo);
-        }
+            // Delete old logo if exists
+            if ($business->logo && Storage::disk('public')->exists($business->logo)) {
+                Storage::disk('public')->delete($business->logo);
+            }
             
             $logoPath = $request->file('logo')->store('logos', 'public');
             $validated['logo'] = $logoPath;
@@ -254,8 +209,7 @@ class BusinessController extends Controller
             session(['business_name' => $business->business_name]);
         }
 
-        return redirect()->route('backend.admin.business.edit', $id)
-        ->with('success', 'Business updated successfully!');
+        return redirect()->route('backend.admin.business.edit', $id)->with('success', 'Business updated successfully!');
     }
 
     /**
@@ -283,9 +237,7 @@ class BusinessController extends Controller
     } 
 
     $user = Auth::user();
-    $businesses = $user->hasRole('super_admin') 
-    ? Business::all() 
-    : $user->businesses;
+    $businesses = $user->hasRole('super_admin') ? Business::all() : $user->businesses;
 
     return view('frontend.authentication.business-selection', compact('businesses'));
 }

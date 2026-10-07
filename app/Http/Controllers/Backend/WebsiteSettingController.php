@@ -137,7 +137,13 @@ class WebsiteSettingController extends Controller
 
     public function websiteStatusUpdate(Request $request)
     {
+        $request->validate([
+            'is_live' => ['required', 'boolean'],
+            'close_msg' => ['nullable', 'string', 'max:500'],
+        ]);
+
         writeConfig('is_live', $request->is_live);
+        writeConfig('close_msg', $request->close_msg ?? 'Down for maintenance');
         Artisan::call('config:clear');
         return to_route('backend.admin.settings.website.general', ['active-tab' => 'website-status'])
             ->with('success', 'Updated successfully');

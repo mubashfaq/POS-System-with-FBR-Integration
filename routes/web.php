@@ -46,12 +46,10 @@ use App\Models\Supplier;
 
 // homepage
 Route::get('/', function () {
-    // return to_route('login');
     return view('frontend.index');
 })->name('frontend.home');
 
 Route::get('terms-conditions', function () {
-    // return to_route('login');
     return view('frontend.terms_conditions');
 })->name('frontend.terms-conditions');
 
@@ -63,6 +61,7 @@ Route::post('/filer/bulk-download',     [BulkFilerCheckController::class, 'downl
 
 //authentication
 Route::match(['get', 'post'], 'login', [AuthController::class, 'login'])->name('login');
+Route::match(['get', 'post'], '/super-admin/login', [AuthController::class, 'superAdminLogin'])->name('super-admin.login');
 
 // login time business create or select
 
@@ -169,41 +168,44 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     //end report
     
     // start pos
-        Route::get('/get/products', [CartController::class, 'getProducts'])->name('getProducts');
-    Route::get('/cart/quantity-validation', [CartController::class, 'getQuantityValidation'])->name('getQuantityValidation');
+    Route::controller(CartController::class)->group(function () {
+
+        Route::get('/get/products', 'getProducts')->name('getProducts');
+        Route::get('/cart/quantity-validation', 'getQuantityValidation')->name('getQuantityValidation');
+        Route::get('/product/{id}/batches/{variationId?}', 'getBatches')->name('product.batches');
+            
+        Route::middleware(['auth', 'business.type:pos,both'])->group(function () {
+            Route::get('/cart', 'index')->name('cart.index');
+            Route::get('/cart/data', 'getCart')->name('cart.data');
+        });
+
+        Route::middleware(['auth', 'business.type:pral'])->group(function () {
+            Route::get('/pra/cart', 'index')->name('cart.pral');
+            Route::get('/pra/cart/data', 'getCart')->name('cart.pral.data');
+        });
         
-    Route::get('/cart', [CartController::class, 'index'])
-        ->middleware(['auth', 'business.type:pos,both'])
-        ->name('cart.index');
+        Route::middleware(['auth', 'business.type:digital,both'])->group(function () {
+            Route::get('/digitalCart', 'digitalInvoice')->name('cart.digitalInvoice');
+            Route::get('/digitalCartNew', 'digitalInvoice')->name('cart.digitalInvoiceNew');
+            Route::get('/digitalCart/data', 'getdigitalInvoiceCart')->name('cart.digitalInvoice.data');
+        });
+            
+        Route::post('/cart', 'store')->name('cart.store');
+        Route::post('/cartNewDigital', 'storeNewDigital')->name('cart.storeNewDigital');
 
-    Route::get('/pral/cart', [CartController::class, 'index'])
-        ->middleware(['auth', 'business.type:pral'])
-        ->name('cart.pral');
-       
-    Route::get('/digitalCart', [CartController::class, 'digitalInvoice'])
-        ->middleware(['auth', 'business.type:digital,both'])
-        ->name('cart.digitalInvoice');
+        Route::put('/cart/update-quantity', 'updateQuantity');
+        Route::put('/cart/update-price', 'updatePrice');
+        Route::put('/cart/update-custom-fields', 'updateCustomFields');
 
-    Route::get('/digitalCartNew', [CartController::class, 'digitalInvoice'])
-        ->middleware(['auth', 'business.type:digital,both'])
-        ->name('cart.digitalInvoiceNew');
-        
-        Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
-        Route::post('/cartNewDigital', [CartController::class, 'storeNewDigital'])->name('cart.storeNewDigital');
-        Route::get('/product/{id}/batches/{variationId?}', [CartController::class, 'getBatches'])->name('product.batches');
-
-        Route::put('/cart/update-quantity', [CartController::class, 'updateQuantity']);
-        Route::put('/cart/update-price', [CartController::class, 'updatePrice']);
-        Route::put('/cart/update-custom-fields', [CartController::class, 'updateCustomFields']);
-
-
-        Route::put('/cart/increment', [CartController::class, 'increment']);
-        Route::put('/cart/decrement', [CartController::class, 'decrement']);
-        Route::put('/cart/delete', [CartController::class, 'delete']);
-        Route::put('/cart/empty', [CartController::class, 'empty']);
+        Route::put('/cart/increment', 'increment');
+        Route::put('/cart/decrement', 'decrement');
+        Route::put('/cart/delete', 'delete');
+        Route::put('/cart/empty', 'empty');
+    });
+    
         Route::put('/order/create', [OrderController::class, 'store'])->middleware('plan.limit:invoice,pos_invoice');
         Route::post('/pos-orders/{orderId}/submit', [OrderController::class, 'submitPOSOrder'])->name('orders.submit-pos');
-        Route::put('/pral/order/create', [OrderController::class, 'store'])->middleware('plan.limit:invoice,pos_invoice');
+        Route::put('/pra/order/create', [OrderController::class, 'store'])->middleware('plan.limit:invoice,pos_invoice');
         Route::post('/pral-orders/{orderId}/submit', [OrderController::class, 'submitPRALOrder'])->name('orders.submit-pral');
         Route::put('/order/createDigital', [OrderController::class, 'storeDigital'])->middleware('plan.limit:invoice,digital_invoice');
         Route::post('/digital-orders/{orderId}/submit', [OrderController::class, 'submitDigitalOrder'])->name('orders.submit-digital');

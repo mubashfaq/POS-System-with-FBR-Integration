@@ -403,7 +403,6 @@ class ProductController extends Controller
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_delete'), 403);
 
-        // abort_if(!auth()->user()->can('product_delete'), 403);
         $product = Product::findOrFail($id);
         if ($product->image != '') {
             $this->fileHandler->secureUnlink($product->image);
@@ -1015,16 +1014,11 @@ class ProductController extends Controller
 
         // ✅ Auto-generate SKU if not provided
         if (empty($validated['sku'])) {
-            $validated['sku'] = $this->generateUniqueSku(
-                $validated['name']
-            );
+            $validated['sku'] = $this->generateUniqueSku($validated['name']);
         }
-
 
         $openingQty = (float) ($validated['quantity'] ?? 0);
 
-        // Product quantity starts from 0.
-        // Stock will be managed through PurchaseItem.
         $validated['quantity'] = 0;
 
 
@@ -1034,118 +1028,57 @@ class ProductController extends Controller
 
             $product = Product::create($validated);
 
-
             if ($request->hasFile('product_image')) {
-
-                $product->image =
-                    $this->fileHandler->fileUploadAndGetPath(
-                        $request->file('product_image'),
-                        '/public/media/products'
-                    );
-
+                $product->image = $this->fileHandler->fileUploadAndGetPath($request->file('product_image'), '/public/media/products');
                 $product->save();
             }
 
-
-            $purchasePrice = (float) (
-                $validated['purchase_price'] ?? 0
-            );
-
-            $price = (float) (
-                $validated['price'] ?? 0
-            );
-
+            $purchasePrice = (float) ($validated['purchase_price'] ?? 0);
+            $price = (float) ($validated['price'] ?? 0);
 
             $purchase = Purchase::create([
-
                 'supplier_id' => $validated['supplier_id'] ?? null,
-
                 'user_id' => auth()->id(),
-
                 'business_id' => $businessId,
-
                 'sub_total' => $purchasePrice * $openingQty,
-
                 'tax' => 0,
-
                 'discount_value' => 0,
-
                 'shipping' => 0,
-
                 'grand_total' => $purchasePrice * $openingQty,
-
                 'date' => Carbon::now()->toDateString(),
-
                 'status' => 1,
             ]);
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | ALWAYS Create Purchase Batch
-            |--------------------------------------------------------------------------
-            |
-            | If opening quantity is 0:
-            |
-            | quantity      = 0
-            | remaining_qty = 0
-            |
-            */
-
             $purchaseItem = PurchaseItem::create([
-
                 'purchase_id' => $purchase->id,
-
                 'product_id' => $product->id,
-
                 'purchase_price' => $purchasePrice,
-
                 'price' => $price,
-
                 'quantity' => $openingQty,
-
                 'remaining_qty' => $openingQty,
             ]);
 
-
-            \App\Services\StockReconciliationService::reconcileNewBatch(
-                $purchaseItem
-            );
-
+            StockReconciliationService::reconcileNewBatch($purchaseItem);
 
             if ($openingQty != 0) {
-
-                $product->increment(
-                    'quantity',
-                    $openingQty
-                );
+                $product->increment('quantity', $openingQty);
             }
-
 
             DB::commit();
 
-
             return response()->json([
-
                 'status' => true,
-
                 'message' => 'Product created successfully!',
-
                 'data' => $product->fresh()
             ]);
-
 
         } catch (\Exception $e) {
 
             DB::rollBack();
 
             return response()->json([
-
                 'status' => false,
-
-                'message' =>
-                    'Product creation failed: ' . $e->getMessage()
-
+                'message' => 'Product creation failed: ' . $e->getMessage()
             ], 400);
         }
     }
@@ -1156,27 +1089,12 @@ class ProductController extends Controller
         $base = substr($base, 0, 12);                                   // max 12 chars from name
         $sku = $base . '-' . time();                                   // e.g. APPLEJUICE-1743300000
 
-        // Fallback: if somehow duplicate (same name, same second), append microseconds
         if (Product::where('sku', $sku)->exists()) {
             $sku = $base . '-' . str_replace('.', '', microtime(true)); // e.g. APPLEJUICE-17433000001234
         }
 
         return $sku;
     }
-
-    // public function updateStockSetting(Request $request)
-    // {
-    //      $businessId = session('business_id');
-    //     $request->validate([
-    //         'status' => 'required|in:enabled,disabled'
-    //     ]);
-
-    //     quantity_validation::query()->where('busniess_id' , $businessId)->update([
-    //         'product_quantity_validation' => $request->status
-    //     ]);
-
-    //     return response()->json(['success' => true]);
-    // }
 
     public function updateStockSetting(Request $request)
     {
@@ -1194,8 +1112,7 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'status' => $request->status,
-            'message' => $request->status === 'enabled'
-                ? 'Stock validation disabled successfully.'
+            'message' => $request->status === 'enabled' ? 'Stock validation disabled successfully.'
                 : 'Stock validation enabled successfully.'
         ]);
     }

@@ -488,27 +488,49 @@
                     <div class="p-a-md col-md-12">
                         <div class="form-group">
                             <label>Website Status : </label>
+
                             <div class="radio bg-white rounded pt-2 pl-2 border">
+
                                 <label class="ui-check ui-check-md">
-                                    <input {{ readConfig('is_live') == 1 ? 'checked' : '' }} name="is_live" type="radio"
-                                        value="1">
+                                    <input
+                                        {{ readConfig('is_live') == 1 ? 'checked' : '' }}
+                                        name="is_live"
+                                        type="radio"
+                                        value="1"
+                                    >
                                     <i class="dark-white"></i>
                                     Active
                                 </label>
-                                &nbsp; &nbsp;
+
+                                &nbsp;&nbsp;
+
                                 <label class="ui-check ui-check-md">
-                                    <input {{ readConfig('is_live') == 0 ? 'checked' : '' }} name="is_live" type="radio"
-                                        value="0">
+                                    <input
+                                        {{ readConfig('is_live') == 0 ? 'checked' : '' }}
+                                        name="is_live"
+                                        type="radio"
+                                        value="0"
+                                    >
                                     <i class="dark-white"></i>
                                     Not Active
                                 </label>
+
                             </div>
                         </div>
 
-                        <div class="form-group {{ readConfig('is_live') == 1 ? 'd-none' : '' }}" id="close_msg_div">
+                        <div
+                            class="form-group {{ readConfig('is_live') == 1 ? 'd-none' : '' }}"
+                            id="close_msg_div"
+                        >
                             <label>Close Message</label>
-                            <textarea placeholder="Close Message" class="form-control" rows="4" name="close_msg"
-                                cols="50">Website under maintenance&lt;h1&gt;Comming SOON&lt;/h1&gt;</textarea>
+
+                            <textarea
+                                placeholder="Close Message"
+                                class="form-control"
+                                rows="4"
+                                name="close_msg"
+                                cols="50"
+                            >{{ readConfig('close_msg') }}</textarea>
                         </div>
                     </div>
                 </form>
