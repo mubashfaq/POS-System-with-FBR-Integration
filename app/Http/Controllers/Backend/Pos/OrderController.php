@@ -326,18 +326,18 @@ class OrderController extends Controller
                     ';
                 }
 
-                // $buttons[] = '
-                //     <a
-                //         class="btn-expand btn-outline-info"
-                //         href="' . route(
-                //             'backend.admin.orders.customer-tax-invoice',
-                //             $data->id
-                //         ) . '"
-                //     >
-                //         <i class="fas fa-file-invoice-dollar"></i>
-                //         <span>Customer Tax Invoice</span>
-                //     </a>
-                // ';
+                $buttons[] = '
+                    <a
+                        class="btn-expand btn-outline-info"
+                        href="' . route(
+                            'backend.admin.orders.customer-tax-invoice',
+                            $data->id
+                        ) . '"
+                    >
+                        <i class="fas fa-file-invoice-dollar"></i>
+                        <span>Customer Invoice</span>
+                    </a>
+                ';
 
                 if (!$data->is_cancelled && !$data->status) {
 

@@ -208,7 +208,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
         Route::put('/order/createDigital', [OrderController::class, 'storeDigital'])->middleware('plan.limit:invoice,digital_invoice');
         Route::post('/digital-orders/{orderId}/submit', [OrderController::class, 'submitDigitalOrder'])->name('orders.submit-digital');
         Route::get('orders/fbr-status/{id}', [OrderController::class, 'fbrStatus'])->name('orders.fbr-status');
-        // Route::post('/orders/{order}/custom-invoice', [OrderController::class, 'updateCustomInvoice'])->name('orders.custom-invoice');
+        Route::post('/orders/{order}/custom-invoice', [OrderController::class, 'updateCustomInvoice'])->name('orders.custom-invoice');
     Route::prefix('business-custom-fields')->controller(BusinessCustomFieldController::class)->group(function () {
         Route::get('/', 'index')->name('business-custom-fields.index');
         Route::post('/', 'store')->name('business-custom-fields.store');
