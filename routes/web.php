@@ -190,7 +190,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
         
         Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
         Route::post('/cartNewDigital', [CartController::class, 'storeNewDigital'])->name('cart.storeNewDigital');
-        Route::get('/product/{id}/batches', [CartController::class, 'getBatches'])->name('product.batches');
+        Route::get('/product/{id}/batches/{variationId?}', [CartController::class, 'getBatches'])->name('product.batches');
 
         Route::put('/cart/update-quantity', [CartController::class, 'updateQuantity']);
         Route::put('/cart/update-price', [CartController::class, 'updatePrice']);

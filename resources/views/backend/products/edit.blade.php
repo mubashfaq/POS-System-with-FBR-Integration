@@ -385,6 +385,8 @@
                     </div>
                 </div>
 
+                @include('backend.products._variations', ['mode' => 'edit', 'product' => $product])
+
                 <div class="row mt-3">
                     <div class="col-md-6">
                         <button type="submit" class="btn action-button">Update</button>

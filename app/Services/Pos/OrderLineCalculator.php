@@ -2,12 +2,13 @@
 namespace App\Services\Pos;
 
 use App\Models\Product;
+use App\Models\ProductVariation;
 
 class OrderLineCalculator
 {
-    public function calculate(Product $product, float $qty, ?float $priceOverride, ?string $customerTaxType): array
+    public function calculate(Product $product, float $qty, ?float $priceOverride, ?string $customerTaxType, ProductVariation $variation = null): array
     {
-        $unitPrice = $priceOverride ?? $product->discounted_price;
+        $unitPrice = $priceOverride ?? $variation?->price ?? $product->discounted_price;
         $lineTotal = round($unitPrice * $qty, 2);          // ex-tax
         $subTotal = round($unitPrice * $qty, 2);
         // $discount = round(($product->price - $unitPrice) * $qty, 2);

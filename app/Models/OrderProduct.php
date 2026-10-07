@@ -10,14 +10,14 @@ class OrderProduct extends Model
     use HasFactory;
 
     protected $guarded = [];
-    
+
     protected $casts = ['custom_fields' => 'array'];
     public function product()
     {
         return $this->belongsTo(Product::class);
     }
     protected $appends = ['discounted_price'];
-    
+
     public function getDiscountedPriceAttribute()
     {
         $qty = $this->quantity ?: 1;
@@ -52,15 +52,15 @@ class OrderProduct extends Model
                     $furtherRate = 0.04;
                 }
             }
-              // Reverse calculation
+            // Reverse calculation
             $base = $total / (1 + $salesRate + $furtherRate);
         }
 
-      
+
 
         return number_format($base / $qty, 2);
     }
-    
+
     public function order()
     {
         return $this->belongsTo(Order::class);
@@ -85,5 +85,10 @@ class OrderProduct extends Model
     public function parentOrderProduct()
     {
         return $this->belongsTo(OrderProduct::class, 'parent_order_product_id');
+    }
+
+    public function variation()
+    {
+        return $this->belongsTo(ProductVariation::class, 'product_variation_id');
     }
 }

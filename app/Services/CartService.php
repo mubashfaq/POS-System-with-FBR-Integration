@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\PosCart;
 use App\Models\Product;
+use App\Models\ProductVariation;
 use App\Models\PurchaseItem;
 use App\Models\quantity_validation;
 use Illuminate\Support\Facades\Auth;
@@ -12,15 +13,134 @@ use Illuminate\Support\Facades\Log;
 class CartService
 {
 
-    public function addToCart($productId, $businessId, $registrationStatus, $purchaseItemId = null, $parentCartId = null, $overrideQty = null, $skipStockCheck = false)
-    {
+    public function addToCart(
+        $productId,
+        $businessId,
+        $registrationStatus,
+        $purchaseItemId = null,
+        $parentCartId = null,
+        $overrideQty = null,
+        $skipStockCheck = false,
+        $variationId = null
+    ) {
         $businessId = session('business_id') ?: $businessId;
-
 
         $quantityVal = quantity_validation::where('business_id', $businessId)->firstOrFail();
         $isValidationDisabled = $quantityVal->product_quantity_validation === 'disabled';
 
-        // ✅ Single product query — was duplicated in both if/else branches
+        $product = Product::where('id', $productId)
+            ->where('business_id', $businessId)
+            ->firstOrFail();
+
+        $variation = null;
+
+        if ($product->has_variations) {
+            abort_if(!$variationId, 422, "Select a variation for {$product->name}.");
+
+            $variation = ProductVariation::where('id', $variationId)
+                ->where('product_id', $product->id)
+                ->where('status', 1)
+                ->firstOrFail();
+        } else {
+            abort_if($variationId, 422, "{$product->name} has no variations.");
+        }
+
+        $availableStock = $variation ? $variation->quantity : $product->quantity;
+
+        if (!$skipStockCheck && $isValidationDisabled && $availableStock == 0) {
+            throw new \Exception('Insufficient stock');
+        }
+
+        // If a specific purchase batch is selected, validate it belongs to this product AND variation
+        $purchaseItem = null;
+        if ($purchaseItemId) {
+            $query = PurchaseItem::where('id', $purchaseItemId)
+                ->where('product_id', $productId)
+                ->where('product_variation_id', $variationId); // null === null for simple products
+
+            if ($isValidationDisabled && !$skipStockCheck) {
+                $query->where('remaining_qty', '>', 0);
+            }
+
+            $purchaseItem = $query->firstOrFail();
+        }
+
+        $forceQty = $overrideQty;
+
+        $cartQuery = PosCart::where('user_id', Auth::id())
+            ->where('product_id', $product->id)
+            ->where('product_variation_id', $variationId);
+
+        if ($parentCartId) {
+            $cartQuery->where('parent_cart_id', $parentCartId);
+        } else {
+            $cartQuery->whereNull('parent_cart_id');
+        }
+
+        $purchaseItemId
+            ? $cartQuery->where('purchase_item_id', $purchaseItemId)
+            : $cartQuery->whereNull('purchase_item_id');
+
+        $cartItem = $cartQuery->first();
+
+        $newQuantity = $forceQty !== null
+            ? $forceQty
+            : ($cartItem ? $cartItem->quantity + 1 : 1);
+
+        if (!$skipStockCheck && $isValidationDisabled) {
+            if ($purchaseItem && $newQuantity > $purchaseItem->remaining_qty) {
+                throw new \Exception('Cannot add more, batch stock limit reached (Available: ' . $purchaseItem->remaining_qty . ')');
+            } elseif (!$purchaseItem && $newQuantity > $availableStock) {
+                throw new \Exception('Cannot add more, stock limit reached');
+            }
+        }
+
+        $unitPrice = $variation ? $variation->price : $product->discounted_price;
+        $baseTotal = $unitPrice * $newQuantity;
+        $furtherTax = $this->calculateFurtherTax($product, $baseTotal, $registrationStatus);
+
+        if ($cartItem) {
+            $cartItem->quantity = $newQuantity;
+            $cartItem->further_tax = $furtherTax;
+            $cartItem->save();
+        } else {
+            $cartItem = PosCart::create([
+                'user_id' => Auth::id(),
+                'product_id' => $product->id,
+                'product_variation_id' => $variationId,
+                'purchase_item_id' => $purchaseItemId,
+                'quantity' => $newQuantity,
+                'further_tax' => $furtherTax,
+                'parent_cart_id' => $parentCartId,
+                'accessory_default_qty' => $forceQty,
+            ]);
+        }
+
+        if ($parentCartId === null) {
+            $this->syncAccessoriesToCart($product, $cartItem, $businessId, $registrationStatus, $isValidationDisabled);
+        }
+
+        return $cartItem;
+    }
+
+
+
+
+    public function addToCartNew(
+        $productId,
+        $businessId,
+        $registrationStatus,
+        $purchaseItemId = null,
+        $parentCartId = null,
+        $overrideQty = null,
+        $skipStockCheck = false,
+        $variationId = null
+    ) {
+        $businessId = session('business_id') ?: $businessId;
+
+        $quantityVal = quantity_validation::where('business_id', $businessId)->firstOrFail();
+        $isValidationDisabled = $quantityVal->product_quantity_validation === 'disabled';
+
         $product = Product::where('id', $productId)
             ->where('business_id', $businessId)
             ->firstOrFail();
@@ -29,7 +149,6 @@ class CartService
             throw new \Exception('Insufficient stock');
         }
 
-        // If a specific purchase batch is selected, validate it
         $purchaseItem = null;
         if ($purchaseItemId) {
             $query = PurchaseItem::where('id', $purchaseItemId)
@@ -42,35 +161,12 @@ class CartService
             $purchaseItem = $query->firstOrFail();
         }
 
-        // Determine quantity to set (accessories may have a custom override qty)
-        $forceQty = $overrideQty; // non-null only for accessories with defined default qty
+        $forceQty = $overrideQty;
 
-        // Check if the same product+batch combo is already in cart
-        // For accessories, we check within the same parent cart item to avoid collisions
-        $cartQuery = PosCart::where('user_id', Auth::id())
-            ->where('product_id', $product->id);
+        // ✅ Hamesha quantity 1 (ya forceQty) — koi existing row check nahi
+        $newQuantity = $forceQty !== null ? $forceQty : 1;
 
-        if ($parentCartId) {
-            // Accessory: match on parent_cart_id too
-            $cartQuery->where('parent_cart_id', $parentCartId);
-        } else {
-            $cartQuery->whereNull('parent_cart_id');
-        }
-
-        $purchaseItemId
-        ? $cartQuery->where('purchase_item_id', $purchaseItemId)
-        : $cartQuery->whereNull('purchase_item_id');
-
-        $cartItem = $cartQuery->first();
-
-        if ($forceQty !== null) {
-            // For accessories, we always set the defined quantity, not increment
-            $newQuantity = $forceQty;
-        } else {
-            $newQuantity = $cartItem ? $cartItem->quantity + 1 : 1;
-        }
-
-         // Stock limit check (only when validation is disabled)
+        // Stock limit check (only when validation is disabled)
         if (!$skipStockCheck && $isValidationDisabled) {
             if ($purchaseItem && $newQuantity > $purchaseItem->remaining_qty) {
                 throw new \Exception(
@@ -81,7 +177,6 @@ class CartService
             }
         }
 
-        // Base calculation
         $unitPrice = $product->discounted_price;
         $baseTotal = $unitPrice * $newQuantity;
 
@@ -91,23 +186,17 @@ class CartService
             $registrationStatus
         );
 
-        if ($cartItem) {
-            $cartItem->quantity = $newQuantity;
-            $cartItem->further_tax = $furtherTax;
-            $cartItem->save();
-        } else {
-            $cartItem = PosCart::create([
-                'user_id'               => Auth::id(),
-                'product_id'            => $product->id,
-                'purchase_item_id'      => $purchaseItemId,
-                'quantity'              => $newQuantity,
-                'further_tax'           => $furtherTax,
-                'parent_cart_id'        => $parentCartId,
-                'accessory_default_qty' => $forceQty,
-            ]);
-        }
+        // ✅ Hamesha naya row banao
+        $cartItem = PosCart::create([
+            'user_id' => Auth::id(),
+            'product_id' => $product->id,
+            'purchase_item_id' => $purchaseItemId,
+            'quantity' => $newQuantity,
+            'further_tax' => $furtherTax,
+            'parent_cart_id' => $parentCartId,
+            'accessory_default_qty' => $forceQty,
+        ]);
 
-        // ── Auto-add accessories (only for TOP-LEVEL products, not accessories of accessories) ──
         if ($parentCartId === null) {
             $this->syncAccessoriesToCart($product, $cartItem, $businessId, $registrationStatus, $isValidationDisabled);
         }
@@ -115,80 +204,7 @@ class CartService
         return $cartItem;
     }
 
-    
-    
-    
-    public function addToCartNew($productId, $businessId, $registrationStatus, $purchaseItemId = null, $parentCartId = null, $overrideQty = null, $skipStockCheck = false)
-{
-    $businessId = session('business_id') ?: $businessId;
 
-    $quantityVal = quantity_validation::where('business_id', $businessId)->firstOrFail();
-    $isValidationDisabled = $quantityVal->product_quantity_validation === 'disabled';
-
-    $product = Product::where('id', $productId)
-        ->where('business_id', $businessId)
-        ->firstOrFail();
-
-    if (!$skipStockCheck && $isValidationDisabled && $product->quantity === 0) {
-        throw new \Exception('Insufficient stock');
-    }
-
-    $purchaseItem = null;
-    if ($purchaseItemId) {
-        $query = PurchaseItem::where('id', $purchaseItemId)
-            ->where('product_id', $productId);
-
-        if ($isValidationDisabled && !$skipStockCheck) {
-            $query->where('remaining_qty', '>', 0);
-        }
-
-        $purchaseItem = $query->firstOrFail();
-    }
-
-    $forceQty = $overrideQty;
-
-    // ✅ Hamesha quantity 1 (ya forceQty) — koi existing row check nahi
-    $newQuantity = $forceQty !== null ? $forceQty : 1;
-
-    // Stock limit check (only when validation is disabled)
-    if (!$skipStockCheck && $isValidationDisabled) {
-        if ($purchaseItem && $newQuantity > $purchaseItem->remaining_qty) {
-            throw new \Exception(
-                'Cannot add more, batch stock limit reached (Available: ' . $purchaseItem->remaining_qty . ')'
-            );
-        } elseif (!$purchaseItem && $newQuantity > $product->quantity) {
-            throw new \Exception('Cannot add more, stock limit reached');
-        }
-    }
-
-    $unitPrice = $product->discounted_price;
-    $baseTotal = $unitPrice * $newQuantity;
-
-    $furtherTax = $this->calculateFurtherTax(
-        $product,
-        $baseTotal,
-        $registrationStatus
-    );
-
-    // ✅ Hamesha naya row banao
-    $cartItem = PosCart::create([
-        'user_id'               => Auth::id(),
-        'product_id'            => $product->id,
-        'purchase_item_id'      => $purchaseItemId,
-        'quantity'              => $newQuantity,
-        'further_tax'           => $furtherTax,
-        'parent_cart_id'        => $parentCartId,
-        'accessory_default_qty' => $forceQty,
-    ]);
-
-    if ($parentCartId === null) {
-        $this->syncAccessoriesToCart($product, $cartItem, $businessId, $registrationStatus, $isValidationDisabled);
-    }
-
-    return $cartItem;
-}
-    
-    
     /**
      * Auto-add or update accessory cart rows for the given parent cart item.
      * Uses FIFO batch selection (oldest available batch).
@@ -197,23 +213,23 @@ class CartService
     private function syncAccessoriesToCart(Product $product, PosCart $parentCartItem, $businessId, $registrationStatus, $isValidationDisabled): void
     {
         $accessories = $product->accessories()->get();
- 
+
         foreach ($accessories as $accessory) {
             $defaultQty = (float) $accessory->pivot->quantity;
             if ($defaultQty <= 0) {
                 $defaultQty = 1;
             }
- 
+
             // Find best batch (FIFO: oldest batch with stock preferred, but any batch accepted)
             $purchaseItemId = null;
- 
+
             if ($isValidationDisabled) {
                 // Prefer a batch that still has stock (FIFO)
                 $batch = PurchaseItem::where('product_id', $accessory->id)
                     ->where('remaining_qty', '>', 0)
                     ->orderBy('created_at', 'asc')
                     ->first();
- 
+
                 // If no batch has stock, fall back to the oldest batch anyway —
                 // accessories must always be added with the main product
                 if (!$batch) {
@@ -227,9 +243,9 @@ class CartService
                     ->orderBy('created_at', 'asc')
                     ->first();
             }
- 
+
             $purchaseItemId = $batch ? $batch->id : null;
- 
+
             try {
                 // $skipStockCheck = true so accessories bypass all stock limit throws
                 $this->addToCart(
@@ -253,10 +269,7 @@ class CartService
         $registrationStatus = strtolower($registrationStatus);
         $furtherTax = 0;
 
-        if (
-            strtolower(trim($product->sale_type)) != '3rd schedule goods' &&
-            $registrationStatus === 'unregistered'
-        ) {
+        if (strtolower(trim($product->sale_type)) != '3rd schedule goods' && $registrationStatus === 'unregistered') {
             $rateText = trim($product->rate_of_tax);
 
             if (str_ends_with($rateText, '%')) {
@@ -273,13 +286,13 @@ class CartService
 
     public function increment($id, $businessId)
     {
-        // Check batch stock limit if batch is selected
-         $quantityVal = quantity_validation::where('business_id' , $businessId)->first();
-        
-        if($quantityVal->product_quantity_validation == "disabled"){
-            $cart = PosCart::with('product')->findOrFail($id);
+        $quantityVal = quantity_validation::where('business_id', $businessId)->first();
+        $cart = PosCart::with(['product', 'variation'])->findOrFail($id);
 
-            if ($cart->product->quantity === 0) {
+        if ($quantityVal->product_quantity_validation == "disabled") {
+            $availableStock = $cart->variation ? $cart->variation->quantity : $cart->product->quantity;
+
+            if ($availableStock == 0) {
                 throw new \Exception('Insufficient stock available');
             }
 
@@ -289,15 +302,10 @@ class CartService
                     throw new \Exception('Cannot add more, batch stock limit reached (Available: ' . $purchaseItem->remaining_qty . ')');
                 }
             } else {
-                if ($cart->quantity == $cart->product->quantity) {
+                if ($cart->quantity >= $availableStock) {
                     throw new \Exception('Cannot add more, stock limit reached');
                 }
             }
-        }else{
-
-         $cart = PosCart::with('product')->findOrFail($id);
-
-          
         }
 
         $cart->quantity = $cart->quantity + 1;
@@ -341,11 +349,8 @@ class CartService
 
     public function updateQuantity($id, $quantity, $registrationStatus, $businessId)
     {
-        $cart = PosCart::with('product')->findOrFail($id);
-        // Stock check: batch-aware
-         $quantityVal = quantity_validation::where('business_id' , $businessId)->first();
-        
-        // AFTER — accessories bypass stock check entirely
+        $cart = PosCart::with(['product', 'variation'])->findOrFail($id);
+        $quantityVal = quantity_validation::where('business_id', $businessId)->first();
         $isAccessory = !is_null($cart->parent_cart_id);
 
         if (!$isAccessory && $quantityVal->product_quantity_validation == "disabled") {
@@ -355,7 +360,7 @@ class CartService
                     throw new \Exception('Cannot add more, batch stock limit reached (Available: ' . $purchaseItem->remaining_qty . ')');
                 }
             } else {
-                $availableStock = $cart->product->quantity ?? 0;
+                $availableStock = $cart->variation ? $cart->variation->quantity : ($cart->product->quantity ?? 0);
                 if ($quantity > $availableStock) {
                     throw new \Exception('Cannot add more, stock limit reached');
                 }
@@ -364,29 +369,18 @@ class CartService
 
         $cart->quantity = $quantity;
 
+        $unitPrice = $cart->variation?->price ?? $cart->product->discounted_price;
+        $baseTotal = $quantity * $unitPrice;
+
         $product = $cart->product;
-        $baseTotal = $quantity * $product->discounted_price;
-        $furtherTax = 0;
 
-        $registrationStatus = strtolower($registrationStatus);
+        $furtherTax = $this->calculateFurtherTax(
+            $product,
+            $baseTotal,
+            $registrationStatus
+        );
 
-        if (
-            strtolower(trim($product->sale_type)) != '3rd schedule goods' &&
-            $registrationStatus === 'unregistered'
-        ) {
-            $rateText = trim($product->rate_of_tax);
-
-            if (str_ends_with($rateText, '%')) {
-                $rate = floatval(str_replace('%', '', $rateText));
-                $valueExTax = $baseTotal / (1 + ($rate / 100));
-                $furtherTax = $valueExTax * 0.04;
-            } else {
-                $furtherTax = floatval($rateText) ?? 0;
-            }
-        }
-
-        $cart->further_tax = round($furtherTax, 2);
-        $cart->row_total = round($baseTotal + $cart->further_tax, 2);
+        $cart->row_total = round($baseTotal + $furtherTax, 2);
         $cart->save();
 
         return $cart;

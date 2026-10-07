@@ -361,6 +361,8 @@ export default function Cart({
         }
     }, [carts, registrationStatus]);
 
+    const stockOf = (item) => Number(item.available_stock ?? item.product.quantity);
+
     // ── Quantity helpers ───────────────────────────────────────────────────
     function updateQuantity(id, newQuantity) {
         axios
@@ -395,11 +397,11 @@ export default function Cart({
         if (
             !isAccessory &&
             stockEnforced &&
-            newQuantity > item.product.quantity
+            newQuantity > stockOf(item)
         ) {
             playSound(WarningSound);
             toast.error(
-                `Only ${item.product.quantity} items available in stock`,
+                `Only ${stockOf(item)} items available in stock`,
             );
             setEditingQuantity((prev) => ({ ...prev, [id]: false }));
             return;
@@ -417,7 +419,7 @@ export default function Cart({
         if (
             isAccessory ||
             !stockEnforced ||
-            currentQty < item.product.quantity
+            currentQty < stockOf(item)
         ) {
             updateQuantity(id, currentQty + 1);
         }
@@ -486,9 +488,8 @@ export default function Cart({
         }
         // Remove the blank row immediately
         removeBlankRow(rowKey);
-        // Delegate to PosDigital's addProductToCart
         if (onAddProduct) {
-            onAddProduct(product.id, customerId);
+            onAddProduct(product, customerId);
         }
     }
 
@@ -607,6 +608,9 @@ export default function Cart({
                                         {/* Product name */}
                                         <td className="pl-3">
                                             <strong>{item.product.name}</strong>
+                                            {item.variation_label && (
+                                                <div className="small text-muted">{item.variation_label}</div>
+                                            )}
                                             {itemAccessories.length > 0 && (
                                                 <span
                                                     className="badge badge-info ml-1"
@@ -813,9 +817,12 @@ export default function Cart({
                                                                         className="dropdown-item d-flex justify-content-between align-items-center py-2"
                                                                         onClick={() => pickProductForBlankRow(row.key, p)}
                                                                     >
-                                                                        <span style={{ fontSize: 13 }}>{p.name}</span>
+                                                                        <span style={{ fontSize: 13 }}>
+                                                                            {p.name}
+                                                                            {p.has_variations && <span className="badge badge-info ml-1" style={{ fontSize: "0.65em" }}>Options</span>}
+                                                                        </span>
                                                                         <small className="text-muted ml-2" style={{ whiteSpace: "nowrap" }}>
-                                                                            {p.unit} · {fmt(p.discounted_price)}
+                                                                            Stock: {p.quantity} · {fmt(p.discounted_price)}
                                                                         </small>
                                                                     </button>
                                                                 ))

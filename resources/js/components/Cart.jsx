@@ -164,6 +164,8 @@ export default function Cart({
         }
     }, [carts, registrationStatus]);
 
+    const stockOf = (item) => Number(item.available_stock ?? item.product.quantity);
+
     function updateQuantity(id, newQuantity) {
         axios
             .put("/admin/cart/update-quantity", {
@@ -196,30 +198,15 @@ export default function Cart({
         }
 
         // Block only when: main product AND stock is being enforced AND exceeds stock
-        if (!isAccessory && stockEnforced && newQuantity > item.product.quantity) {
+        if (!isAccessory && stockEnforced && newQuantity > stockOf(item)) {
             playSound(WarningSound);
-            toast.error(`Only ${item.product.quantity} items available in stock`);
+            toast.error(`Only ${stockOf(item)} items available in stock`);
             setEditingQuantity((prev) => ({ ...prev, [id]: false }));
             return;
         }
 
         updateQuantity(id, newQuantity);
     }
-
-    // function increment(id) {
-    //     const item = carts.find((cart) => cart.id === id);
-    //     if (!item) return;
-
-    //     const isAccessory = !!item.parent_cart_id || !!item.is_accessory;
-    //     const stockEnforced = quantityValidation == "disabled"; // disabled = enforce stock
-
-    //     // Accessories: always allow
-    //     // Main product + validation enabled: always allow (backend handles it)
-    //     // Main product + validation disabled: respect stock limit
-    //     if (isAccessory || !stockEnforced || item.quantity < item.product.quantity) {
-    //         updateQuantity(id, item.quantity + 1);
-    //     }
-    // }
 
     function increment(id) {
         const item = carts.find((cart) => cart.id === id);
@@ -230,7 +217,7 @@ export default function Cart({
 
         const currentQty = Number(item.quantity);
 
-        if (isAccessory || !stockEnforced || currentQty < item.product.quantity) {
+        if (isAccessory || !stockEnforced || currentQty < stockOf(item)) {
             updateQuantity(id, currentQty + 1);
         }
     }
@@ -267,10 +254,7 @@ export default function Cart({
 
     const shouldApplyFurtherTax = (item) => {
         if (!item || !item.product || !registrationStatus) return false;
-        return (
-            item.product.sale_type != "3rd Schedule Goods" &&
-            registrationStatus.toLowerCase() === "unregistered"
-        );
+        return (item.product.sale_type != "3rd Schedule Goods" && registrationStatus.toLowerCase() === "unregistered");
     };
 
     // Group: build a map of parent_cart_id -> [accessory items]
@@ -316,6 +300,9 @@ export default function Cart({
                                                     <tr>
                                                         <td>
                                                             <strong>{item.product.name}</strong>
+                                                            {item.variation_label && (
+                                                                <div className="small text-muted">{item.variation_label}</div>
+                                                            )}
                                                             {itemAccessories.length > 0 && (
                                                                 <span
                                                                     className="badge badge-info ml-1"
@@ -344,7 +331,7 @@ export default function Cart({
                                                                     defaultValue={item.quantity}
                                                                     min="0.01"
                                                                     step="0.01"
-                                                                    max={item.product.quantity}
+                                                                    max={stockOf(item)}
                                                                     autoFocus
                                                                     onBlur={(e) =>
                                                                         handleQuantityBlur(item.id, e.target.value)
@@ -378,7 +365,7 @@ export default function Cart({
                                                             <button
                                                                 className="btn btn-success btn-sm"
                                                                 onClick={() => increment(item.id)}
-                                                                disabled={quantityValidation == "disabled" && item.quantity >= item.product.quantity}
+                                                                disabled={quantityValidation == "disabled" && item.quantity >= stockOf(item)}
                                                             >
                                                                 <i className="fas fa-plus"></i>
                                                             </button>

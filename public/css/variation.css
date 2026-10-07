@@ -1,0 +1,510 @@
+#variation-card.variation-product-card {
+    background: #ffffff;
+    border: 1px solid #e8e8e8;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.04);
+    margin-bottom: 20px;
+}
+
+#variation-card .variation-product-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 20px 22px;
+    border-bottom: 1px solid #eeeeee;
+}
+
+#variation-card .variation-product-heading {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+}
+
+#variation-card .variation-product-icon {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 11px;
+    background: #fff3e8;
+    color: #fd6802;
+    font-size: 18px;
+}
+
+#variation-card .variation-product-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+#variation-card .variation-product-description {
+    margin: 4px 0 0;
+    color: #777;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+#variation-card .variation-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 11px;
+    border-radius: 7px;
+    background: #eaf8ef;
+    color: #198754;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+#variation-card .variation-status-badge i {
+    font-size: 12px;
+}
+
+#variation-card .variation-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    margin: 0;
+    cursor: pointer;
+    user-select: none;
+}
+
+#variation-card .variation-toggle input {
+    display: none;
+}
+
+#variation-card .variation-toggle-slider {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    border-radius: 20px;
+    background: #d9d9d9;
+    transition: all 0.2s ease;
+}
+
+#variation-card .variation-toggle-slider::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+#variation-card .variation-toggle input:checked+.variation-toggle-slider {
+    background: #fd6802;
+}
+
+#variation-card .variation-toggle input:checked+.variation-toggle-slider::after {
+    transform: translateX(18px);
+}
+
+#variation-card .variation-toggle-label {
+    color: #555;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#variation-card .variation-product-body {
+    padding: 22px;
+}
+
+#variation-card [data-options] {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+#variation-card .vr-option {
+    padding: 15px;
+    margin-bottom: 0;
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    background: #fafafa;
+    transition: border-color 0.2s ease;
+}
+
+@media (max-width: 768px) {
+    #variation-card [data-options] {
+        grid-template-columns: 1fr;
+    }
+}
+
+#variation-card .vr-option:focus-within {
+    border-color: #fd6802;
+    background: #fff;
+}
+
+#variation-card .vr-option>.d-flex {
+    align-items: center;
+}
+
+#variation-card .vr-option input[data-opt-name] {
+    max-width: 220px !important;
+    height: 36px;
+    border: 1px solid #dddddd;
+    border-radius: 7px;
+    font-size: 13px;
+    box-shadow: none;
+}
+
+#variation-card .vr-option input[data-opt-name]:focus {
+    border-color: #fd6802;
+    box-shadow: 0 0 0 2px rgba(253, 104, 2, 0.08);
+}
+
+#variation-card [data-remove-opt] {
+    color: #dc3545 !important;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+#variation-card [data-remove-opt]:hover {
+    color: #b02a37 !important;
+}
+
+#variation-card .vr-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+    min-height: 42px;
+    padding: 7px 9px !important;
+    border: 1px solid #dddddd !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+    box-shadow: none;
+}
+
+#variation-card .vr-chips:focus-within {
+    border-color: #fd6802 !important;
+    box-shadow: 0 0 0 2px rgba(253, 104, 2, 0.08) !important;
+}
+
+#variation-card .vr-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 7px 5px 10px;
+    border-radius: 6px;
+    background: #fff3e8;
+    color: #fd6802;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#variation-card .vr-chip button {
+    width: 17px;
+    height: 17px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: #fd6802;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+#variation-card .vr-chip button:hover {
+    background: #fd6802;
+    color: #ffffff;
+}
+
+#variation-card .vr-chip-input {
+    min-width: 150px;
+    flex: 1;
+    padding: 5px;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font-size: 12px;
+}
+
+#variation-card .variation-add-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 2px;
+    margin-bottom: 18px;
+    padding: 8px 13px;
+    border: 1px solid #fd6802;
+    border-radius: 7px;
+    background: #fff;
+    color: #fd6802;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#variation-card .variation-add-option:hover {
+    background: #fd6802;
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+#variation-card .variation-empty-state {
+    padding: 28px 20px;
+    border: 1px dashed #dddddd;
+    border-radius: 10px;
+    text-align: center;
+    background: #fafafa;
+}
+
+#variation-card .variation-empty-icon {
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+    border-radius: 50%;
+    background: #fff3e8;
+    color: #fd6802;
+    font-size: 16px;
+}
+
+#variation-card .variation-empty-title {
+    margin-bottom: 4px;
+    color: #444;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#variation-card .variation-empty-text {
+    color: #888;
+    font-size: 12px;
+}
+
+#variation-card .variation-bulk-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    margin-bottom: 15px;
+    padding: 13px 15px;
+    border: 1px solid #eeeeee;
+    border-radius: 10px;
+    background: #fafafa;
+}
+
+#variation-card .variation-bulk-heading {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex-shrink: 0;
+}
+
+#variation-card .variation-bulk-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 7px;
+    background: #fff3e8;
+    color: #fd6802;
+    font-size: 13px;
+}
+
+#variation-card .variation-bulk-title {
+    color: #444;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#variation-card .variation-bulk-description {
+    margin-top: 2px;
+    color: #888;
+    font-size: 11px;
+}
+
+#variation-card .variation-bulk-fields {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#variation-card .variation-bulk-input {
+    width: 145px;
+    height: 34px;
+    padding: 6px 10px;
+    border: 1px solid #dddddd;
+    border-radius: 7px;
+    background: #fff;
+    font-size: 12px;
+    outline: none;
+}
+
+#variation-card .variation-bulk-input:focus {
+    border-color: #fd6802;
+    box-shadow: 0 0 0 2px rgba(253, 104, 2, 0.08);
+}
+
+#variation-card .variation-apply-btn {
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 13px;
+    border: none;
+    border-radius: 7px;
+    background: #fd6802;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 3px 8px rgba(253, 104, 2, 0.18);
+    transition: all 0.2s ease;
+}
+
+#variation-card .variation-apply-btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(0.94);
+}
+
+#variation-card .variation-table-container {
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+#variation-card .variation-table {
+    width: 100%;
+    margin: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 12px;
+}
+
+#variation-card .variation-table thead th {
+    padding: 12px;
+    border: 0;
+    border-bottom: 1px solid #e5e5e5;
+    background: #f8f8f8;
+    color: #555;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+#variation-card .variation-table tbody td {
+    padding: 10px 12px;
+    border: 0;
+    border-bottom: 1px solid #eeeeee;
+    vertical-align: middle;
+}
+
+#variation-card .variation-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+#variation-card .variation-table tbody tr:hover {
+    background: #fffaf6;
+}
+
+#variation-card .variation-table input.form-control {
+    height: 34px;
+    border: 1px solid #dddddd;
+    border-radius: 7px;
+    font-size: 12px;
+    box-shadow: none;
+}
+
+#variation-card .variation-table input.form-control:focus {
+    border-color: #fd6802;
+    box-shadow: 0 0 0 2px rgba(253, 104, 2, 0.08);
+}
+
+#variation-card .variation-help-text {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    margin-top: 12px;
+    color: #888;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+#variation-card .variation-help-text i {
+    margin-top: 2px;
+    color: #fd6802;
+}
+
+#variation-card .variation-remove-option {
+    width: 28px;
+    height: 28px;
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #dc3545;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+#variation-card .variation-remove-option:hover {
+    background: #fff0f0;
+    color: #b02a37;
+}
+
+@media (max-width: 768px) {
+
+    #variation-card .variation-product-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    #variation-card .variation-toggle,
+    #variation-card .variation-status-badge {
+        align-self: flex-start;
+    }
+
+    #variation-card .variation-product-body {
+        padding: 15px;
+    }
+
+    #variation-card .variation-bulk-box {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    #variation-card .variation-bulk-fields {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    #variation-card .variation-bulk-input {
+        flex: 1;
+        min-width: 130px;
+    }
+
+    #variation-card .variation-apply-btn {
+        flex-shrink: 0;
+    }
+
+    #variation-card .variation-table {
+        min-width: 700px;
+    }
+}

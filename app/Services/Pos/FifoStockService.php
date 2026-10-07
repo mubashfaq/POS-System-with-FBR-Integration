@@ -12,14 +12,12 @@ class FifoStockService
      * Consume qty from the oldest batches. Returns the allocations:
      * [['purchase_item_id' => id|null, 'qty' => x, 'cost' => y], ...]
      */
-    public function consume(Product $product, float $qty, bool $enforce, ?int $purchaseItemId = null): array
+    public function consume(Product $product, float $qty, bool $enforce, ?int $purchaseItemId = null, ?int $variationId = null): array
     {
-        // Same as web: a batch chosen on the cart is used directly
         if ($purchaseItemId) {
             $batch = PurchaseItem::lockForUpdate()->find($purchaseItemId);
             if ($batch) {
                 $batch->decrement('remaining_qty', $qty);
-                $product->decrement('quantity', $qty);
 
                 return [
                     [
@@ -30,7 +28,9 @@ class FifoStockService
                 ];
             }
         }
+
         $batches = PurchaseItem::where('product_id', $product->id)
+            ->where('product_variation_id', $variationId)
             ->where('remaining_qty', '>', 0)
             ->orderBy('created_at')->orderBy('id')
             ->lockForUpdate()
@@ -56,9 +56,11 @@ class FifoStockService
             if ($enforce) {
                 throw new InsufficientStockException($product->name);
             }
-            // Stock not enforced: push the shortfall onto the newest batch (goes negative)
+
             $last = $batches->last()
-                ?? PurchaseItem::where('product_id', $product->id)->latest('created_at')->first();
+                ?? PurchaseItem::where('product_id', $product->id)
+                    ->where('product_variation_id', $variationId)
+                    ->latest('created_at')->first();
 
             if ($last) {
                 $last->decrement('remaining_qty', $left);
@@ -69,8 +71,6 @@ class FifoStockService
                 'cost' => $last?->purchase_price ?? $product->purchase_price,
             ];
         }
-
-        $product->decrement('quantity', $qty);
 
         return $allocations;
     }

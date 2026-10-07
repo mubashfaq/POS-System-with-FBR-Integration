@@ -2,7 +2,7 @@
 // app/Services/Pos/PosOrderService.php
 namespace App\Services\Pos;
 
-use App\Models\{Business, BusinessCounter, Customer, Order, Product, quantity_validation, OrderLog};
+use App\Models\{Business, BusinessCounter, Customer, Order, Product, quantity_validation, OrderLog, ProductVariation};
 use App\Services\Fbr\FbrInvoiceService;
 use App\Services\FbrTokenService;
 use Illuminate\Support\Facades\DB;
@@ -76,15 +76,19 @@ class PosOrderService
 
             foreach ($data['items'] as $item) {
                 $product = $products[$item['product_id']];
+                $variation = !empty($item['product_variation_id'])
+                    ? ProductVariation::where('product_id', $product->id)->findOrFail($item['product_variation_id'])
+                    : null;
                 $qty = (float) $item['qty'];
                 $calc = $this->calculator->calculate(
                     $product,
                     $qty,
                     isset($item['price']) ? (float) $item['price'] : null,
-                    $customer->customer_tax_type
+                    $customer->customer_tax_type,
+                    $variation
                 );
 
-                $allocations = $this->fifo->consume($product, $qty, $enforce, $item['purchase_item_id'] ?? null);
+                $allocations = $this->fifo->consume($product, $qty, $enforce, $item['purchase_item_id'] ?? null, $item['product_variation_id'] ?? null);
 
                 // weighted average cost of the batches used
                 $cost = collect($allocations)->sum(fn($a) => $a['qty'] * $a['cost']) / max($qty, 0.0001);
@@ -103,6 +107,7 @@ class PosOrderService
                     'further_tax' => 0,
                     'total' => $calc['total'],
                     'product_id' => $product->id,
+                    'product_variation_id' => $item['product_variation_id'] ?? null,
                     'purchase_item_id' => $item['purchase_item_id'] ?? ($allocations[0]['purchase_item_id'] ?? null),
                     'is_accessory' => false,
                 ]);
@@ -135,7 +140,7 @@ class PosOrderService
                 $totals['sale_tax'] += $calc['sale_tax'];
                 $totals['customer_tax'] += $calc['customer_tax'];
 
-                $lines[] = ['product' => $product, 'qty' => $qty, 'calc' => $calc];
+                $lines[] = ['product' => $product, 'variation' => $variation ?? null, 'qty' => $qty, 'calc' => $calc];
             }
 
             $total = $totals['amount'] - $discount;
