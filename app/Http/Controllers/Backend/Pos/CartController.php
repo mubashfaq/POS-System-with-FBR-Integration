@@ -15,7 +15,6 @@ use App\Models\quantity_validation;
 use App\Services\CartService;
 use App\Services\FbrTokenService;
 use Illuminate\Http\Request;
-use Log;
 
 class CartController extends Controller
 {
@@ -27,69 +26,72 @@ class CartController extends Controller
         $cartSetting = CartSetting::where('business_id', $businessId)->value('draft_btn');
         $fbrEnabled = FbrTokenService::isIntegrationEnabled();
 
-        if ($request->wantsJson()) {
-            // Get customer registration status from session 
-            $customerIsRegistered = session('customer_is_registered', 'Registered'); // ✅ Default "Registered" capital
 
-            $cartItems = PosCart::where('user_id', auth()->id())
-                ->with(['product', 'purchaseItem.purchase', 'variation.values'])
-                ->latest('created_at')
-                ->get()
-                ->map(function ($item) use ($customerIsRegistered) {
-                    $unitPrice = $item->price_override ?? $item->variation?->price ?? $item->product->discounted_price;
-                    $baseTotal = round($unitPrice * $item->quantity, 2);
-
-                    $furtherTax = 0;
-                    $valueExTax = $baseTotal;
-                    $salesTax = 0;
-
-                    if ($item->product->sale_type != "3rd Schedule Goods" && strtolower($customerIsRegistered) === "unregistered") {
-                        $rateText = trim($item->product->rate_of_tax);
-
-                        if (str_ends_with($rateText, '%')) {
-                            $rate = floatval(str_replace('%', '', $rateText));
-                            $valueExTax = round($baseTotal / (1 + ($rate / 100)), 2);
-                            $furtherTax = round($valueExTax * 0.04, 2);
-                            $salesTax = round($baseTotal - $valueExTax, 2);
-                        } else {
-                            $fixedTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
-                            $valueExTax = round($baseTotal - $fixedTax, 2);
-                            $furtherTax = round($valueExTax * 0.04, 2);
-                        }
-                    }
-
-                    $totalWithTax = $baseTotal + $furtherTax;
-
-                    $item->unit_price = $unitPrice;
-                    $item->base_total = $baseTotal;
-                    $item->further_tax = $furtherTax;
-                    $item->row_total = $totalWithTax;
-                    $item->customer_is_registered = $customerIsRegistered;
-                    $item->is_accessory = !is_null($item->parent_cart_id);
-
-                    return $item;
-                });
-
-            // Totals from parent items only (accessories don't contribute to price)
-            $parentItems = $cartItems->filter(fn($i) => is_null($i->parent_cart_id));
-
-            $subTotal = $parentItems->sum('base_total');
-            $furtherTaxTotal = $parentItems->sum('further_tax');
-            $grandTotal = $parentItems->sum('row_total');
-
-            return response()->json([
-                'carts' => $cartItems->values(),
-                'sub_total' => round($subTotal, 2),
-                'further_tax_total' => round($furtherTaxTotal, 2),
-                'total' => round($grandTotal, 2)
-            ]);
-        }
         // clear cart
         PosCart::where('user_id', auth()->id())->delete();
         return view('backend.cart.index', [
             'businessType' => $businesstype,
             'draftButtonEnabled' => $cartSetting,
             'fbrEnabled' => $fbrEnabled,
+        ]);
+    }
+
+    public function getCart()
+    {
+        // Get customer registration status from session 
+        $customerIsRegistered = session('customer_is_registered', 'Registered'); // ✅ Default "Registered" capital
+
+        $cartItems = PosCart::where('user_id', auth()->id())
+            ->with(['product', 'purchaseItem.purchase', 'variation.values'])
+            ->latest('created_at')
+            ->get()
+            ->map(function ($item) use ($customerIsRegistered) {
+                $unitPrice = $item->price_override ?? $item->variation?->price ?? $item->product->discounted_price;
+                $baseTotal = round($unitPrice * $item->quantity, 2);
+
+                $furtherTax = 0;
+                $valueExTax = $baseTotal;
+                $salesTax = 0;
+
+                if ($item->product->sale_type != "3rd Schedule Goods" && strtolower($customerIsRegistered) === "unregistered") {
+                    $rateText = trim($item->product->rate_of_tax);
+
+                    if (str_ends_with($rateText, '%')) {
+                        $rate = floatval(str_replace('%', '', $rateText));
+                        $valueExTax = round($baseTotal / (1 + ($rate / 100)), 2);
+                        $furtherTax = round($valueExTax * 0.04, 2);
+                        $salesTax = round($baseTotal - $valueExTax, 2);
+                    } else {
+                        $fixedTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+                        $valueExTax = round($baseTotal - $fixedTax, 2);
+                        $furtherTax = round($valueExTax * 0.04, 2);
+                    }
+                }
+
+                $totalWithTax = $baseTotal + $furtherTax;
+
+                $item->unit_price = $unitPrice;
+                $item->base_total = $baseTotal;
+                $item->further_tax = $furtherTax;
+                $item->row_total = $totalWithTax;
+                $item->customer_is_registered = $customerIsRegistered;
+                $item->is_accessory = !is_null($item->parent_cart_id);
+
+                return $item;
+            });
+
+        // Totals from parent items only (accessories don't contribute to price)
+        $parentItems = $cartItems->filter(fn($i) => is_null($i->parent_cart_id));
+
+        $subTotal = $parentItems->sum('base_total');
+        $furtherTaxTotal = $parentItems->sum('further_tax');
+        $grandTotal = $parentItems->sum('row_total');
+
+        return response()->json([
+            'carts' => $cartItems->values(),
+            'sub_total' => round($subTotal, 2),
+            'further_tax_total' => round($furtherTaxTotal, 2),
+            'total' => round($grandTotal, 2)
         ]);
     }
 
@@ -219,6 +221,7 @@ class CartController extends Controller
             ], 400);
         }
     }
+
     public function decrement(Request $request, CartService $cartService)
     {
         $request->validate([
@@ -233,6 +236,7 @@ class CartController extends Controller
             ], 400);
         }
     }
+
     public function delete(Request $request, CartService $cartService)
     {
         $request->validate([
@@ -250,6 +254,7 @@ class CartController extends Controller
 
 
     }
+
     public function empty(CartService $cartService)
     {
         $deletedCount = $cartService->clearCart();
@@ -260,8 +265,6 @@ class CartController extends Controller
 
         return response()->json(['message' => 'Cart is already empty'], 204);
     }
-
-
 
     public function updateQuantity(Request $request, CartService $cartService)
     {
@@ -304,10 +307,7 @@ class CartController extends Controller
 
         try {
 
-            $cart = $cartService->updatePrice(
-                $request->id,
-                $request->price
-            );
+            $cart = $cartService->updatePrice($request->id, $request->price);
 
             return response()->json([
                 'message' => 'Price updated successfully',
@@ -324,67 +324,6 @@ class CartController extends Controller
 
     public function digitalInvoice(Request $request)
     {
-        if ($request->wantsJson()) {
-            // Get customer registration status from session 
-            $customerIsRegistered = session('customer_is_registered', 'Registered'); // ✅ Default "Registered" capital
-
-            $cartItems = PosCart::where('user_id', auth()->id())
-                ->with(['product', 'purchaseItem.purchase', 'variation.values'])
-                ->oldest('created_at')
-                ->get()
-                ->map(function ($item) use ($customerIsRegistered) {
-                    $unitPrice = $item->price_override ?? $item->variation?->price ?? $item->product->discounted_price;
-                    $baseTotal = round($unitPrice * $item->quantity, 2);
-
-                    $furtherTax = 0;
-                    $valueExTax = $baseTotal;
-                    $salesTax = 0;
-
-                    if (
-                        $item->product->sale_type != "3rd Schedule Goods" &&
-                        strtolower($customerIsRegistered) === "unregistered"
-                    ) {
-                        $rateText = trim($item->product->rate_of_tax);
-
-                        if (str_ends_with($rateText, '%')) {
-                            $rate = floatval(str_replace('%', '', $rateText));
-                            $valueExTax = round($baseTotal / (1 + ($rate / 100)), 2);
-                            $furtherTax = round($valueExTax * 0.04, 2);
-                            $salesTax = round($baseTotal - $valueExTax, 2);
-                        } else {
-                            $fixedTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
-                            $valueExTax = round($baseTotal - $fixedTax, 2);
-                            $furtherTax = round($valueExTax * 0.04, 2);
-                        }
-                    }
-
-                    $totalWithTax = $baseTotal + $furtherTax;
-
-                    $item->unit_price = $unitPrice;
-                    $item->base_total = $baseTotal;
-                    $item->further_tax = $furtherTax;
-                    $item->row_total = $totalWithTax;
-                    $item->customer_is_registered = $customerIsRegistered;
-                    // Accessory flag for frontend grouping
-                    $item->is_accessory = !is_null($item->parent_cart_id);
-
-                    return $item;
-                });
-
-            // Totals from parent items only
-            $parentItems = $cartItems->filter(fn($i) => is_null($i->parent_cart_id));
-
-            $subTotal = $parentItems->sum('base_total');
-            $furtherTaxTotal = $parentItems->sum('further_tax');
-            $grandTotal = $parentItems->sum('row_total');
-
-            return response()->json([
-                'carts' => $cartItems->values(),
-                'sub_total' => round($subTotal, 2),
-                'further_tax_total' => round($furtherTaxTotal, 2),
-                'total' => round($grandTotal, 2)
-            ]);
-        }
         $businessId = session('business_id');
         $cartSetting = CartSetting::where('business_id', $businessId)->first(['draft_btn', 'custom_field_btn']);
         $invoiceSetting = InvoiceSetting::where('business_id', $businessId)->first(['invoice_number', 'po_number']);
@@ -409,6 +348,69 @@ class CartController extends Controller
             'fbrEnabled' => $fbrEnabled,
         ]);
 
+    }
+
+    public function getdigitalInvoiceCart()
+    {
+        // Get customer registration status from session 
+        $customerIsRegistered = session('customer_is_registered', 'Registered'); // ✅ Default "Registered" capital
+
+        $cartItems = PosCart::where('user_id', auth()->id())
+            ->with(['product', 'purchaseItem.purchase', 'variation.values'])
+            ->oldest('created_at')
+            ->get()
+            ->map(function ($item) use ($customerIsRegistered) {
+                $unitPrice = $item->price_override ?? $item->variation?->price ?? $item->product->discounted_price;
+                $baseTotal = round($unitPrice * $item->quantity, 2);
+
+                $furtherTax = 0;
+                $valueExTax = $baseTotal;
+                $salesTax = 0;
+
+                if (
+                    $item->product->sale_type != "3rd Schedule Goods" &&
+                    strtolower($customerIsRegistered) === "unregistered"
+                ) {
+                    $rateText = trim($item->product->rate_of_tax);
+
+                    if (str_ends_with($rateText, '%')) {
+                        $rate = floatval(str_replace('%', '', $rateText));
+                        $valueExTax = round($baseTotal / (1 + ($rate / 100)), 2);
+                        $furtherTax = round($valueExTax * 0.04, 2);
+                        $salesTax = round($baseTotal - $valueExTax, 2);
+                    } else {
+                        $fixedTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+                        $valueExTax = round($baseTotal - $fixedTax, 2);
+                        $furtherTax = round($valueExTax * 0.04, 2);
+                    }
+                }
+
+                $totalWithTax = $baseTotal + $furtherTax;
+
+                $item->unit_price = $unitPrice;
+                $item->base_total = $baseTotal;
+                $item->further_tax = $furtherTax;
+                $item->row_total = $totalWithTax;
+                $item->customer_is_registered = $customerIsRegistered;
+                // Accessory flag for frontend grouping
+                $item->is_accessory = !is_null($item->parent_cart_id);
+
+                return $item;
+            });
+
+        // Totals from parent items only
+        $parentItems = $cartItems->filter(fn($i) => is_null($i->parent_cart_id));
+
+        $subTotal = $parentItems->sum('base_total');
+        $furtherTaxTotal = $parentItems->sum('further_tax');
+        $grandTotal = $parentItems->sum('row_total');
+
+        return response()->json([
+            'carts' => $cartItems->values(),
+            'sub_total' => round($subTotal, 2),
+            'further_tax_total' => round($furtherTaxTotal, 2),
+            'total' => round($grandTotal, 2)
+        ]);
     }
 
     /**

@@ -1,6 +1,6 @@
 <?php return array (
-  'is_live' => '0',
-  'close_msg' => 'Down for maintenance',
+  'is_live' => '1',
+  'close_msg' => 'Website under maintenance By super admin',
   'site_url' => 'http://localhost/QPOS/public',
   'site_name' => 'TechPOS',
   'site_logo' => '/assets/images/logo/1769698225_697b73b1a58a9_pakkhata logo.png',

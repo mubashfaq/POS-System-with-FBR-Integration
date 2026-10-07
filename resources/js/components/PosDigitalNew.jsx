@@ -244,7 +244,7 @@ export default function PosDigital({
 
     const getCarts = async () => {
         try {
-            const res = await axios.get("/admin/digitalCart");
+            const res = await axios.get("/admin/digitalCart/data");
             const data = res.data;
             setCarts(data?.carts);
         } catch (error) {

@@ -6,7 +6,6 @@ use App\Models\Customer;
 use App\Services\FbrTokenService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
 use Illuminate\Validation\Rule;
 
@@ -215,11 +214,25 @@ class CustomerController extends Controller
 
 
         $customer = Customer::findOrFail($id);
+        $businessId = session('business_id');
 
         $request->validate([
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20|unique:customers,phone,' . $customer->id, // Corrected syntax
-            'ntn_cnic' => 'required|string',
+            'phone' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('customers')
+                    ->where(fn($query) => $query->where('business_id', $businessId))
+                    ->ignore($customer->id),
+            ],
+            'ntn_cnic' => [
+                'required',
+                'string',
+                Rule::unique('customers')
+                    ->where(fn($query) => $query->where('business_id', $businessId))
+                    ->ignore($customer->id),
+            ],
             'province' => 'required|string|max:255',
             'address' => 'required|string|max:255',
             'is_registered' => 'required|string|max:255',
@@ -241,7 +254,6 @@ class CustomerController extends Controller
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('customer_delete'), 403);
 
-        // abort_if(!auth()->user()->can('customer_delete'), 403);
         $customer = Customer::findOrFail($id);
         $customer->delete();
         session()->flash('success', 'Customer deleted successfully.');
@@ -300,8 +312,8 @@ class CustomerController extends Controller
     {
 
         try {
-             
-          $businessType = getBusinessType();
+
+            $businessType = getBusinessType();
 
             if ($businessType === 'both') {
 
@@ -310,7 +322,7 @@ class CustomerController extends Controller
                 $env = $settings->environment == 1 ? 'production' : 'sandbox';
 
                 $digitalToken = $settings->{"digital_{$env}_token"};
-                $posToken     = $settings->{"pos_{$env}_token"};
+                $posToken = $settings->{"pos_{$env}_token"};
 
                 // pehle digital, agar empty ho to pos
                 $token = !empty($digitalToken) ? $digitalToken : $posToken;
@@ -318,12 +330,12 @@ class CustomerController extends Controller
             } else {
                 $token = FbrTokenService::getToken();
             }
-           
+
             $response = Http::withHeaders([
-                 'Authorization' => "Bearer $token",
-                    'Content-Type' => 'application/json',
-                    'Accept-Encoding' => 'gzip, deflate, br',
-                    'Accept' => '*/*'
+                'Authorization' => "Bearer $token",
+                'Content-Type' => 'application/json',
+                'Accept-Encoding' => 'gzip, deflate, br',
+                'Accept' => '*/*'
             ])->get('https://gw.fbr.gov.pk/dist/v1/Get_Reg_Type', [
                         'Registration_No' => $cnic
                     ]);

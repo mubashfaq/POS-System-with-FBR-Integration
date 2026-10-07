@@ -1,5 +1,5 @@
 import axios from "axios";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import Swal from "sweetalert2";
 import SuccessSound from "../sounds/beep-07a.mp3";
@@ -8,20 +8,10 @@ import playSound from "../utils/playSound";
 
 const PriceInput = ({ item, onPriceChange, onPriceSave }) => {
 
-    const [value, setValue] = useState(
-        item.unit_price ??
-        item.product.discounted_price ??
-        ""
-    );
+    const [value, setValue] = useState(item.unit_price ?? item.product.discounted_price ?? "");
 
     useEffect(() => {
-
-        setValue(
-            item.unit_price ??
-            item.product.discounted_price ??
-            ""
-        );
-
+        setValue(item.unit_price ?? item.product.discounted_price ?? "");
     }, [item.id]);
 
 
@@ -34,26 +24,20 @@ const PriceInput = ({ item, onPriceChange, onPriceSave }) => {
         const price = parseFloat(newValue);
 
         if (!isNaN(price) && price >= 0) {
-
             onPriceChange(item.id, price);
-
         }
 
     };
-
 
     const handleBlur = () => {
 
         const price = parseFloat(value);
 
         if (!isNaN(price) && price >= 0) {
-
             onPriceSave(item.id, price);
-
         }
 
     };
-
 
     return (
 
@@ -77,7 +61,6 @@ export default function Cart1({
     setCartUpdated,
     cartUpdated,
     isRegistered,
-    // customerTaxType,
     onPriceChange,
     onPriceSave,
     onTotalsChange,
@@ -87,10 +70,21 @@ export default function Cart1({
     const [cartItems, setCartItems] = useState([]);
     const [subTotal, setSubTotal] = useState(0);
     const [furtherTaxTotal, setFurtherTaxTotal] = useState(0);
-    // const [customerTaxTotal, setCustomerTaxTotal] = useState(0);
     const [grandTotal, setGrandTotal] = useState(0);
 
-    // Cart.jsx ke top me ya component function ke andar
+    const [localCarts, setLocalCarts] = useState(carts);
+    const pendingUpdates = useRef({});
+    const debounceTimers = useRef({});
+
+    useEffect(() => {
+        setLocalCarts((prev) => {
+            if (Object.keys(pendingUpdates.current).length === 0) return carts;
+            return carts.map((serverItem) => {
+                const pendingQty = pendingUpdates.current[serverItem.id];
+                return pendingQty !== undefined ? { ...serverItem, quantity: pendingQty } : serverItem;
+            });
+        });
+    }, [carts]);
 
     const registrationStatus = isRegistered || "Registered";
 
@@ -98,9 +92,8 @@ export default function Cart1({
         let subTotalCalc = 0;
         let furtherTaxCalc = 0;
         let saleTaxCalc = 0;
-        // let customerTaxCalc = 0;
 
-        const updatedCarts = carts.map((item) => {
+        const updatedCarts = localCarts.map((item) => {
             const price = Number(item.unit_price ?? item.product.discounted_price);
             const baseTotal = price * item.quantity;
 
@@ -119,20 +112,11 @@ export default function Cart1({
 
             let furtherTax = 0;
 
-            // let customerTax = 0;
-
-            // if (customerTaxType === "retailer") {
-            //     customerTax = exTaxAmount * 0.005; // 0.5%
-            // } else if (customerTaxType === "distributor") {
-            //     customerTax = exTaxAmount * 0.01; // 1%
-            // }
-
             // Only parent items contribute to totals
             if (!item.parent_cart_id && !item.is_accessory) {
                 subTotalCalc += baseTotal;
                 saleTaxCalc += saleTax;
                 furtherTaxCalc += furtherTax;
-                // customerTaxCalc += customerTax;
             }
 
             return {
@@ -140,7 +124,6 @@ export default function Cart1({
                 base_total: baseTotal.toFixed(2),
                 sale_tax: saleTax.toFixed(2),
                 further_tax: furtherTax.toFixed(2),
-                // customer_tax: customerTax.toFixed(2),
                 total_with_tax: (baseTotal + saleTax + furtherTax).toFixed(2),
             };
         });
@@ -148,7 +131,6 @@ export default function Cart1({
         setCartItems(updatedCarts);
         setSubTotal(subTotalCalc.toFixed(2));
         setFurtherTaxTotal(furtherTaxCalc.toFixed(2));
-        // setCustomerTaxTotal(customerTaxCalc.toFixed(2));
         setGrandTotal((subTotalCalc + furtherTaxCalc + saleTaxCalc).toFixed(2));
 
         if (onTotalsChange) {
@@ -160,35 +142,56 @@ export default function Cart1({
                 subTotalCalc + furtherTaxCalc + saleTaxCalc,
             );
         }
-    }, [carts, registrationStatus]);
+    }, [localCarts, registrationStatus]);
 
-    const stockOf = (item) => Number(item.available_stock ?? item.product.quantity);
+    const stockOf = (item) => {
+        if (!item || item._optimistic) return Infinity;
+        return Number(item.available_stock ?? item.product?.quantity ?? Infinity);
+    };
 
-    function updateQuantity(id, newQuantity) {
-        axios
-            .put("/admin/cart/update-quantity", {
-                id: id,
-                quantity: newQuantity,
+    function updateQuantity(id, newQuantity, { optimistic = true } = {}) {
+        // 1. INSTANT local UI update (optimistic)
+        if (optimistic) {
+            setLocalCarts((prev) => prev.map((c) => c.id === id ? { ...c, quantity: newQuantity } : c));
+        }
 
-            })
-            .then((res) => {
-                setCartUpdated(!cartUpdated);
-                playSound(SuccessSound);
-                toast.success(res?.data?.message);
-            })
-            .catch((err) => {
-                playSound(WarningSound);
-                toast.error(
-                    err.response?.data?.message || "Something went wrong",
-                );
-            })
-            .finally(() => {
-                setEditingQuantity((prev) => ({ ...prev, [id]: false }));
-            });
+        // 2. Debounce DB call (300ms) — rapid clicks ko merge kar dega
+        if (debounceTimers.current[id]) {
+            clearTimeout(debounceTimers.current[id]);
+        }
+
+        pendingUpdates.current[id] = newQuantity;
+
+        debounceTimers.current[id] = setTimeout(() => {
+            const finalQty = pendingUpdates.current[id];
+            delete pendingUpdates.current[id];
+
+            axios
+                .put("/admin/cart/update-quantity", {
+                    id: id,
+                    quantity: finalQty,
+                })
+                .then((res) => {
+                    playSound(SuccessSound);
+                })
+                .catch((err) => {
+                    playSound(WarningSound);
+                    toast.error(err.response?.data?.message || "Something went wrong");
+                    // Rollback: server se fresh carts le lo
+                    setCartUpdated((prev) => !prev);
+                })
+                .finally(() => {
+                    setEditingQuantity((prev) => ({ ...prev, [id]: false }));
+                });
+        }, 300);
     }
 
     function handleQuantityBlur(id, value) {
-        const item = carts.find((cart) => cart.id === id);
+        const item = localCarts.find((cart) => cart.id === id);
+        if (!item || item._optimistic) {
+            setEditingQuantity((prev) => ({ ...prev, [id]: false }));
+            return;
+        }
         const isAccessory = !!item?.parent_cart_id || !!item?.is_accessory;
         const stockEnforced = quantityValidation == "disabled"; // disabled = enforce stock
         const newQuantity = parseFloat(value);
@@ -210,8 +213,8 @@ export default function Cart1({
     }
 
     function increment(id) {
-        const item = carts.find((cart) => cart.id === id);
-        if (!item) return;
+        const item = localCarts.find((cart) => cart.id === id);
+        if (!item || item._optimistic) return;
 
         const isAccessory = !!item.parent_cart_id || !!item.is_accessory;
         const stockEnforced = quantityValidation == "disabled";
@@ -224,13 +227,14 @@ export default function Cart1({
     }
 
     function decrement(id) {
-        const item = carts.find((cart) => cart.id === id);
-        if (item && item.quantity > 1) {
-            updateQuantity(id, item.quantity - 1);
-        }
+        const item = localCarts.find((cart) => cart.id === id);
+        if (!item || item._optimistic || item.quantity <= 1) return;
+        updateQuantity(id, item.quantity - 1);
     }
 
     function destroy(id) {
+        const item = localCarts.find((cart) => cart.id === id);
+        if (!item || item._optimistic) return;
         Swal.fire({
             title: "Are you sure you want to delete this item?",
             showDenyButton: true,
@@ -249,7 +253,7 @@ export default function Cart1({
                         id: id,
                     })
                     .then((res) => {
-                        setCartUpdated(!cartUpdated);
+                        setCartUpdated((prev) => !prev);
                         playSound(SuccessSound);
                         toast.success(res?.data?.message);
                     })
@@ -259,14 +263,6 @@ export default function Cart1({
             }
         });
     }
-
-    const shouldApplyFurtherTax = (item) => {
-        if (!item || !item.product || !registrationStatus) return false;
-        return (
-            item.product.sale_type != "3rd Schedule Goods" &&
-            registrationStatus.toLowerCase() === "unregistered"
-        );
-    };
 
     // Group accessories by parent_cart_id
     const accessoryMap = {};
@@ -300,7 +296,6 @@ export default function Cart1({
                                     {parentItems.length > 0 ? (
                                         parentItems.map((item) => {
                                             if (!item) return null;
-                                            const applyFurtherTax = shouldApplyFurtherTax(item);
                                             const itemAccessories = accessoryMap[item.id] || [];
 
                                             return (
@@ -308,7 +303,11 @@ export default function Cart1({
                                                     {/* ── PARENT ROW ── */}
                                                     <tr>
                                                         <td>
-                                                            <strong>{item.product.name}</strong>
+                                                            {item._optimistic ? (
+                                                                <span className="text-muted"><i className="fas fa-spinner fa-spin"></i> Adding...</span>
+                                                            ) : (
+                                                                <strong>{item.product.name}</strong>
+                                                            )}
                                                             {item.variation_label && (
                                                                 <div className="small text-muted">{item.variation_label}</div>
                                                             )}
@@ -319,7 +318,8 @@ export default function Cart1({
                                                             )}
                                                         </td>
                                                         <td className="d-flex align-items-center">
-                                                            <button className="btn btn-warning btn-sm" onClick={() => decrement(item.id)} disabled={item.quantity <= 1}>
+                                                            <button className="btn btn-warning btn-sm" onClick={() => decrement(item.id)}
+                                                                disabled={item._optimistic || item.quantity <= 1}>
                                                                 <i className="fas fa-minus"></i>
                                                             </button>
                                                             {editingQuantity[item.id] ? (
@@ -331,12 +331,15 @@ export default function Cart1({
                                                             ) : (
                                                                 <div className="form-control form-control-sm qty ml-1 mr-1 text-center"
                                                                     style={{ width: "60px", cursor: "pointer", backgroundColor: "#f8f9fa" }}
-                                                                    onClick={() => setEditingQuantity((prev) => ({ ...prev, [item.id]: true }))}>
+                                                                    onClick={() => {
+                                                                        if (item._optimistic) return;
+                                                                        setEditingQuantity((prev) => ({ ...prev, [item.id]: true }))
+                                                                    }}>
                                                                     {item.quantity}
                                                                 </div>
                                                             )}
                                                             <button className="btn btn-success btn-sm" onClick={() => increment(item.id)}
-                                                                disabled={quantityValidation == "disabled" && item.quantity >= stockOf(item)}>
+                                                                disabled={item._optimistic || quantityValidation == "disabled" && item.quantity >= stockOf(item)}>
                                                                 <i className="fas fa-plus"></i>
                                                             </button>
                                                         </td>
@@ -347,11 +350,7 @@ export default function Cart1({
                                                         </td>
                                                         <td className="text-right">
 
-                                                            <PriceInput
-                                                                item={item}
-                                                                onPriceChange={onPriceChange}
-                                                                onPriceSave={onPriceSave}
-                                                            />
+                                                            <PriceInput item={item} onPriceSave={onPriceSave} />
 
                                                             {item.product.price > item.product.discounted_price && (
                                                                 <>
@@ -362,27 +361,11 @@ export default function Cart1({
 
                                                         </td>
                                                         <td className="text-right">
-                                                            {applyFurtherTax ? (
-                                                                <>
-                                                                    <div className="text-success font-weight-bold">{item.total_with_tax}</div>
-                                                                    <div className="small text-warning">+{item.sale_tax} sale tax</div>
-                                                                    {/* {parseFloat(item.customer_tax) > 0 && (
-                                                                        <div className="small text-primary">
-                                                                            +{item.customer_tax} customer tax
-                                                                        </div>
-                                                                    )} */}
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <div className="font-weight-bold">{item.total_with_tax}</div>
-                                                                    <div className="small text-warning">+{item.sale_tax} sale tax</div>
-                                                                    {/* {parseFloat(item.customer_tax) > 0 && (
-                                                                        <div className="small text-primary">
-                                                                            +{item.customer_tax} customer tax
-                                                                        </div>
-                                                                    )} */}
-                                                                </>
-                                                            )}
+
+                                                            <>
+                                                                <div className="font-weight-bold">{item.total_with_tax}</div>
+                                                                <div className="small text-warning">+{item.sale_tax} sale tax</div>
+                                                            </>
                                                         </td>
                                                     </tr>
 
