@@ -139,18 +139,12 @@ class ProductController extends Controller
 
         $business_type = Business::where('id', $businessId)->value('business_type');
 
-        $brands = Brand::where('status', true)
-            ->where(function ($query) use ($businessId) {
-                $query->where('business_id', $businessId)
-                    ->orWhereNull('business_id');
-            })
-            ->get();
-        $categories = Category::where('status', true)
-            ->where(function ($query) use ($businessId) {
-                $query->where('business_id', $businessId)
-                    ->orWhereNull('business_id');
-            })
-            ->get();
+        $brands = Brand::where('status', true)->where(function ($query) use ($businessId) {
+            $query->where('business_id', $businessId);
+        })->get();
+        $categories = Category::where('status', true)->where(function ($query) use ($businessId) {
+            $query->where('business_id', $businessId);
+        })->get();
 
         $hsCodes = hsCode::all();
         $units = Uom::all();
@@ -158,9 +152,7 @@ class ProductController extends Controller
         $sroItems = SroItemCode::all();
 
         // All products available as accessories
-        $allProducts = Product::where('business_id', $businessId)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        $allProducts = Product::where('business_id', $businessId)->orderBy('name')->get(['id', 'name']);
 
         $fbrIntegration = FbrTokenService::isIntegrationEnabled();
 
@@ -284,18 +276,19 @@ class ProductController extends Controller
         $business_type = Business::where('id', $businessId)->value('business_type');
 
         $product = Product::with(['accessories', 'variations.values.attribute'])->findOrFail($id);
-        $brands = Brand::whereStatus(true)->get();
-        $categories = Category::whereStatus(true)->get();
+        $brands = Brand::where('status', true)->where(function ($query) use ($businessId) {
+            $query->where('business_id', $businessId);
+        })->get();
+        $categories = Category::where('status', true)->where(function ($query) use ($businessId) {
+            $query->where('business_id', $businessId);
+        })->get();
         $units = Uom::all();
         $hsCodes = hsCode::all();
         $saleTypes = SaleType::all();
         $sroItems = SroItemCode::all();
 
         // All products available as accessories (exclude self)
-        $allProducts = Product::where('business_id', $businessId)
-            ->where('id', '!=', $id)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        $allProducts = Product::where('business_id', $businessId)->where('id', '!=', $id)->orderBy('name')->get(['id', 'name']);
 
         // Currently selected accessories: [product_id => quantity]
         $selectedAccessories = $product->accessories->mapWithKeys(function ($acc) {
@@ -324,7 +317,7 @@ class ProductController extends Controller
      */
     public function update(UpdateProductRequest $request, $id, ProductVariationService $variations)
     {
-       
+
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_update'), 403);
 
