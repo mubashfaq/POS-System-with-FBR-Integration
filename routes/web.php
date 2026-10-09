@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Backend\BusinessCustomFieldController;
 use App\Http\Controllers\Backend\CurrencyController;
+use App\Http\Controllers\Backend\ImportController;
+use App\Http\Controllers\Backend\ImportGodownController;
 use App\Http\Controllers\Backend\Pos\CartController;
 use App\Http\Controllers\Backend\Pos\FbrReconciliationController;
 use App\Http\Controllers\Backend\Product\ProductController;
@@ -29,7 +31,6 @@ use App\Http\Controllers\Backend\WebsiteSettingController;
 use App\Http\Controllers\BulkFilerCheckController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SubscriptionController;
-use App\Models\Supplier;
 
 /*
 |--------------------------------------------------------------------------
@@ -97,9 +98,15 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::resource('products', ProductController::class);
     Route::resource('brands', BrandController::class);
     // Route::resource('business', BusinessController::class);
-    Route::resource('business', BusinessController::class)
-    ->middleware('current.business');
+    Route::resource('business', BusinessController::class)->middleware('current.business');
+    Route::resource('imports', ImportController::class);
 
+    Route::prefix('import-godown')->name('import-godown.')->group(function () {
+        Route::get('/', [ImportGodownController::class, 'index'])->name('index');
+        Route::post('/', [ImportGodownController::class, 'store'])->name('store');
+        Route::put('/{godown}', [ImportGodownController::class, 'update'])->name('update');
+        Route::delete('/{godown}', [ImportGodownController::class, 'destroy'])->name('destroy');
+    });
     //  Subscription management
     Route::prefix('subscription')->name('subscription.')->group(function () {
     
