@@ -154,6 +154,7 @@ class PosOrderService
                 'total_further_tax' => 0,
                 'paid' => $paid,
                 'total' => round($total, 2),
+                'total_with_advance_tax' => round($total + $totals['customer_tax'], 2),
                 'due' => $due,
                 'status' => $due <= 0,
                 'order_stage' => $isFbrEnabled ? 'draft' : $stage,
@@ -166,7 +167,7 @@ class PosOrderService
                 $token = is_array($tokens) ? $tokens['pos_token'] : $tokens;
                 $payload = $this->fbr->buildPayload($order, $customer, $lines);
                 \Log::info('FBR payload DateTime', [
-                    'DateTime'   => $payload['DateTime'] ?? null,
+                    'DateTime' => $payload['DateTime'] ?? null,
                     'order_date_raw' => $order->getRawOriginal('order_date'),
                     'order_date_cast' => (string) $order->order_date,
                 ]);

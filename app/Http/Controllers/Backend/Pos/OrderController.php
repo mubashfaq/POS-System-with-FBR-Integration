@@ -122,8 +122,7 @@ class OrderController extends Controller
                     $ordersQuery->where('order_stage', 'submitted')
                         ->where('api_status', 200)
                         ->where(function ($q) {
-                            $q->whereNull('error_code')->orWhere('error_code', '');
-                        })
+                            $q->whereNull('error_code')->orWhere('error_code', ''); })
                         ->where(function ($q) {
                             $q->whereNotNull('fbr_invoice_no')->where('fbr_invoice_no', '!=', '');
                         });
@@ -326,18 +325,18 @@ class OrderController extends Controller
                     ';
                 }
 
-                // $buttons[] = '
-                //     <a
-                //         class="btn-expand btn-outline-info"
-                //         href="' . route(
-                //             'backend.admin.orders.customer-tax-invoice',
-                //             $data->id
-                //         ) . '"
-                //     >
-                //         <i class="fas fa-file-invoice-dollar"></i>
-                //         <span>Customer Tax Invoice</span>
-                //     </a>
-                // ';
+                $buttons[] = '
+                    <a
+                        class="btn-expand btn-outline-info"
+                        href="' . route(
+                            'backend.admin.orders.customer-tax-invoice',
+                            $data->id
+                        ) . '"
+                    >
+                        <i class="fas fa-file-invoice-dollar"></i>
+                        <span>Customer Tax Invoice</span>
+                    </a>
+                ';
 
                 if (!$data->is_cancelled && !$data->status) {
 
@@ -430,14 +429,10 @@ class OrderController extends Controller
             return back()->with('error', 'No orders selected.');
         }
 
-        $orders = Order::with('customer')
-            ->whereIn('id', $ids)
-            ->where('business_id', session('business_id'))
-            ->orderBy('id', 'desc')
-            ->get();
+        $orders = Order::with('customer')->whereIn('id', $ids)->where('business_id', session('business_id'))
+            ->orderBy('id', 'desc')->get();
 
-        $pdf = Pdf::loadView('backend.orders.pdf', compact('orders'))
-            ->setPaper('a4', 'landscape');
+        $pdf = Pdf::loadView('backend.orders.pdf', compact('orders'))->setPaper('a4', 'landscape');
 
         return $pdf->download('Sale List - ' . readConfig('site_name') . '.pdf');
     }
@@ -1210,6 +1205,7 @@ class OrderController extends Controller
             'total_further_tax' => round($totalFurtherTax, 2),
             'paid' => $request->paid ?? 0,
             'total' => round($total, 2),
+            'total_with_advance_tax' => round($total + $totalCustomerTaxOrder, 2),
             'due' => round($due, 2),
             'status' => round($due, 2) <= 0,
             'type' => 'digital_invoice',
@@ -1719,10 +1715,8 @@ class OrderController extends Controller
         $fbrIntegration = FbrTokenService::isIntegrationEnabled();
         $invoiceSettings = InvoiceSetting::where('business_id', $businessId)->first();
 
-        $allFields = BusinessCustomField::where('business_id', $order->business_id)
-            ->where('is_active', 1)
-            ->orderBy('sort_order')
-            ->get();
+        $allFields = BusinessCustomField::where('business_id', $order->business_id)->where('is_active', 1)
+            ->orderBy('sort_order')->get();
 
         // Keep only fields that have a non-empty value in at least one order item
         $customFields = $allFields->filter(function ($field) use ($order) {
@@ -1748,16 +1742,11 @@ class OrderController extends Controller
         $fbrIntegration = FbrTokenService::isIntegrationEnabled();
         $invoiceSettings = InvoiceSetting::where('business_id', $businessId)->first();
 
-        $orders = Order::with(['customer', 'products.product', 'products.variation',])
-            ->whereIn('id', $ids)
-            ->where('business_id', $businessId)
-            ->orderBy('id', 'desc')
-            ->get();
+        $orders = Order::with(['customer', 'products.product', 'products.variation',])->whereIn('id', $ids)
+            ->where('business_id', $businessId)->orderBy('id', 'desc')->get();
 
-        $allFields = BusinessCustomField::where('business_id', $businessId)
-            ->where('is_active', 1)
-            ->orderBy('sort_order')
-            ->get();
+        $allFields = BusinessCustomField::where('business_id', $businessId)->where('is_active', 1)
+            ->orderBy('sort_order')->get();
 
         // ---- Helper: reliably embed any local image as base64 ----
         $fileToBase64 = function (?string $absolutePath): ?string {
@@ -1777,8 +1766,7 @@ class OrderController extends Controller
         // Business logo
         $logoBase64 = null;
         if (readConfig('is_show_logo_invoice')) {
-            $logoPath = !empty($business->logo)
-                ? storage_path('app/public/' . $business->logo)
+            $logoPath = !empty($business->logo) ? storage_path('app/public/' . $business->logo)
                 : public_path('storage/logos/default-business.png');
             $logoBase64 = $fileToBase64($logoPath);
         }
@@ -1809,8 +1797,7 @@ class OrderController extends Controller
             }
 
             // Pick the right icon for this order, same logic as the single invoice view
-            $fbrImage = $business->business_type == 'pral' ? $pralImage
-                : ($order->type == 'pos_invoice' ? $posImage : $digitalImage);
+            $fbrImage = $business->business_type == 'pral' ? $pralImage : ($order->type == 'pos_invoice' ? $posImage : $digitalImage);
 
             return [
                 'order' => $order,
@@ -1837,11 +1824,7 @@ class OrderController extends Controller
     {
         $businessId = session('business_id');
 
-        $order = Order::with([
-            'customer',
-            'products.product',
-            'business.invoiceSetting',
-        ])->findOrFail($id);
+        $order = Order::with(['customer', 'products.product', 'business.invoiceSetting',])->findOrFail($id);
         $business = Business::findOrFail($businessId);
         $fbrIntegration = FbrTokenService::isIntegrationEnabled();
         $invoiceSettings = InvoiceSetting::where('business_id', $businessId)->first();
@@ -1917,8 +1900,7 @@ class OrderController extends Controller
     {
         $businessId = session('business_id');
 
-        $order = Order::with(['customer', 'products.product', 'products.variation',])
-            ->where('business_id', $businessId)
+        $order = Order::with(['customer', 'products.product', 'products.variation',])->where('business_id', $businessId)
             ->findOrFail($id);
 
         $invoiceSettings = InvoiceSetting::where('business_id', $businessId)->first();
@@ -1937,8 +1919,7 @@ class OrderController extends Controller
     {
         $businessId = session('business_id');
 
-        $order = Order::with(['customer', 'products.product', 'products.variation',])
-            ->where('business_id', $businessId)
+        $order = Order::with(['customer', 'products.product', 'products.variation',])->where('business_id', $businessId)
             ->findOrFail($id);
 
         $invoiceSettings = InvoiceSetting::where('business_id', $businessId)->first();
@@ -2151,7 +2132,7 @@ class OrderController extends Controller
                 "quantity" => number_format((float) $qty, 2, '.', ''),
                 "totalValues" => number_format(($lineTotal + $salesTax + $furtherTax), 2, '.', ''),
                 "valueSalesExcludingST" => number_format((float) $valueExTax, 2, '.', ''),
-                "fixedNotifiedValueOrRetailPrice" => number_format((float) ($product->fixed_notified_value_or_retail_price ?? 0),2,'.',''),
+                "fixedNotifiedValueOrRetailPrice" => number_format((float) ($product->fixed_notified_value_or_retail_price ?? 0), 2, '.', ''),
                 "salesTaxApplicable" => number_format((float) $salesTax, 2, '.', ''),
 
                 "salesTaxWithheldAtSource" => 0,
