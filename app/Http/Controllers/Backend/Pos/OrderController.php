@@ -326,17 +326,42 @@ class OrderController extends Controller
                     ';
                 }
 
-                $buttons[] = '
-                    <a
-                        class="btn-expand btn-outline-info"
-                        href="' . route(
-                            'backend.admin.orders.customer-tax-invoice',
-                            $data->id
-                        ) . '"
-                    >
-                        <i class="fas fa-file-invoice-dollar"></i>
-                        <span>Customer Invoice</span>
+                
+                /* Customer Tax Dropdown */
+                $taxButtons = [];
+
+                $taxButtons[] = '
+                    <a class="dropdown-item"
+                    href="' . route('backend.admin.orders.customer-tax-invoice', $data->id) . '">
+                        <i class="fas fa-file-invoice-dollar mr-2"></i>
+                        Customer Tax Invoice
                     </a>
+                ';
+
+                if (!$data->is_cancelled && !$data->status) {
+                    $taxButtons[] = '
+                        <a class="dropdown-item"
+                        href="' . route('backend.admin.due.collection.advance-tax', $data->id) . '">
+                            <i class="fas fa-receipt mr-2"></i>
+                            Customer Due with Advance Tax
+                        </a>
+                    ';
+                }
+
+                $buttons[] = '
+                    <div class="dropdown">
+                        <button type="button"
+                                class="btn-expand btn-outline-info dropdown-toggle"
+                                data-toggle="dropdown"
+                                aria-haspopup="true"
+                                aria-expanded="false">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                            <span>Customer Tax</span>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-right">
+                            ' . implode('', $taxButtons) . '
+                        </div>
+                    </div>
                 ';
 
                 if (!$data->is_cancelled && !$data->status) {
@@ -1205,9 +1230,11 @@ class OrderController extends Controller
             'total_customer_tax' => round($totalCustomerTaxOrder, 2),
             'total_further_tax' => round($totalFurtherTax, 2),
             'paid' => $request->paid ?? 0,
+            'paid_with_advance_tax' => $request->paid ?? 0,
             'total' => round($total, 2),
             'total_with_advance_tax' => round($total + $totalCustomerTaxOrder, 2),
             'due' => round($due, 2),
+            'due_with_advance_tax' => round($due + $totalCustomerTaxOrder, 2),
             'status' => round($due, 2) <= 0,
             'type' => 'digital_invoice',
         ]);
@@ -1998,10 +2025,14 @@ class OrderController extends Controller
 
 
             $due = $order->due - $data['amount'];
+            $due_with_advance_tax = $order->due_with_advance_tax - $data['amount'];
             $paid = $order->paid + $data['amount'];
+            $paid_with_advance_tax = $order->paid_with_advance_tax + $data['amount'];
             $order->due = round((float) $due, 2);
+            $order->due_with_advance_tax = round((float) $due_with_advance_tax, 2);
             $order->paid = round((float) $paid, 2);
-            $order->status = round((float) $due, 2) <= 0;
+            $order->paid_with_advance_tax = round((float) $paid_with_advance_tax, 2);
+            $order->status = round((float) $due_with_advance_tax, 2) <= 0;
             $order->save();
             $collection_amount = $data['amount'];
             //create order transaction
@@ -2015,6 +2046,45 @@ class OrderController extends Controller
             return to_route('backend.admin.collectionInvoice', $orderTransaction->id);
         }
         return view('backend.orders.collection.create', compact('order'));
+    }
+
+    public function collectionAdvanceTax(Request $request, $id)
+    {
+
+        $order = Order::findOrFail($id);
+        if ($request->isMethod('post')) {
+            $data = $request->validate([
+                'amount' => 'required|numeric|min:1',
+            ]);
+            if ($data['amount'] > $order->due) {
+                $due = 0;
+                $paid = $order->total;
+            } else {
+                $due = $order->due - $data['amount'];
+                $paid = $order->paid + $data['amount'];
+            }
+
+            $due_with_advance_tax = $order->due_with_advance_tax - $data['amount'];
+            $paid_with_advance_tax = $order->paid_with_advance_tax + $data['amount'];
+
+            $order->due = round((float) $due, 2);
+            $order->paid = round((float) $paid, 2);
+            $order->due_with_advance_tax = round((float) $due_with_advance_tax, 2);
+            $order->paid_with_advance_tax = round((float) $paid_with_advance_tax, 2);
+            $order->status = round((float) $due_with_advance_tax, 2) <= 0;
+            $order->save();
+            $collection_amount = $data['amount'];
+            //create order transaction
+
+            $orderTransaction = $order->transactions()->create([
+                'amount' => $data['amount'],
+                'customer_id' => $order->customer_id,
+                'user_id' => auth()->id(),
+                'paid_by' => 'cash',
+            ]);
+            return to_route('backend.admin.orders.customer-tax-invoice', $order->id);
+        }
+        return view('backend.orders.collection.advance-tax.create', compact('order'));
     }
 
     //collection invoice by order_transaction id

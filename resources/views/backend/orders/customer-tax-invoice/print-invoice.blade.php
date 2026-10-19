@@ -231,13 +231,13 @@
                                 <tr>
                                     <th>Paid:</th>
                                     <td class="text-right">
-                                        {{ currency()->symbol . ' ' . number_format($order->paid, 2, '.', ',') }}
+                                        {{ currency()->symbol . ' ' . number_format($order->paid_with_advance_tax, 2, '.', ',') }}
                                     </td>
                                 </tr>
                                 <tr>
                                     <th>Due:</th>
                                     <td class="text-right">
-                                        {{ currency()->symbol . ' ' . number_format($order->due, 2, '.', ',') }}
+                                        {{ currency()->symbol . ' ' . number_format($order->due_with_advance_tax, 2, '.', ',') }}
                                     </td>
                                 </tr>
                             </table>
