@@ -384,9 +384,9 @@
                         </table>
                     </div>
                 </div>
-
-                @include('backend.products._variations', ['mode' => 'edit', 'product' => $product])
-
+                @if (currentUserBusiness()->hasPermission('product_variation'))
+                    @include('backend.products._variations', ['mode' => 'edit', 'product' => $product])
+                @endif
                 <div class="row mt-3">
                     <div class="col-md-6">
                         <button type="submit" class="btn action-button">Update</button>

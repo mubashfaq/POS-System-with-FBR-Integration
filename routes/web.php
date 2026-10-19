@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Backend\BusinessCustomFieldController;
 use App\Http\Controllers\Backend\CurrencyController;
+use App\Http\Controllers\Backend\ImportController;
+use App\Http\Controllers\Backend\ImportGodownController;
 use App\Http\Controllers\Backend\Pos\CartController;
 use App\Http\Controllers\Backend\Pos\FbrReconciliationController;
 use App\Http\Controllers\Backend\Product\ProductController;
@@ -29,7 +31,6 @@ use App\Http\Controllers\Backend\WebsiteSettingController;
 use App\Http\Controllers\BulkFilerCheckController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SubscriptionController;
-use App\Models\Supplier;
 
 /*
 |--------------------------------------------------------------------------
@@ -96,9 +97,16 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::resource('products', ProductController::class);
     Route::resource('brands', BrandController::class);
-    // Route::resource('business', BusinessController::class);
-    Route::resource('business', BusinessController::class)
-    ->middleware('current.business');
+    Route::resource('business', BusinessController::class)->middleware('current.business');
+    Route::get('/imports/{id}/details', [ImportController::class, 'details'])->name('imports.details');
+    Route::resource('imports', ImportController::class);
+
+    Route::controller(ImportGodownController::class)->prefix('import-godown')->name('import-godown.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
+        Route::put('/{godown}', 'update')->name('update');
+        Route::delete('/{godown}', 'destroy')->name('destroy');
+    });
 
     //  Subscription management
     Route::prefix('subscription')->name('subscription.')->group(function () {
@@ -122,6 +130,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::resource('orders', OrderController::class);
     Route::post('orders/pdf-download', [OrderController::class, 'downloadPdf'])->name('orders.pdf-download');
     Route::post('orders/invoices-pdf-download', [OrderController::class, 'downloadInvoicesPdf'])->name('orders.invoices-pdf-download');
+    Route::post('orders/receipts/pdf', [OrderController::class, 'downloadReceiptsPdf'])->name('orders.receipts.pdf');
     Route::post('/orders/cancel', [OrderController::class, 'cancelOrder'])->name('order.cancel');
     Route::resource('purchase', PurchaseController::class);
     Route::resource('suppliers', SupplierController::class);

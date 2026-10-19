@@ -3,182 +3,77 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\UserBusiness;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class RolePermissionSeeder extends Seeder
 {
-    /**
-     * Run the database seeds_
-     */
     public function run(): void
     {
-        $roles = [
-            'Admin',
-            'cashier',
-            'sales_associate',
-        ];
-        for ($i = 0; $i < count($roles); $i++) {
-            $result = Role::firstOrCreate(['name' => $roles[$i]]);
-        }
-        //creates permission
-        $permissions = [
-            //dashboard
-            'dashboard_view',
-            //customer
-            'customer_create',
-            'customer_view',
-            'customer_update',
-            'customer_delete',
-            'customer_sales',
-            //supplier
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
 
-            'supplier_view',
-            'supplier_create',
-            'supplier_update',
-            'supplier_delete',
-            //product
-            'product_create',
-            'product_view',
-            'product_update',
-            'product_delete',
-            'product_import',
-            //brand
-            'brand_create',
-            'brand_view',
-            'brand_update',
-            'brand_delete',
-            //category
-            'category_create',
-            'category_view',
-            'category_update',
-            'category_delete',
-            //unit
-            'unit_create',
-            'unit_view',
-            'unit_update',
-            'unit_delete',
-            //sale
-            'sale_create',
-            'sale_view',
-            'sale_update',
-            'sale_delete',
-            //purchase
-            'purchase_create',
-            'purchase_view',
-            'purchase_update',
-            'purchase_delete',
-            //reports
-            'reports_summary',
-            'reports_sales',
-            'reports_inventory',
-            //currency
-            'currency_create',
-            'currency_view',
-            'currency_update',
-            'currency_delete',
-            'currency_set_default',
-            //role
-            'role_create',
-            'role_view',
-            'role_update',
-            'role_delete',
-            'permission_view',
-            //user
-            'user_create',
-            'user_view',
-            'user_update',
-            'user_delete',
-            'user_suspend',
-
-            //setting
-            'website_settings',
-            'contact_settings',
-            'socials_settings',
-            'style_settings',
-            'custom_settings',
-            'notification_settings',
-            'website_status_settings',
-            'invoice_settings',
-
-            // business
-            'business_update',
-
-            // plans, subscription
-            'plan_view',
-            'subscription_view',
-
-            // logs
-            'order_logs_view'
-        ];
-        $admin = Role::where('name', 'Admin')->first();
-        for ($i = 0; $i < count($permissions); $i++) {
-            $permission = Permission::firstOrCreate(['name' => $permissions[$i]]);
-            $admin->givePermissionTo($permission);
-            $permission->assignRole($admin);
+        // -------------------------------------------------------------
+        // 1. Roles (super_admin is created manually in the DB by dev)
+        // -------------------------------------------------------------
+        foreach (['Admin', 'cashier', 'sales_associate'] as $roleName) {
+            Role::firstOrCreate(['name' => $roleName]);
         }
 
-        // assign all permission to super_admin
-        $super_admin = Role::where('name', 'super_admin')->first();
+        // -------------------------------------------------------------
+        // 2. Permissions (single source of truth: config/permissions.php)
+        // -------------------------------------------------------------
+        $permissionNames = config('permissions.list');
 
-        $permissionModels = collect($permissions)->map(function ($perm) {
-            return Permission::firstOrCreate(['name' => $perm]);
-        });
-
-        $super_admin->syncPermissions($permissionModels);
-
-        // Create users and assign roles
-        $cashierUser = User::create([
-            'name' => 'Mr Cashier',
-            'email' => 'cashier@gmail.com',
-            'password' => bcrypt(12345678),
-            'username' => uniqid(),
-        ]);
-        $salesUser = User::create([
-            'name' => 'Mr Sales',
-            'email' => 'sales@gmail.com',
-            'password' => bcrypt(12345678),
-            'username' => uniqid(),
-        ]);
-        // Assign roles to users
-        $cashierRole = Role::where('name', 'cashier')->first();
-        $salesRole = Role::where('name', 'sales_associate')->first();
-
-        $cashierUser->assignRole($cashierRole);
-        $salesUser->assignRole($salesRole);
-
-        // Optionally, assign permissions to the cashier and sales_associate roles
-        // You can customize these permissions as needed
-        $cashierPermissions = [
-            'sale_create',
-            'sale_view',
-            'customer_view',
-            'product_create',
-            'product_view',
-            'product_update',
-            'product_delete',
-            'product_import',
-            'product_purchase',
-        ];
-
-        $salesPermissions = [
-            //sale
-            'sale_create',
-            'sale_view',
-            'sale_edit',
-        ];
-
-        foreach ($cashierPermissions as $permissionName) {
-            $permission = Permission::firstOrCreate(['name' => $permissionName]);
-            $cashierRole->givePermissionTo($permission);
+        foreach ($permissionNames as $name) {
+            Permission::firstOrCreate(['name' => $name]);
         }
 
-        foreach ($salesPermissions as $permissionName) {
-            $permission = Permission::firstOrCreate(['name' => $permissionName]);
-            $salesRole->givePermissionTo($permission);
+        // -------------------------------------------------------------
+        // 3. Role → Permission assignments
+        // -------------------------------------------------------------
+        // Admin gets EVERYTHING
+        Role::where('name', 'Admin')->first()->syncPermissions($permissionNames);
+
+        // super_admin (dev-only, may not exist) also gets everything
+        if ($superAdmin = Role::where('name', 'super_admin')->first()) {
+            $superAdmin->syncPermissions($permissionNames);
         }
 
+        // Other roles from config
+        foreach (config('permissions.roles') as $roleName => $perms) {
+            Role::where('name', $roleName)->first()->syncPermissions($perms);
+        }
+
+        // -------------------------------------------------------------
+        // 4. Demo users (User records)
+        // -------------------------------------------------------------
+        $cashierUser = User::firstOrCreate(
+            ['email' => 'cashier@gmail.com'],
+            [
+                'name' => 'Mr Cashier',
+                'password' => bcrypt('12345678'),
+                'username' => 'cashier',
+            ]
+        );
+
+        $cashierUser->syncRoles(['cashier']);
+
+        $salesUser = User::firstOrCreate(
+            ['email' => 'sales@gmail.com'],
+            [
+                'name' => 'Mr Sales',
+                'password' => bcrypt('12345678'),
+                'username' => 'sales',
+            ]
+        );
+        
+        $salesUser->syncRoles(['sales_associate']);
+
+        // -------------------------------------------------------------
+        // 7. Flush cache again so the new pivot rows are visible
+        // -------------------------------------------------------------
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }

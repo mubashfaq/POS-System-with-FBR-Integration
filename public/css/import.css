@@ -1,0 +1,598 @@
+.import-page {
+    padding-bottom: 30px;
+}
+
+.import-card {
+    border: 0 !important;
+    border-radius: 12px !important;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.07);
+    background: #fff;
+}
+
+/* Main Header */
+.import-header {
+    background: linear-gradient(135deg, #fd6802 0%, #ff8533 100%);
+    color: #fff;
+    padding: 20px 25px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.import-header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.import-header-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 21px;
+}
+
+.import-header h4 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.import-header p {
+    margin: 3px 0 0;
+    font-size: 13px;
+    opacity: 0.9;
+}
+
+.import-header .badge {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    padding: 7px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+/* Body */
+.import-card .card-body {
+    padding: 25px;
+    background: #fafafa;
+}
+
+/* Section */
+.import-section {
+    background: #fff;
+    border: 1px solid #ececec;
+    border-radius: 10px;
+    margin-bottom: 22px;
+    overflow: hidden;
+}
+
+.import-section:last-child {
+    margin-bottom: 0;
+}
+
+.import-section-header {
+    display: flex;
+    align-items: center;
+    padding: 15px 18px;
+    background: #fff8f3;
+    border-bottom: 1px solid #f2e5dc;
+}
+
+.import-section-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: #fd6802;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    font-size: 14px;
+}
+
+.import-section-title {
+    margin: 0;
+    color: #343a40;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.import-section-subtitle {
+    margin: 2px 0 0;
+    color: #929292;
+    font-size: 12px;
+}
+
+.import-section-body {
+    padding: 20px 18px 5px;
+}
+
+#importProductsTable th,
+#importProductsTable td {
+    vertical-align: middle;
+}
+
+#importProductsTable input,
+#importProductsTable select {
+    min-width: 75px;
+}
+
+/* Form */
+.import-form .form-group {
+    margin-bottom: 18px;
+}
+
+.import-form label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 7px;
+}
+
+.import-form .form-control {
+    height: 40px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    padding: 8px 11px;
+    transition: all .2s ease;
+    background: #fff;
+}
+
+.import-form .form-control:focus {
+    border-color: #fd6802;
+    box-shadow: 0 0 0 3px rgba(253, 104, 2, 0.10);
+}
+
+.import-form .form-control::placeholder {
+    color: #b8b8b8;
+}
+
+.import-form .text-danger {
+    color: #e74c3c !important;
+}
+
+/* Number inputs */
+.import-form input[type="number"] {
+    text-align: right;
+}
+
+/* Select2 */
+.select2-container--bootstrap4 .select2-selection {
+    min-height: 40px !important;
+    border-color: #ddd !important;
+    border-radius: 6px !important;
+}
+
+.select2-container--bootstrap4.select2-container--focus .select2-selection {
+    border-color: #fd6802 !important;
+    box-shadow: 0 0 0 3px rgba(253, 104, 2, 0.10) !important;
+}
+
+/* Responsive */
+@media (max-width: 767px) {
+    .import-card .card-body {
+        padding: 15px;
+    }
+
+    .import-header {
+        padding: 16px;
+    }
+
+    .import-header .badge {
+        display: none;
+    }
+
+    .import-section-body {
+        padding: 15px 12px 2px;
+    }
+
+    .import-footer {
+        padding: 14px 15px !important;
+    }
+
+    .import-footer .btn {
+        margin-left: 0;
+        margin-right: 5px;
+    }
+}
+
+
+/* ===== Modern Step Progress ===== */
+.import-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 22px 15px;
+    margin-bottom: 25px !important;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 12px;
+}
+
+.import-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #929292;
+    text-align: left;
+    cursor: pointer;
+    flex: 0 1 auto;
+}
+
+.import-step:hover,
+.import-step:focus {
+    background: transparent;
+    outline: none;
+}
+
+.import-step .step-circle {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    border: 2px solid #ddd;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    color: #888;
+    font-size: 15px;
+    font-weight: 700;
+    transition: all .2s ease;
+}
+
+.import-step .step-label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.import-step .step-label strong {
+    color: #555;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.import-step .step-label small {
+    color: #999;
+    font-size: 11px;
+}
+
+.import-step.active .step-circle {
+    background: #fd6802;
+    border-color: #fd6802;
+    color: #fff;
+    box-shadow: 0 0 0 4px rgba(253, 104, 2, .12);
+}
+
+.import-step.active .step-label strong {
+    color: #fd6802;
+}
+
+.import-step.completed .step-circle {
+    background: #fd6802;
+    border-color: #fd6802;
+    color: #fff;
+}
+
+.step-connector {
+    width: 90px;
+    height: 2px;
+    flex: 0 1 90px;
+    margin: 0 22px;
+    background: #e5e5e5;
+    position: relative;
+}
+
+.step-connector::after {
+    content: "";
+    display: block;
+    height: 100%;
+    width: 0;
+    background: #fd6802;
+    transition: width .25s ease;
+}
+
+.import-steps.step-two-active .step-connector::after {
+    width: 100%;
+}
+
+/* Prevent unwanted dots or pseudo-elements on step buttons */
+.import-steps .import-step::before,
+.import-steps .import-step::after {
+    content: none !important;
+    display: none !important;
+}
+
+/* Style only the numbered circle, not every span */
+.import-steps .import-step>.step-circle {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    line-height: 1;
+}
+
+.import-steps .import-step>.step-label {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+}
+
+/* ===== Footer Buttons ===== */
+.import-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end !important;
+    flex-wrap: wrap;
+    gap: 8px;
+    background: #fff;
+    border-top: 1px solid #eee !important;
+    padding: 16px 25px !important;
+}
+
+.import-footer .btn {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 !important;
+    border-radius: 7px;
+    padding: 9px 17px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all .2s ease;
+}
+
+.btn-import-previous {
+    background: #fff;
+    color: #555;
+    border: 1px solid #ddd;
+}
+
+.btn-import-previous:hover {
+    background: #f7f7f7;
+    border-color: #bbb;
+    color: #333;
+}
+
+
+.btn-import-cancel {
+    background: #f5f5f5;
+    color: #555;
+    border: 1px solid #ddd;
+}
+
+.btn-import-cancel:hover {
+    background: #e9e9e9;
+    color: #333;
+}
+
+.btn-import-save {
+    background: #fd6802;
+    border: 1px solid #fd6802;
+    color: #fff !important;
+    box-shadow: 0 3px 8px rgba(253, 104, 2, 0.22);
+}
+
+.btn-import-save:hover {
+    background: #e85e00;
+    border-color: #e85e00;
+    color: #fff !important;
+    transform: translateY(-1px);
+}
+
+/* ===== Product Table Toolbar ===== */
+.product-table-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    margin-bottom: 16px;
+}
+
+.product-table-toolbar h6 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #343a40;
+}
+
+.product-table-toolbar p {
+    font-size: 12px;
+    color: #929292;
+}
+
+.btn-add-product {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 39px;
+    padding: 9px 16px;
+    border: 1px solid #fd6802;
+    border-radius: 7px;
+    background: #fff;
+    color: #fd6802;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: all .2s ease;
+}
+
+.btn-add-product:hover {
+    background: #fd6802;
+    color: #fff;
+    box-shadow: 0 3px 8px rgba(253, 104, 2, .18);
+}
+
+/* ===== Product Table ===== */
+#importProductsTable {
+    margin-bottom: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid #ececec;
+    border-radius: 9px;
+    overflow: hidden;
+    background: #fff;
+}
+
+#importProductsTable thead.import-products-head th {
+    padding: 14px 11px;
+    background: #fff4ec;
+    color: #7a421f;
+    border-top: 0;
+    border-bottom: 1px solid #f0d9c9;
+    border-right: 1px solid #f4e7df;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .35px;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+#importProductsTable thead th:first-child {
+    padding-left: 14px;
+}
+
+#importProductsTable tbody td {
+    padding: 10px 8px;
+    border-color: #eee;
+    background: #fff;
+    vertical-align: middle;
+}
+
+#importProductsTable tbody tr:hover td {
+    background: #fffaf6;
+}
+
+#importProductsTable tbody .product-row-number {
+    color: #888;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#importProductsTable .form-control {
+    height: 36px;
+    min-width: 78px;
+    padding: 6px 8px;
+    border: 1px solid #e2e2e2;
+    border-radius: 5px;
+    font-size: 12px;
+    box-shadow: none;
+}
+
+#importProductsTable .form-control:focus {
+    border-color: #fd6802;
+    box-shadow: 0 0 0 2px rgba(253, 104, 2, .08);
+}
+
+#importProductsTable .product-code {
+    background: #f8f9fa;
+    color: #666;
+    font-weight: 600;
+}
+
+#importProductsTable .total-pcs,
+#importProductsTable .price-dz,
+#importProductsTable .product-amount {
+    background: #f8f9fa;
+    color: #343a40;
+    font-weight: 600;
+}
+
+#importProductsTable .product-amount {
+    color: #fd6802;
+}
+
+#importProductsTable .remove-import-product {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 6px;
+}
+
+#importProductsTable tfoot th {
+    padding: 14px 10px;
+    background: #fafafa;
+    border-top: 2px solid #f0d9c9;
+    color: #343a40;
+    font-size: 12px;
+}
+
+#importProductsTable #importProductsTotal {
+    color: #fd6802;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+/* ===== Mobile ===== */
+@media (max-width: 767px) {
+    .import-steps {
+        justify-content: flex-start;
+        padding: 16px 10px;
+    }
+
+    .import-step {
+        gap: 8px;
+    }
+
+    .import-step .step-circle {
+        width: 35px;
+        height: 35px;
+        min-width: 35px;
+    }
+
+    .import-step .step-label strong {
+        font-size: 11px;
+    }
+
+    .import-step .step-label small {
+        display: none;
+    }
+
+    .step-connector {
+        flex: 0 0 25px;
+        width: 25px;
+        margin: 0 10px;
+    }
+
+    .product-table-toolbar {
+        align-items: flex-start;
+    }
+
+    .product-table-toolbar p {
+        max-width: 210px;
+        line-height: 1.5;
+    }
+
+    .import-footer {
+        align-items: stretch;
+        flex-wrap: wrap;
+    }
+
+    .import-footer>div {
+        display: flex;
+        gap: 6px;
+    }
+
+    .import-footer .btn {
+        margin: 0;
+        padding: 9px 11px;
+    }
+}

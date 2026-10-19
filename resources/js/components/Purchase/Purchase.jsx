@@ -9,10 +9,7 @@ import "react-datepicker/dist/react-datepicker.css";
 export default function Purchase() {
     const [searchTerm, setSearchTerm] = useState("");
     const [barcode, setBarcode] = useState("");
-    const [selectedSupplier, setSelectedSupplier] = useState({
-        value: 1,
-        label: "Own Supplier",
-    });
+    const [selectedSupplier, setSelectedSupplier] = useState(null);
     const [purchaseId, setPurchaseId] = useState(null);
     const [date, setDate] = useState(null);
     const [supplierId, setSupplierId] = useState(null);

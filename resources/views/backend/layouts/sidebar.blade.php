@@ -150,7 +150,6 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
             'product_update',
             'product_delete',
             'product_import',
-            'product_purchase',
             ]))
             <li class="nav-item {{ request()->routeIs(['backend.admin.products.index', 'backend.admin.products.create', 'backend.admin.products.edit', 'backend.admin.brands.index', 'backend.admin.brands.create', 'backend.admin.brands.edit', 'backend.admin.categories.index', 'backend.admin.categories.create', 'backend.admin.categories.edit']) ? 'menu-open' : '' }}">
                 <a href="#" class="nav-link {{ request()->routeIs(['backend.admin.products.index', 'backend.admin.products.create', 'backend.admin.products.edit', 'backend.admin.brands.index', 'backend.admin.brands.create', 'backend.admin.brands.edit', 'backend.admin.categories.index', 'backend.admin.categories.create', 'backend.admin.categories.edit']) ? 'active' : '' }}">
@@ -332,6 +331,69 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                 </ul>
             </li>
             @endif
+
+            @if (
+                $currentBusiness->hasAnyPermission([
+                    'import_create',
+                    'import_view',
+                    'import_update',
+                    'import_delete',
+                    'import_godown',
+                ]))
+                <li
+                    class="nav-item {{ request()->routeIs([
+                        'backend.admin.imports.index',
+                        'backend.admin.imports.create',
+                        'backend.admin.imports.edit',
+                        'backend.admin.import-godown.index',
+                    ])
+                        ? 'menu-open'
+                        : '' }}">
+                    <a href="#"
+                        class="nav-link {{ request()->routeIs([
+                            'backend.admin.imports.index',
+                            'backend.admin.imports.create',
+                            'backend.admin.imports.edit',
+                        ])
+                            ? 'active'
+                            : '' }}">
+
+                        <i class="fas fa-box nav-icon"></i>
+                        <p> Import <i class="fas fa-angle-left right"></i></p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        @if ($currentBusiness->hasAnyPermission(['import_view', 'import_update', 'import_delete']))
+                            <li class="nav-item">
+                                <a href="{{ route('backend.admin.imports.index') }}"
+                                    class="nav-link {{ request()->routeIs(['backend.admin.imports.index', 'backend.admin.imports.edit']) ? 'active' : '' }}">
+                                    <i class="fas fa-circle nav-icon"></i>
+                                    <p>Import List</p>
+                                </a>
+                            </li>
+                        @endif
+                        @if ($currentBusiness->hasPermission(['import_create']))
+                            <li class="nav-item">
+                                <a href="{{ route('backend.admin.imports.create') }}"
+                                    class="nav-link {{ request()->routeIs(['backend.admin.imports.create']) ? 'active' : '' }}">
+                                    <i class="fas fa-circle nav-icon"></i>
+                                    <p>Import Create</p>
+                                </a>
+                            </li>
+                        @endif
+                        @if ($currentBusiness->hasPermission(['import_godown']))
+                            <li class="nav-item">
+                                <a href="{{ route('backend.admin.import-godown.index') }}"
+                                    class="nav-link {{ request()->routeIs(['backend.admin.import-godown.index']) ? 'active' : '' }}">
+                                    <i class="fas fa-circle nav-icon"></i>
+                                    <p>Import Godown</p>
+                                </a>
+                            </li>
+                        @endif
+
+                    </ul>
+                </li>
+            @endif
+
             {{-- Order Log --}}
             @if (currentUserBusiness() && currentUserBusiness()->hasAnyPermission(['order_logs_view']))
             <li class="nav-item">

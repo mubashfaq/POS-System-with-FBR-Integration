@@ -116,23 +116,34 @@
         <input type="hidden" id="start_date">
         <input type="hidden" id="end_date">
 
-        <!-- Download PDF -->
-        <button id="download-selected-btn" class="btn action-button mx-2" disabled>
-            <i class="fas fa-file-pdf"></i>
-            Download PDF
-            <span id="selected-count" class="badge bg-white text-danger ms-1">
-                0
-            </span>
-        </button>
+        <!-- Download dropdown -->
+        <div class="btn-group mx-2">
+            <button type="button" id="download-dropdown-btn" class="btn action-button dropdown-toggle" data-toggle="dropdown"
+                aria-haspopup="true" aria-expanded="false" disabled>
+                <i class="fas fa-download"></i>
+                Download
+                <span id="selected-count" class="badge bg-white text-danger ml-1">0</span>
+            </button>
 
-        <!-- Download Invoices -->
-        <button id="download-invoices-btn" class="btn action-button mx-2" disabled>
-            <i class="fas fa-file-invoice"></i>
-            Download Invoices
-            <span id="selected-count-invoices" class="badge bg-white text-danger ms-1">
-                0
-            </span>
-        </button>
+            <div class="dropdown-menu dropdown-menu-right shadow-sm">
+                <h6 class="dropdown-header">Selected orders</h6>
+
+                <a href="#" class="dropdown-item download-action"
+                    data-url="{{ route('backend.admin.orders.pdf-download') }}">
+                    <i class="fas fa-file-pdf fa-fw text-danger mr-2"></i> Orders PDF
+                </a>
+
+                <a href="#" class="dropdown-item download-action"
+                    data-url="{{ route('backend.admin.orders.invoices-pdf-download') }}">
+                    <i class="fas fa-file-invoice fa-fw text-primary mr-2"></i> Invoices
+                </a>
+
+                <a href="#" class="dropdown-item download-action"
+                    data-url="{{ route('backend.admin.orders.receipts.pdf') }}">
+                    <i class="fas fa-receipt fa-fw text-success mr-2"></i> Receipts
+                </a>
+            </div>
+        </div>
 
         <!-- Date Filter -->
         <div class="form-group mb-0 ml-2">
@@ -508,44 +519,19 @@
                 });
             });
 
-            // --- Download Button ---
-            $('#download-selected-btn').on('click', function() {
-                let ids = getSelectedIds();
-                if (ids.length === 0) return;
-
-                // Build a form POST so IDs are sent safely
-                let form = $('<form>', {
-                    method: 'POST',
-                    action: "{{ route('backend.admin.orders.pdf-download') }}",
-                    // target: '_blank'
-                });
-
-                form.append($('<input>', {
-                    type: 'hidden',
-                    name: '_token',
-                    value: "{{ csrf_token() }}"
-                }));
-
-                ids.forEach(function(id) {
-                    form.append($('<input>', {
-                        type: 'hidden',
-                        name: 'ids[]',
-                        value: id
-                    }));
-                });
-
-                $('body').append(form);
-                form.submit();
-                form.remove();
+            // One handler for all download items
+            $(document).on('click', '.download-action', function(e) {
+                e.preventDefault();
+                postSelectedIds($(this).data('url'));
             });
 
-            $('#download-invoices-btn').on('click', function() {
+            function postSelectedIds(url) {
                 let ids = getSelectedIds();
                 if (ids.length === 0) return;
 
                 let form = $('<form>', {
                     method: 'POST',
-                    action: "{{ route('backend.admin.orders.invoices-pdf-download') }}"
+                    action: url
                 });
                 form.append($('<input>', {
                     type: 'hidden',
@@ -557,10 +543,11 @@
                     name: 'ids[]',
                     value: id
                 })));
+
                 $('body').append(form);
                 form.submit();
                 form.remove();
-            });
+            }
 
             // --- Date Range Picker --- 
             let dateFilterSelected = false;
@@ -706,9 +693,7 @@
         function updateDownloadButton() {
             let count = getSelectedIds().length;
             $('#selected-count').text(count);
-            $('#selected-count-invoices').text(count);
-            $('#download-selected-btn').prop('disabled', count === 0);
-            $('#download-invoices-btn').prop('disabled', count === 0);
+            $('#download-dropdown-btn').prop('disabled', count === 0);
         }
     </script>
 @endpush

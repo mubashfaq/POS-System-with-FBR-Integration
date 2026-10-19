@@ -307,7 +307,9 @@
                     </div>
                 </div>
 
-                @include('backend.products._variations', ['mode' => 'create'])
+                @if (currentUserBusiness()->hasPermission('product_variation'))
+                    @include('backend.products._variations', ['mode' => 'create'])
+                @endif
 
                 {{-- ========== ACCESSORIES SECTION ========== --}}
                 <div class="card border mt-3">
