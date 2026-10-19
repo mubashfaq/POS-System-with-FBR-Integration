@@ -19,18 +19,31 @@
                                         style="opacity: .8">
                                 @endif
                             @endif
-                            @if (readConfig('is_show_site_invoice'))
-                                {{ $business->business_name }}
-                            @endif
-                        </h2>
-                    </div>
-                    <div class="col-4">
-                        <h4 class="page-header" align="center">Invoice</h4>
-                    </div>
-                    <div class="col-4">
-                        <small class="float-right text-small">Date: {{ date('d/m/Y') }}</small>
-                    </div>
-                    <!-- /.col -->
+                        @endif
+                        @if(readConfig('is_show_site_invoice')){{ $business->business_name }} @endif
+                    </h2>
+                </div>
+                <div class="col-4">
+                    <h4 class="page-header" align="center">Advance Tax Invoice</h4>
+                </div>
+                <div class="col-4">
+                    <small class="float-right text-small">Date: {{date('d/m/Y')}}</small>
+                </div>
+                <!-- /.col -->
+            </div>
+            <!-- info row -->
+            <div class="row invoice-info">
+                <!-- /.col -->
+                <div class="col-sm-4 invoice-col">
+                    @if(readConfig('is_show_customer_invoice'))
+                    To
+                    <address>
+                        <strong>Name: {{$order->customer->name??"N/A"}}</strong><br>
+                        Address: {{$order->customer->address??"N/A"}}<br>
+                        Phone: {{$order->customer->phone??"N/A"}}<br>
+                        NTN/CNIC: {{$order->customer->ntn_cnic??"N/A"}}<br>
+                    </address>
+                    @endif
                 </div>
                 <!-- info row -->
                 <div class="row invoice-info">

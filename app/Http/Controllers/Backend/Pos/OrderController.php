@@ -330,12 +330,12 @@ class OrderController extends Controller
                     <a
                         class="btn-expand btn-outline-info"
                         href="' . route(
-                    'backend.admin.orders.customer-tax-invoice',
-                    $data->id
-                ) . '"
+                            'backend.admin.orders.customer-tax-invoice',
+                            $data->id
+                        ) . '"
                     >
                         <i class="fas fa-file-invoice-dollar"></i>
-                        <span>Customer Tax Invoice</span>
+                        <span>Customer Invoice</span>
                     </a>
                 ';
 
