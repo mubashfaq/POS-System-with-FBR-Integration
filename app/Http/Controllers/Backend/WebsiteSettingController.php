@@ -156,6 +156,10 @@ class WebsiteSettingController extends Controller
         if (!$businessId) {
             return back()->with('error', 'Business not found in session');
         }
+
+        $request->validate([
+            'template' => 'required|in:' . implode(',', array_keys(config('invoice_templates'))),
+        ]);
         // Invoice settings ko database mein save karein
         $invoiceSetting = InvoiceSetting::firstOrNew(['business_id' => $businessId]);
 
@@ -174,6 +178,7 @@ class WebsiteSettingController extends Controller
         $invoiceSetting->note_to_customer = $request->note_to_customer ?? 0;
         $invoiceSetting->note_msg = $request->note_msg ?? null;
         $invoiceSetting->post_invoice_width = $request->receiptMaxwidth;
+        $invoiceSetting->template = $request->template;
 
         $invoiceSetting->save();
 

@@ -7,6 +7,7 @@ use App\Models\Godown;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Yajra\DataTables\Facades\DataTables;
+use Illuminate\Validation\ValidationException;
 
 class ImportGodownController extends Controller
 {
@@ -79,7 +80,9 @@ class ImportGodownController extends Controller
     {
         $businessId = session('business_id');
 
-        abort_if(!$businessId, 422, 'No business selected');
+        if (!$businessId) {
+            throw ValidationException::withMessages(['No business selected in session.',]);
+        }
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255',],
@@ -110,7 +113,11 @@ class ImportGodownController extends Controller
 
     public function update(Request $request, Godown $godown)
     {
-        abort_if($godown->business_id != session('business_id'), 403);
+        if ($godown->business_id != session('business_id')) {
+            throw ValidationException::withMessages([
+                'business_id' => ['The session Business ID does not match the Edit Business ID.'],
+            ]);
+        }
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255',],
@@ -141,7 +148,11 @@ class ImportGodownController extends Controller
 
     public function destroy(Godown $godown)
     {
-        abort_if($godown->business_id != session('business_id'), 403);
+        if ($godown->business_id != session('business_id')) {
+            throw ValidationException::withMessages([
+                'business_id' => ['The session Business ID does not match the Delete Business ID.'],
+            ]);
+        }
 
         // if ($godown->importExpenses()->exists()) {
         //     return redirect()->back()->with('warning', 'This godown is already used in imports and cannot be deleted.');

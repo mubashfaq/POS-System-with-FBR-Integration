@@ -64,4 +64,9 @@ class Import extends Model
     {
         return $this->hasMany(ImportExpense::class);
     }
+
+    public function products()
+    {
+        return $this->hasMany(ImportProduct::class);
+    }
 }

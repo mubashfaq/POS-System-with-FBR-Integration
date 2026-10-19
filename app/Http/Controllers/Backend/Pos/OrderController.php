@@ -122,7 +122,8 @@ class OrderController extends Controller
                     $ordersQuery->where('order_stage', 'submitted')
                         ->where('api_status', 200)
                         ->where(function ($q) {
-                            $q->whereNull('error_code')->orWhere('error_code', ''); })
+                            $q->whereNull('error_code')->orWhere('error_code', '');
+                        })
                         ->where(function ($q) {
                             $q->whereNotNull('fbr_invoice_no')->where('fbr_invoice_no', '!=', '');
                         });
@@ -329,9 +330,9 @@ class OrderController extends Controller
                     <a
                         class="btn-expand btn-outline-info"
                         href="' . route(
-                            'backend.admin.orders.customer-tax-invoice',
-                            $data->id
-                        ) . '"
+                    'backend.admin.orders.customer-tax-invoice',
+                    $data->id
+                ) . '"
                     >
                         <i class="fas fa-file-invoice-dollar"></i>
                         <span>Customer Tax Invoice</span>
@@ -428,11 +429,11 @@ class OrderController extends Controller
         if (empty($ids)) {
             return back()->with('error', 'No orders selected.');
         }
+        $businessId = session('business_id');
+        $businessType = Business::where('id', $businessId)->value('business_type');
+        $orders = Order::with('customer')->whereIn('id', $ids)->where('business_id', $businessId)->orderBy('id', 'desc')->get();
 
-        $orders = Order::with('customer')->whereIn('id', $ids)->where('business_id', session('business_id'))
-            ->orderBy('id', 'desc')->get();
-
-        $pdf = Pdf::loadView('backend.orders.pdf', compact('orders'))->setPaper('a4', 'landscape');
+        $pdf = Pdf::loadView('backend.orders.pdf', compact('orders', 'businessType'))->setPaper('a4', 'landscape');
 
         return $pdf->download('Sale List - ' . readConfig('site_name') . '.pdf');
     }
@@ -1726,7 +1727,10 @@ class OrderController extends Controller
             });
         })->values();
 
-        return view('backend.orders.print-invoice', compact('order', 'business', 'fbrIntegration', 'invoiceSettings', 'customFields'));
+        $templateKey = $invoiceSettings->template ?? 'default';
+        $templateView = config("invoice_templates.{$templateKey}.view", 'backend.orders.invoice-templates.default');
+
+        return view($templateView, compact('order', 'business', 'fbrIntegration', 'invoiceSettings', 'customFields'));
     }
 
     public function downloadInvoicesPdf(Request $request)
@@ -1807,7 +1811,7 @@ class OrderController extends Controller
             ];
         });
 
-        $pdf = Pdf::loadView('backend.orders.print-invoice-multiple', compact(
+        $pdf = Pdf::loadView('backend.orders.multiple-invoice.invoice', compact(
             'invoices',
             'business',
             'fbrIntegration',
@@ -1818,6 +1822,138 @@ class OrderController extends Controller
             ->setOptions(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true]);
 
         return $pdf->download('Invoices - ' . readConfig('site_name') . '.pdf');
+    }
+
+    public function downloadReceiptsPdf(Request $request)
+    {
+        $ids = $request->input('ids', []);
+
+        if (empty($ids)) {
+            return back()->with('error', 'No orders selected.');
+        }
+
+        $businessId = session('business_id');
+        $business = Business::findOrFail($businessId);
+        $fbrIntegration = FbrTokenService::isIntegrationEnabled();
+        $invoiceSettings = InvoiceSetting::where('business_id', $businessId)->first();
+        $maxWidth = $invoiceSettings->post_invoice_width ?? '300px';
+        $showCustomer = (bool) readConfig('is_show_customer_invoice');
+        $userName = auth()->user()->name;
+
+        $orders = Order::with(['customer', 'products.product', 'products.variation'])->whereIn('id', $ids)
+            ->where('business_id', $businessId)->orderBy('id', 'desc')->get();
+
+        // ---- Helper: embed local image as base64 ----
+        $fileToBase64 = function (?string $absolutePath): ?string {
+            if (!$absolutePath || !file_exists($absolutePath)) {
+                return null;
+            }
+            $ext = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
+            $mime = match ($ext) {
+                'png' => 'image/png',
+                'jpg', 'jpeg' => 'image/jpeg',
+                'svg' => 'image/svg+xml',
+                default => 'image/png',
+            };
+            return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($absolutePath));
+        };
+
+        // Business logo (controlled by invoice settings, same as the receipt views)
+        $logoBase64 = null;
+        if (!empty($invoiceSettings->logo) && $invoiceSettings->logo == 1) {
+            $logoPath = !empty($business->logo)
+                ? storage_path('app/public/' . $business->logo)
+                : public_path('storage/logos/default-business.png');
+            $logoBase64 = $fileToBase64($logoPath);
+        }
+
+        $pralImage = $fileToBase64(public_path('assets/images/pral-pos-component.png'));
+        $posImage = $fileToBase64(public_path('assets/images/fbr_pos_invoice_system.png'));
+        $digitalImage = $fileToBase64(public_path('assets/images/fbr_logo-icon.png'));
+
+        $isPral = $business->business_type == 'pral';
+
+        $receipts = $orders->map(function ($order) use ($isPral, $business, $fbrIntegration, $pralImage, $posImage, $digitalImage) {
+            $isPos = $isPral || $order->type == 'pos_invoice';
+
+            $clean = fn($v) => (float) str_replace(',', '', (string) $v);
+
+            $lines = [];
+            $totalTax = 0;
+
+            foreach ($order->products->where('is_accessory', 0) as $item) {
+                $unitPrice = $clean($item->discounted_price);
+                $quantity = (float) $item->quantity;
+                $total = $clean($item->total);
+
+                if ($isPos) {
+                    // ---- POS receipt: show prices excluding tax ----
+                    if (!is_null($item->sale_tax)) {
+                        $lineTax = $clean($item->sale_tax);
+                    } else {
+                        $taxRate = (float) str_replace('%', '', $item->product->pos_sale_tax ?? '0');
+                        $lineTax = ($unitPrice * $quantity * $taxRate) / 100;
+                    }
+                    $totalTax += $lineTax;
+
+                    $lines[] = [
+                        'name' => $item->product->name,
+                        'variation' => $item->variation->label ?? null,
+                        'qty' => $item->quantity,
+                        'price' => $unitPrice,
+                        'total' => $total - $lineTax,
+                    ];
+                } else {
+                    // ---- Digital receipt: show prices including tax ----
+                    $lines[] = [
+                        'name' => $item->product->name,
+                        'variation' => $item->variation->label ?? null,
+                        'qty' => $item->quantity,
+                        'price' => $item->discounted_price,
+                        'total' => $clean($item->sub_total),
+                    ];
+                }
+            }
+
+            // QR code
+            $qrCode = null;
+            if ($fbrIntegration == 'enabled' && $order->order_stage !== 'draft' && filled($order->fbr_invoice_no)) {
+                $qrCode = base64_encode(
+                    QrCode::format('svg')->size(60)->generate($order->fbr_invoice_no)
+                );
+            }
+
+            $fbrImage = $isPral ? $pralImage : ($order->type == 'pos_invoice' ? $posImage : $digitalImage);
+
+            return [
+                'order' => $order,
+                'isPos' => $isPos,
+                'lines' => $lines,
+                'totalTax' => $totalTax,
+                'qrCode' => $qrCode,
+                'fbrImage' => $fbrImage,
+            ];
+        });
+
+        $pdf = Pdf::loadView('backend.orders.multiple-invoice.receipt', compact(
+            'receipts',
+            'business',
+            'fbrIntegration',
+            'invoiceSettings',
+            'logoBase64',
+            'maxWidth',
+            'showCustomer',
+            'userName',
+            'isPral'
+        ))->setPaper('a4', 'portrait')
+            ->setOptions([
+                'isRemoteEnabled' => true,
+                'isHtml5ParserEnabled' => true,
+                'dpi' => 96,
+                'defaultFont' => 'Cousine',
+            ]);
+
+        return $pdf->download('Receipts - ' . readConfig('site_name') . '.pdf');
     }
 
     public function customerTaxInvoice($id)

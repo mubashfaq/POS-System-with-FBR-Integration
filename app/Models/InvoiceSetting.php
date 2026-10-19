@@ -10,6 +10,7 @@ class InvoiceSetting extends Model
     use HasFactory;
     protected $fillable = [
         'business_id',
+        'template',
         'logo',
         'site_name',
         'phone',

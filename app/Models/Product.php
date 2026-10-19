@@ -82,12 +82,8 @@ class Product extends Model
      */
     public function accessories(): BelongsToMany
     {
-        return $this->belongsToMany(
-            Product::class,
-            'product_accessories',
-            'product_id',
-            'accessory_product_id'
-        )->withPivot('quantity')->withTimestamps();
+        return $this->belongsToMany(Product::class, 'product_accessories', 'product_id', 'accessory_product_id')
+            ->withPivot('quantity')->withTimestamps();
     }
 
     /**
@@ -95,12 +91,8 @@ class Product extends Model
      */
     public function parentProducts(): BelongsToMany
     {
-        return $this->belongsToMany(
-            Product::class,
-            'product_accessories',
-            'accessory_product_id',
-            'product_id'
-        )->withPivot('quantity')->withTimestamps();
+        return $this->belongsToMany(Product::class, 'product_accessories', 'accessory_product_id', 'product_id')
+            ->withPivot('quantity')->withTimestamps();
     }
 
     public function brand()
@@ -146,9 +138,7 @@ class Product extends Model
      */
     public function availableBatches()
     {
-        return $this->purchaseItems()
-            ->where('remaining_qty', '>', 0)
-            ->orderBy('created_at', 'asc');
+        return $this->purchaseItems()->where('remaining_qty', '>', 0)->orderBy('created_at', 'asc');
     }
     public function getDiscountedPriceAttribute()
     {
@@ -161,10 +151,5 @@ class Product extends Model
         }
         return round($discountedPrice, 2);
     }
-
-    // public function business()
-    // {
-    //     return $this->belongsTo(Business::class);
-    // }
 
 }

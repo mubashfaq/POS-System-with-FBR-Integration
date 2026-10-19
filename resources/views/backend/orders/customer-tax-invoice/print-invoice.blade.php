@@ -183,7 +183,8 @@
                                     <tr>
                                         <th>Sales Tax:</th>
                                         <td class="text-right">
-                                            {{ currency()->symbol . ' ' . number_format($totalSalesTax, 2, '.', ',') }}</td>
+                                            {{ currency()->symbol . ' ' . number_format($totalSalesTax, 2, '.', ',') }}
+                                        </td>
                                     </tr>
                                 @endif
 
@@ -197,7 +198,8 @@
                                     <tr>
                                         <th>Further Tax:</th>
                                         <td class="text-right">
-                                            {{ currency()->symbol . ' ' . number_format($totalFurtherTax, 2, '.', ',') }}</td>
+                                            {{ currency()->symbol . ' ' . number_format($totalFurtherTax, 2, '.', ',') }}
+                                        </td>
                                     </tr>
                                 @endif
 
@@ -208,7 +210,14 @@
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th>Advance Tax:</th>
+                                    <th>
+                                        ADVANCE TAX U/S 236 H @
+                                        {{ $order->customer->customer_tax_type == 'distributor'
+                                            ? '1%'
+                                            : ($order->customer->customer_tax_type == 'retailer'
+                                                ? '0.5%'
+                                                : '0%') }}:
+                                    </th>
                                     <td class="text-right">
                                         {{ currency()->symbol . ' ' . number_format($order->total_customer_tax, 2, '.', ',') }}
                                     </td>
