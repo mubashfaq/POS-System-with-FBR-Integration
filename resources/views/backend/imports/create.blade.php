@@ -19,10 +19,7 @@
                     </div>
                 </div>
 
-                <span class="badge">
-                    <i class="fas fa-plus mr-1"></i>
-                    New Import
-                </span>
+               
             </div>
 
             <div class="import-form">

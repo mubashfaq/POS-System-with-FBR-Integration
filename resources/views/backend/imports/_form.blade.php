@@ -189,7 +189,7 @@
                     </div>
 
                     <div>
-                        <h5 class="import-section-title">Category Expense Details</h5>
+                        <h5 class="import-section-title">Category Details</h5>
                         <p class="import-section-subtitle">
                             Select category, enter CBF/CBM & amount. Use <b>+</b> to add more rows.
                         </p>
@@ -210,7 +210,7 @@
 
                                 {{-- Category --}}
                                 <div class="col-md-3">
-                                    <label>Expense Category</label>
+                                    <label>Category</label>
                                     <select name="expenses[{{ $i }}][category_id]"
                                         class="form-control expense-category">
                                         <option value="">Select Category</option>
@@ -440,7 +440,7 @@
             return `
                 <div class="row expense-row mb-2 align-items-end">
                     <div class="col-md-3">
-                        <label>Expense Category</label>
+                        <label>Category</label>
                         <select name="expenses[${index}][category_id]" class="form-control expense-category">
                             ${categoryOptions}
                         </select>

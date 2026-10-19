@@ -334,7 +334,7 @@
                                     <thead>
                                         <tr>
                                             <th>#</th>
-                                            <th>Expense Category</th>
+                                            <th>Category</th>
                                             <th class="text-right">CBF / CBM</th>
                                             <th class="text-right">Amount</th>
                                         </tr>
