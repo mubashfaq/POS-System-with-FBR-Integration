@@ -164,6 +164,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::get('orders/{id}/customer-tax-invoice', [OrderController::class, 'customerTaxInvoice'])->name('orders.customer-tax-invoice');
     Route::get('orders/transactions/{id}', [OrderController::class, 'transactions'])->name('orders.transactions');
     Route::match(['get', 'post'], 'orders/due/collection/{id}', [OrderController::class, 'collection'])->name('due.collection');
+    Route::match(['get', 'post'], 'orders/due/collection/{id}/advance-tax', [OrderController::class, 'collectionAdvanceTax'])->name('due.collection.advance-tax');
     Route::get('collection/invoice/{id}', [OrderController::class, 'collectionInvoice'])->name('collectionInvoice');
     Route::resource('categories', CategoryController::class);
     Route::get('/fbr-reconciliation', [FbrReconciliationController::class, 'index'])->name('fbr.reconciliation.index');
