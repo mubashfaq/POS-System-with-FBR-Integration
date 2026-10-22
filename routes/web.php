@@ -99,6 +99,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::resource('brands', BrandController::class);
     Route::resource('business', BusinessController::class)->middleware('current.business');
     Route::get('/imports/{id}/details', [ImportController::class, 'details'])->name('imports.details');
+    Route::get('imports/search-products', [ImportController::class, 'searchProducts'])->name('imports.search-products');
     Route::resource('imports', ImportController::class);
 
     Route::controller(ImportGodownController::class)->prefix('import-godown')->name('import-godown.')->group(function () {

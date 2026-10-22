@@ -8,5 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 class Unit extends Model
 {
     use HasFactory;
-    protected $fillable = ['title','short_name'];
+    protected $fillable = ['title', 'short_name'];
+
+    public function importProducts()
+    {
+        return $this->hasMany(ImportProduct::class, 'unit_id');
+    }
 }

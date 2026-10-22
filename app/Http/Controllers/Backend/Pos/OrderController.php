@@ -349,7 +349,7 @@ class OrderController extends Controller
                 }
 
                 $buttons[] = '
-                    <div class="dropdown">
+                    <div class="dropdown tax-dropdown">
                         <button type="button"
                                 class="btn-expand btn-outline-info dropdown-toggle"
                                 data-toggle="dropdown"

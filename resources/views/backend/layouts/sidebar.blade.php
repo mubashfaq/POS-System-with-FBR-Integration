@@ -371,7 +371,7 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                                 </a>
                             </li>
                         @endif
-                        @if ($currentBusiness->hasPermission(['import_create']))
+                        @if ($currentBusiness->hasAnyPermission(['import_create']))
                             <li class="nav-item">
                                 <a href="{{ route('backend.admin.imports.create') }}"
                                     class="nav-link {{ request()->routeIs(['backend.admin.imports.create']) ? 'active' : '' }}">
@@ -380,7 +380,7 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                                 </a>
                             </li>
                         @endif
-                        @if ($currentBusiness->hasPermission(['import_godown']))
+                        @if ($currentBusiness->hasAnyPermission(['import_godown']))
                             <li class="nav-item">
                                 <a href="{{ route('backend.admin.import-godown.index') }}"
                                     class="nav-link {{ request()->routeIs(['backend.admin.import-godown.index']) ? 'active' : '' }}">

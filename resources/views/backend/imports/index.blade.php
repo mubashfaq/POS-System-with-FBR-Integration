@@ -308,7 +308,7 @@
                                             <th>Ctn Qty</th>
                                             <th>Total Pcs</th>
                                             <th>Price / Pc</th>
-                                            <th>Price / Dz</th>
+                                            <th>Cost / Pc</th>
                                             <th class="text-right">Amount</th>
                                         </tr>
                                     </thead>
@@ -525,7 +525,7 @@
                                         <td class="text-right">${escapeHtml(product.ctn_qty)}</td>
                                         <td class="text-right">${escapeHtml(product.total_pcs)}</td>
                                         <td class="text-right">${money(product.price_pc)}</td>
-                                        <td class="text-right">${money(product.price_dz)}</td>
+                                        <td class="text-right">${money(product.cost_pc)}</td>
                                         <td class="text-right">${money(amount)}</td>
                                     </tr>
                                 `;
