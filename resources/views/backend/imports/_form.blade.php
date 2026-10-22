@@ -3,7 +3,13 @@
     $model = $isEdit ? $import : null;
 
     $v = function ($field, $default = '') use ($model) {
-        return old($field, $model->{$field} ?? $default);
+        $value = old($field, $model->{$field} ?? $default);
+
+        if ($value instanceof \Carbon\CarbonInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        return $value;
     };
 
     $existingRows = old(

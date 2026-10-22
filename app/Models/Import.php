@@ -22,6 +22,7 @@ class Import extends Model
         'inv_amount_pkr',
         'godown_id',
         'supplier_id',
+        'purchase_id',
         'address',
         'freight_expense',
         'fta_expense',
@@ -68,5 +69,10 @@ class Import extends Model
     public function products()
     {
         return $this->hasMany(ImportProduct::class);
+    }
+
+    public function purchase()
+    {
+        return $this->belongsTo(Purchase::class);
     }
 }
