@@ -140,7 +140,7 @@ class ImportController extends Controller
         // ---- Landed cost per piece ----
         $categoryPool = $import->expenses()->get()
             ->groupBy('category_id')
-            ->map(fn($g) => $g->sum(fn($e) => (float) $e->amount + (float) $e->cbf_cbm));
+            ->map(fn($g) => $g->sum(fn($e) => (float) $e->amount));
 
         $globalExpense = collect(['freight_expense', 'fta_expense', 'fitting_expense', 'co_expense', 'other_expense'])
             ->sum(fn($f) => (float) $import->{$f});
@@ -346,14 +346,8 @@ class ImportController extends Controller
                 })
 
                 ->addColumn('inv_amount', fn($d) => number_format((float) $d->inv_amount, 2, '.', ','))
-                ->addColumn('total_expense_1', fn($d) => number_format((float) $d->total_expense_1, 2, '.', ','))
                 ->addColumn('total_expense_2', fn($d) => number_format((float) $d->total_expense_2, 2, '.', ','))
 
-                /** Sum of all CBF/CBM across expense rows */
-                ->addColumn('total_cbf_cbm', function ($d) {
-                    $sum = $d->expenses->sum('cbf_cbm');
-                    return number_format((float) $sum, 2, '.', ',');
-                })
 
                 ->addColumn('created_at', fn($d) => $d->created_at ? $d->created_at->format('Y-m-d') : '-')
 
@@ -409,7 +403,7 @@ class ImportController extends Controller
         // ---- Same landed-cost formula as createPurchaseFromImport ----
         $categoryPool = $import->expenses
             ->groupBy('category_id')
-            ->map(fn($g) => $g->sum(fn($e) => (float) $e->amount + (float) $e->cbf_cbm));
+            ->map(fn($g) => $g->sum(fn($e) => (float) $e->amount));
 
         $globalExpense = collect(['freight_expense', 'fta_expense', 'fitting_expense', 'co_expense', 'other_expense'])
             ->sum(fn($f) => (float) $import->{$f});
