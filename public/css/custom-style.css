@@ -1,6 +1,8 @@
-body, html {
+body,
+html {
     font-family: 'Poppins', sans-serif;
 }
+
 /* ========= theme ========== */
 .sidebar-dark-lightblue .nav-sidebar>.nav-item>.nav-link.active,
 .sidebar-light-lightblue .nav-sidebar>.nav-item>.nav-link.active {
@@ -29,7 +31,7 @@ body, html {
 }
 
 .pos-btn:hover {
-    background-color: #e25c02 !important; 
+    background-color: #e25c02 !important;
     border-color: #e25c02 !important;
 }
 
@@ -99,7 +101,7 @@ body:not(.sidebar-mini-md):not(.sidebar-mini-xs):not(.layout-top-nav) .main-head
 }
 
 .custom-footer a:hover {
-    color: #ffffff; 
+    color: #ffffff;
 }
 
 
@@ -149,10 +151,11 @@ body:not(.sidebar-mini-md):not(.sidebar-mini-xs):not(.layout-top-nav) .main-head
         max-height: 70px;
     }
 }
+
 /* for fixing select2 input field desgine issue */
- .select2-container--default .select2-selection--single {
-     height: calc(1.5em + 0.75rem + 2px) !important;
- }
+.select2-container--default .select2-selection--single {
+    height: calc(1.5em + 0.75rem + 2px) !important;
+}
 
 
 /* Custom large size for the switch toggle */
@@ -233,18 +236,132 @@ input:checked+.slider:before {
     background-color: #fd6802 !important;
 }
 
-.action-button{
+.action-button {
     background-color: #fd6802 !important;
     border: none;
     color: white;
 }
 
-.fa-plus-circle{
+.fa-plus-circle {
     color: white;
 }
 
-.btn-flat{
+.btn-flat {
     background-color: #fd6802 !important;
     border: none;
     color: white;
+}
+
+/* General dropdown styling */
+.dropdown-menu {
+    min-width: 200px;
+    padding: 7px;
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    margin-top: 6px;
+    z-index: 1050;
+    overflow: visible;
+}
+
+/* General dropdown items */
+.dropdown-menu .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 12px;
+    border-radius: 7px;
+    font-size: 0.84rem;
+    font-weight: 500;
+    color: #343a40;
+    white-space: normal;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Dropdown icons */
+.dropdown-menu .dropdown-item i {
+    width: 17px;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+/* Hover effect */
+.dropdown-menu .dropdown-item:hover,
+.dropdown-menu .dropdown-item:focus {
+    background-color: #f3f5f7;
+    color: #343a40;
+}
+
+/* Right-aligned dropdowns */
+.dropdown-menu-right {
+    right: 0;
+    left: auto;
+}
+
+/* Mobile dropdown sizing */
+@media (max-width: 767.98px) {
+    .dropdown-menu {
+        min-width: 200px;
+        max-width: 90vw;
+    }
+}
+
+/* Customer Tax dropdown only */
+.tax-dropdown {
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+.tax-dropdown .btn-expand.dropdown-toggle {
+    gap: 6px;
+}
+
+.tax-dropdown .dropdown-menu {
+    min-width: 245px;
+    padding: 7px;
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    margin-top: 6px;
+    z-index: 1050;
+    overflow: visible;
+}
+
+.tax-dropdown .dropdown-menu .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 12px;
+    border-radius: 7px;
+    font-size: 0.84rem;
+    font-weight: 500;
+    color: #343a40;
+    white-space: normal;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.tax-dropdown .dropdown-menu .dropdown-item i {
+    width: 17px;
+    flex-shrink: 0;
+    text-align: center;
+    color: #17a2b8;
+}
+
+.tax-dropdown .dropdown-menu .dropdown-item:hover,
+.tax-dropdown .dropdown-menu .dropdown-item:focus {
+    background-color: #eaf7fa;
+    color: #117a8b;
+}
+
+.tax-dropdown .dropdown-menu .dropdown-item:hover i {
+    color: #117a8b;
+}
+
+.tax-dropdown .dropdown-menu-right {
+    right: 0;
+    left: auto;
+}
+
+.tax-dropdown .btn-expand.btn-outline-info.dropdown-toggle::after {
+    margin-left: 2px;
 }

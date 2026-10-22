@@ -18,6 +18,7 @@
                         'pcs_per_carton' => $item->pcs_per_carton,
                         'ctn_qty' => $item->ctn_qty,
                         'price_pc' => $item->price_pc,
+                        '_product_name' => $item->product?->name ?? '',
                     ],
                 )
                 ->values()
@@ -320,9 +321,9 @@
                         </div>
                         <div class="col-md-4">
                             <div class="form-group">
-                                <label>Total Expense 2</label>
+                                <label>Total Expense</label>
                                 <input type="number" step="0.01" name="total_expense_2" class="form-control"
-                                    placeholder="0.00" value="{{ $v('total_expense_2') }}">
+                                    placeholder="0.00" value="{{ $v('total_expense_2') }}" readonly>
                             </div>
                         </div>
                     </div>
@@ -377,7 +378,8 @@
                                     <th style="min-width:100px;">Ctn Qty</th>
                                     <th>Total Pcs</th>
                                     <th style="min-width:110px;">Price / Pc</th>
-                                    <th>Price / Dz</th>
+                                    <th style="min-width:110px;">Cost / Pc</th>
+                                    {{-- <th>Price / Dz</th> --}}
                                     <th>Amount</th>
                                     <th>Action</th>
                                 </tr>
@@ -385,7 +387,7 @@
                             <tbody id="importProductRows"></tbody>
                             <tfoot>
                                 <tr>
-                                    <th colspan="10" class="text-right">Total Amount</th>
+                                    <th colspan="9" class="text-right">Total Amount</th>
                                     <th id="importProductsTotal">0.00</th>
                                     <th></th>
                                 </tr>
@@ -415,7 +417,7 @@
 
             <button type="submit" class="btn btn-import-save" id="saveImportRecord" style="display:none;">
                 <i class="fas fa-save mr-1"></i>
-                {{ $isEdit ? 'Update Record' : 'Save Record' }}
+                {{ $isEdit ? 'Update' : 'Complete' }}
             </button>
         </div>
 
@@ -551,25 +553,6 @@
         const addBtn = document.getElementById('addImportProduct');
         const rowsContainer = document.getElementById('importProductRows');
 
-        const products = {!! json_encode(
-            $products->map(
-                    fn($p) => [
-                        'id' => $p->id,
-                        'name' => $p->name,
-                        'sku' => $p->sku,
-                        'has_variations' => (bool) $p->has_variations,
-                        'variations' => $p->has_variations
-                            ? $p->variations->map(
-                                    fn($v) => [
-                                        'id' => $v->id,
-                                        'label' => $v->label,
-                                    ],
-                                )->values()
-                            : [],
-                    ],
-                )->values(),
-        ) !!};
-
         const units = @json($units->map(fn($u) => ['id' => $u->id, 'name' => $u->title])->values());
 
         const existingRows = @json($existingRows);
@@ -652,104 +635,345 @@
             return select;
         }
 
+        const SEARCH_URL = @json(route('backend.admin.imports.search-products'));
+
+        /**
+         * Create a product search picker.
+         * The hidden input is named import_products[i][product_id].
+         */
+        function createProductPicker(index, initial = {}) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'product-picker';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'form-control form-control-sm product-search';
+            input.placeholder = 'Search product…';
+            input.autocomplete = 'off';
+
+            const clearBtn = document.createElement('button');
+            clearBtn.type = 'button';
+            clearBtn.className = 'product-search-clear';
+            clearBtn.innerHTML = '<i class="fas fa-times"></i>';
+            clearBtn.title = 'Clear';
+
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.className = 'product-id';
+            hidden.name = `import_products[${index}][product_id]`;
+            hidden.value = initial.product_id ?? '';
+
+            const results = document.createElement('div');
+            results.className = 'product-results';
+
+            wrapper.append(input, clearBtn, hidden, results);
+
+            // Render dropdown outside the table to prevent clipping.
+            results.style.position = 'fixed';
+            results.style.zIndex = '999999';
+
+            // If edit-mode: prefill the search box with the current product name.
+            if (initial._name) {
+                input.value = initial._name;
+                wrapper.classList.add('has-value');
+            }
+
+            // --- Lookup state ---
+            let controller = null;
+            let timer = null;
+
+            function closeResults() {
+                results.classList.remove('open');
+                results.innerHTML = '';
+
+                if (results.parentElement !== wrapper) {
+                    wrapper.appendChild(results);
+                }
+            }
+
+            const repositionResults = () => {
+                if (results.classList.contains('open')) {
+                    positionResults();
+                }
+            };
+
+            window.addEventListener('scroll', repositionResults, true);
+            window.addEventListener('resize', repositionResults);
+
+            function positionResults() {
+                const rect = input.getBoundingClientRect();
+
+                results.style.position = 'fixed';
+                results.style.left = `${rect.left}px`;
+                results.style.top = `${rect.bottom + 5}px`;
+                results.style.width = `${Math.max(rect.width, 220)}px`;
+
+                // Keep the dropdown within the viewport.
+                const spaceBelow = window.innerHeight - rect.bottom - 12;
+
+                results.style.maxHeight = `${Math.max(
+                    80,
+                    Math.min(320, spaceBelow)
+                )}px`;
+
+                results.style.overflowY = 'auto';
+                results.style.overflowX = 'hidden';
+                results.style.backgroundColor = '#ffffff';
+                results.style.opacity = '1';
+                results.style.zIndex = '999999';
+            }
+
+            function applySelection(p) {
+                hidden.value = p.id;
+                input.value = p.name + (p.sku ? ' — ' + p.sku : '');
+                wrapper.classList.add('has-value');
+                closeResults();
+                // Let the row re-populate variations + code column.
+                wrapper.dispatchEvent(new CustomEvent('product:selected', {
+                    bubbles: true,
+                    detail: {
+                        product: p
+                    },
+                }));
+            }
+
+            function renderResults(list) {
+                results.innerHTML = '';
+
+                if (!list.length) {
+                    results.innerHTML = '<div class="empty">No products found</div>';
+                } else {
+                    list.forEach(p => {
+                        const item = document.createElement('div');
+                        item.className = 'item';
+                        item.innerHTML =
+                            `${escapeHtml(p.name)}<span class="sku">${escapeHtml(p.sku ?? '')}</span>`;
+
+                        item.addEventListener('mousedown', e => {
+                            e.preventDefault();
+                            applySelection(p);
+                        });
+
+                        results.appendChild(item);
+                    });
+                }
+
+                document.body.appendChild(results);
+                results.classList.add('open');
+                positionResults();
+            }
+
+            async function search(term) {
+                if (controller) controller.abort();
+                controller = new AbortController();
+
+                try {
+                    const res = await fetch(`${SEARCH_URL}?q=${encodeURIComponent(term)}`, {
+                        headers: {
+                            'Accept': 'application/json'
+                        },
+                        signal: controller.signal,
+                    });
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    renderResults(data.results || []);
+                } catch (err) {
+                    if (err.name !== 'AbortError') console.error(err);
+                }
+            }
+
+            // Debounced search
+            input.addEventListener('input', () => {
+                const term = input.value.trim();
+
+                wrapper.classList.toggle('has-value', input.value.length > 0);
+
+                // Clear the previous product selection when editing the search.
+                hidden.value = '';
+
+                if (controller) {
+                    controller.abort();
+                }
+
+                clearTimeout(timer);
+
+                // Hide results if the input is empty.
+                if (term.length === 0) {
+                    closeResults();
+                    return;
+                }
+
+                // Search only after at least one character is typed.
+                timer = setTimeout(() => search(term), 250);
+            });
+
+            input.addEventListener('focus', () => {
+                // Do not load products until the user types something.
+                if (input.value.trim().length >= 1 && !hidden.value) {
+                    search(input.value.trim());
+                }
+            });
+
+            input.addEventListener('blur', () => {
+                // Defer so mousedown on an item still registers
+                setTimeout(closeResults, 120);
+            });
+
+            clearBtn.addEventListener('click', () => {
+                input.value = '';
+                hidden.value = '';
+                wrapper.classList.remove('has-value');
+                closeResults();
+                wrapper.dispatchEvent(new CustomEvent('product:selected', {
+                    bubbles: true,
+                    detail: {
+                        product: null
+                    },
+                }));
+                input.focus();
+            });
+
+            // If edit-mode, resolve the initial product via API so variations render.
+            if (initial.product_id) {
+                fetch(`${SEARCH_URL}?q=${encodeURIComponent(initial._name ?? '')}`, {
+                        headers: {
+                            'Accept': 'application/json'
+                        },
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        const p = (data.results || []).find(x => String(x.id) === String(initial
+                            .product_id));
+                        if (p) {
+                            wrapper.dispatchEvent(new CustomEvent('product:selected', {
+                                bubbles: true,
+                                detail: {
+                                    product: p
+                                },
+                            }));
+                        }
+                    })
+                    .catch(() => {});
+            }
+
+            return wrapper;
+        }
+
+        function escapeHtml(str) {
+            return String(str ?? '').replace(/[&<>"']/g, s => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            } [s]));
+        }
+
         function addProductRow(data = {}) {
             const index = rowIndex++;
             const row = document.createElement('tr');
             row.className = 'import-product-row';
 
-            const productSelect = addOptions(products, data.product_id, 'Select product');
-            productSelect.classList.add('product-select');
-            productSelect.name = `import_products[${index}][product_id]`;
-
-            // Variation select (populated based on chosen product)
-            const variationSelect = document.createElement('select');
-            variationSelect.className = 'form-control form-control-sm variation-select';
-            variationSelect.name = `import_products[${index}][product_variation_id]`;
-            variationSelect.innerHTML = '<option value="">—</option>';
-
-            const unitSelect = addOptions(units, data.unit_id, 'Select packing');
-            unitSelect.classList.add('unit-select');
-            unitSelect.name = `import_products[${index}][unit_id]`;
+            // NEW: search picker instead of <select>
+            const picker = createProductPicker(index, {
+                product_id: data.product_id ?? '',
+                // For edit mode we need a display name before the API response arrives:
+                _name: data._product_name ?? data.product_name ?? '',
+            });
 
             const codeInput = document.createElement('input');
             codeInput.type = 'text';
             codeInput.className = 'form-control form-control-sm product-code';
             codeInput.readOnly = true;
 
+            const variationSelect = document.createElement('select');
+            variationSelect.className = 'form-control form-control-sm variation-select';
+            variationSelect.name = `import_products[${index}][product_variation_id]`;
+            variationSelect.innerHTML = '<option value="">—</option>';
+            variationSelect.disabled = true;
+
+            const unitSelect = addOptions(units, data.unit_id, 'Select packing');
+            unitSelect.classList.add('unit-select');
+            unitSelect.name = `import_products[${index}][unit_id]`;
+
             const pcsInput = createInput(index, 'number', 'pcs_per_carton', data.pcs_per_carton ?? 1, '1');
+            const cartonInput = createInput(index, 'number', 'ctn_qty', data.ctn_qty ?? 0, '1');
+            const totalInput = createInput(index, 'number', 'total_pcs', 0, '1');
+            const pricePcInput = createInput(index, 'number', 'price_pc', data.price_pc ?? 0, '0.01');
+            // const priceDzInput = createInput(index, 'number', 'price_dz', 0, '0.01');
+            const amountInput = createInput(index, 'number', 'amount', 0, '0.01');
+
+            const costPcInput = createInput(index, 'number', 'cost_pc', 0, '0.01');
+            costPcInput.removeAttribute('name'); // display only, server recalculates
+            costPcInput.readOnly = true;
+            costPcInput.classList.add('cost-pc');
+
             pcsInput.min = '1';
             pcsInput.classList.add('pcs-per-carton');
-
-            const cartonInput = createInput(index, 'number', 'ctn_qty', data.ctn_qty ?? 0, '1');
             cartonInput.min = '0';
             cartonInput.classList.add('carton-qty');
-
-            const totalInput = createInput(index, 'number', 'total_pcs', 0, '1');
             totalInput.readOnly = true;
             totalInput.classList.add('total-pcs');
-
-            const pricePcInput = createInput(index, 'number', 'price_pc', data.price_pc ?? 0, '0.01');
             pricePcInput.min = '0';
             pricePcInput.classList.add('price-pc');
-
-            const priceDzInput = createInput(index, 'number', 'price_dz', 0, '0.01');
-            priceDzInput.readOnly = true;
-            priceDzInput.classList.add('price-dz');
-
-            const amountInput = createInput(index, 'number', 'amount', 0, '0.01');
+            // priceDzInput.readOnly = true;
+            // priceDzInput.classList.add('price-dz');
             amountInput.readOnly = true;
             amountInput.classList.add('product-amount');
 
             const cells = [
-                document.createTextNode(''), codeInput, productSelect, variationSelect, unitSelect,
-                pcsInput, cartonInput,
-                totalInput, pricePcInput, priceDzInput, amountInput
+                document.createTextNode(''), // Sr No
+                codeInput, // Code
+                picker, // Name → searchable picker
+                variationSelect, // Variation
+                unitSelect, // Packing
+                pcsInput, cartonInput, totalInput,
+                pricePcInput, costPcInput, amountInput,
             ];
 
-            cells.forEach((content, cellIndex) => {
+            cells.forEach((content, i) => {
                 const td = document.createElement('td');
-
-                if (cellIndex === 0) {
-                    td.className = 'product-row-number';
-                } else {
-                    td.appendChild(content);
-                }
-
+                if (i === 0) td.className = 'product-row-number';
+                else td.appendChild(content);
                 row.appendChild(td);
             });
 
+            // Action cell
             const actionCell = document.createElement('td');
             const removeButton = document.createElement('button');
             removeButton.type = 'button';
             removeButton.className = 'btn btn-sm btn-outline-danger remove-import-product';
             removeButton.innerHTML = '<i class="fas fa-trash"></i>';
-            removeButton.title = 'Remove product';
             actionCell.appendChild(removeButton);
             row.appendChild(actionCell);
 
             rowsContainer.appendChild(row);
 
-            const selectedProduct = products.find(
-                p => String(p.id) === String(data.product_id ?? '')
-            );
+            // Fill variation list when the picker emits a selection
+            row.addEventListener('product:selected', (e) => {
+                const product = e.detail.product;
+                const variationSelect = row.querySelector('.variation-select');
+                const codeInput = row.querySelector('.product-code');
 
-            codeInput.value = selectedProduct?.sku ?? '';
-
-            // Populate variations if product has them
-            // Populate variations if product has them
-            if (selectedProduct && selectedProduct.has_variations) {
                 variationSelect.innerHTML = '<option value="">—</option>';
-                selectedProduct.variations.forEach(v => {
-                    const opt = document.createElement('option');
-                    opt.value = v.id;
-                    opt.textContent = v.label;
-                    opt.selected = String(v.id) === String(data.product_variation_id ?? '');
-                    variationSelect.appendChild(opt);
-                });
-                variationSelect.disabled = false;
-            } else {
-                variationSelect.disabled = true;
-            }
+                codeInput.value = product?.sku ?? '';
+                row.dataset.categoryId = product?.category_id ?? '';
+
+                if (product && product.has_variations && product.variations.length) {
+                    product.variations.forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v.id;
+                        opt.textContent = v.label;
+                        opt.selected = String(v.id) === String(data.product_variation_id ?? '');
+                        variationSelect.appendChild(opt);
+                    });
+                    variationSelect.disabled = false;
+                } else {
+                    variationSelect.disabled = true;
+                }
+
+                calculateRow(row);
+            });
 
             calculateRow(row);
             updateRowNumbers();
@@ -771,14 +995,15 @@
             const price = Number(row.querySelector('.price-pc').value) || 0;
 
             const totalPieces = pcs * cartons;
-            const priceDozen = price * 12;
+            // const priceDozen = price * 12;
             const amount = totalPieces * price;
 
             row.querySelector('.total-pcs').value = totalPieces;
-            row.querySelector('.price-dz').value = priceDozen.toFixed(2);
+            // row.querySelector('.price-dz').value = priceDozen.toFixed(2);
             row.querySelector('.product-amount').value = amount.toFixed(2);
 
             calculateTotal();
+            recalcCosts();
         }
 
         function calculateAllRows() {
@@ -807,32 +1032,7 @@
         rowsContainer.addEventListener('change', function(event) {
             const row = event.target.closest('.import-product-row');
             if (!row) return;
-
-            if (event.target.classList.contains('product-select')) {
-                const product = products.find(
-                    p => String(p.id) === String(event.target.value)
-                );
-
-                row.querySelector('.product-code').value = product?.sku ?? '';
-
-                // --- NEW: repopulate variation dropdown ---
-                const variationSelect = row.querySelector('.variation-select');
-                variationSelect.innerHTML = '<option value="">—</option>';
-
-                if (product && product.has_variations && product.variations.length) {
-                    product.variations.forEach(v => {
-                        const opt = document.createElement('option');
-                        opt.value = v.id;
-                        opt.textContent = v.label;
-                        variationSelect.appendChild(opt);
-                    });
-                    variationSelect.disabled = false;
-                } else {
-                    variationSelect.disabled = true;
-                }
-            }
-
-            calculateRow(row);
+            if (event.target.matches('input, select')) calculateRow(row);
         });
 
         rowsContainer.addEventListener('input', function(event) {
@@ -859,14 +1059,14 @@
         function reindexProductInputs() {
             rowsContainer.querySelectorAll('.import-product-row').forEach((row, i) => {
                 const fields = [
-                    ['.product-select', 'product_id'],
+                    ['.product-id', 'product_id'],
                     ['.variation-select', 'product_variation_id'],
                     ['.unit-select', 'unit_id'],
                     ['.pcs-per-carton', 'pcs_per_carton'],
                     ['.carton-qty', 'ctn_qty'],
                     ['.total-pcs', 'total_pcs'],
                     ['.price-pc', 'price_pc'],
-                    ['.price-dz', 'price_dz'],
+                    // ['.price-dz', 'price_dz'],
                     ['.product-amount', 'amount']
                 ];
 
@@ -900,6 +1100,71 @@
                 setTimeout(reindexProductInputs, 0);
             }
         });
+
+
+        function recalcCosts() {
+            // category pools from step 1: amount + cbf/cbm
+            const pools = {};
+            document.querySelectorAll('#expense-rows .expense-row').forEach(r => {
+                const cat = r.querySelector('.expense-category').value;
+                if (!cat) return;
+                const cbf = Number(r.querySelector('.cbf-input').value) || 0;
+                const amt = Number(r.querySelector('input[name*="[amount]"]').value) || 0;
+                pools[cat] = (pools[cat] || 0) + cbf + amt;
+            });
+
+            const globalExpense = Number(document.querySelector('[name="total_expense_2"]').value) || 0;
+
+            const rows = [...rowsContainer.querySelectorAll('.import-product-row')];
+            let totalPcs = 0;
+            const pcsByCat = {};
+            rows.forEach(r => {
+                const pcs = Number(r.querySelector('.total-pcs').value) || 0;
+                totalPcs += pcs;
+                const c = r.dataset.categoryId;
+                if (c) pcsByCat[c] = (pcsByCat[c] || 0) + pcs;
+            });
+
+            rows.forEach(r => {
+                const price = Number(r.querySelector('.price-pc').value) || 0;
+                const c = r.dataset.categoryId;
+                const catPerPc = (c && pcsByCat[c] > 0) ? (pools[c] || 0) / pcsByCat[c] : 0;
+                const globalPerPc = totalPcs > 0 ? globalExpense / totalPcs : 0;
+                r.querySelector('.cost-pc').value = (price + catPerPc + globalPerPc).toFixed(2);
+            });
+        }
+
+        document.getElementById('expense-rows').addEventListener('input', recalcCosts);
+        document.getElementById('expense-rows').addEventListener('change', recalcCosts);
+
+        // ===== Auto-calculate Total Expense =====
+        const expenseFields = ['freight_expense', 'fta_expense', 'fitting_expense', 'co_expense',
+            'other_expense'
+        ];
+
+        function calculateTotalExpense() {
+            let total = 0;
+            expenseFields.forEach(function(field) {
+                const input = document.querySelector(`[name="${field}"]`);
+                if (input) total += parseFloat(input.value) || 0;
+            });
+
+            const totalField = document.querySelector('[name="total_expense_2"]');
+            if (totalField) totalField.value = total.toFixed(2);
+            recalcCosts();
+        }
+
+        // Attach listeners to all expense inputs
+        expenseFields.forEach(function(field) {
+            const input = document.querySelector(`[name="${field}"]`);
+            if (input) {
+                input.addEventListener('input', calculateTotalExpense);
+                input.addEventListener('change', calculateTotalExpense);
+            }
+        });
+
+        // Run once on page load (in case of edit mode with existing values)
+        calculateTotalExpense();
 
         showStep(1);
     });

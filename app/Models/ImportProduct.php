@@ -12,6 +12,7 @@ class ImportProduct extends Model
     protected $fillable = [
         'import_id',
         'product_id',
+        'product_variation_id',
         'unit_id',
         'pcs_per_carton',
         'ctn_qty',
@@ -34,5 +35,10 @@ class ImportProduct extends Model
     public function unit()
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    public function variation()
+    {
+        return $this->belongsTo(ProductVariation::class, 'product_variation_id');
     }
 }

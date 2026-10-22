@@ -24,14 +24,14 @@ class UnitController extends Controller
                 ->addIndexColumn()
                 ->addColumn('title', fn($data) => $data->title)
                 ->addColumn('short_name', fn($data) => $data->short_name)
-               ->addColumn('action', function ($data) {
+                ->addColumn('action', function ($data) {
                     return '<div class="btn-group">
                     <button type="button" class="btn btn-flat">Action</button>
                     <button type="button" class="btn btn-flat dropdown-toggle dropdown-icon" data-toggle="dropdown" aria-expanded="false">
                       <span class="sr-only">Toggle Dropdown</span>
                     </button>
                     <div class="dropdown-menu" role="menu">
-                      <a class="dropdown-item" href="' . route('backend.admin.units.edit', $data->id) . '" ' .' >
+                      <a class="dropdown-item" href="' . route('backend.admin.units.edit', $data->id) . '" ' . ' >
                     <i class="fas fa-edit"></i> Edit
                 </a> <div class="dropdown-divider"></div>
 <form action="' . route('backend.admin.units.destroy', $data->id) . '"method="POST" style="display:inline;">
@@ -41,7 +41,7 @@ class UnitController extends Controller
                   </form>
                   </div>';
                 })
-                ->rawColumns(['title', 'short_name','action'])
+                ->rawColumns(['title', 'short_name', 'action'])
                 ->toJson();
         }
         return view('backend.units.index');
@@ -68,7 +68,7 @@ class UnitController extends Controller
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('unit_create'), 403);
 
         // abort_if(!auth()->user()->can('unit_create'), 403);
-        $unit = Unit::create($request->only(['title','short_name']));
+        $unit = Unit::create($request->only(['title', 'short_name']));
 
         return redirect()->route('backend.admin.units.index')->with('success', 'Unit created successfully!');
     }
@@ -118,8 +118,12 @@ class UnitController extends Controller
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('unit_delete'), 403);
 
-        // abort_if(!auth()->user()->can('unit_delete'), 403);
         $unit = Unit::findOrFail($id);
+
+        // Check if unit is used in import products
+        if ($unit->importProducts()->exists()) {
+            return redirect()->back()->with('error', 'This unit cannot be deleted because it is already used in import products.');
+        }
         $unit->delete();
         return redirect()->back()->with('success', 'Unit Deleted Successfully');
     }

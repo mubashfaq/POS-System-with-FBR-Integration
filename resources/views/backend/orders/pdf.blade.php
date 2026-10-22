@@ -120,7 +120,7 @@
                     <td>{{ number_format($order->paid, 2) }}</td>
                     <td>{{ number_format($order->due, 2) }}</td>
                     <td>
-                        @if ($businessType)
+                        @if ($businessType == 'pral')
                             <span class="badge-pos">PRA</span>
                         @elseif ($order->type == 'pos_invoice')
                             <span class="badge-pos">POS</span>
