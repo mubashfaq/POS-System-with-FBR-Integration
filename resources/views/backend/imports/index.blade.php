@@ -244,9 +244,7 @@
                             <th>Clear Date</th>
                             <th>Currency</th>
                             <th>Inv Amount</th>
-                            <th>Total CBF/CBM</th>
-                            <th>Total Exp 1</th>
-                            <th>Total Exp 2</th>
+                            <th>Total Expense</th>
                             <th>Created</th>
                             <th data-orderable="false">Action</th>
                         </tr>
@@ -336,7 +334,7 @@
                                             <th>#</th>
                                             <th>Category</th>
                                             <th class="text-right">CBF / CBM</th>
-                                            <th class="text-right">Amount</th>
+                                            <th class="text-right">Category Expense</th>
                                         </tr>
                                     </thead>
                                     <tbody id="detailsExpenseRows"></tbody>
@@ -389,8 +387,8 @@
                 serverSide: true,
                 ordering: true,
                 order: [
-                    [12, 'desc']
-                ], // created_at column — index shifted because we added Godown + Total CBF/CBM
+                    [10, 'desc']
+                ],
 
                 ajax: {
                     url: "{{ route('backend.admin.imports.index') }}",
@@ -440,18 +438,6 @@
                     {
                         data: 'inv_amount',
                         name: 'inv_amount',
-                        className: 'text-right'
-                    },
-                    {
-                        data: 'total_cbf_cbm',
-                        name: 'total_cbf_cbm',
-                        className: 'text-right',
-                        orderable: false,
-                        searchable: false
-                    },
-                    {
-                        data: 'total_expense_1',
-                        name: 'total_expense_1',
                         className: 'text-right'
                     },
                     {

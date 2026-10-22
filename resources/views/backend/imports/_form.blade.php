@@ -192,7 +192,7 @@
                     <div>
                         <h5 class="import-section-title">Category Details</h5>
                         <p class="import-section-subtitle">
-                            Select category, enter CBF/CBM & amount. Use <b>+</b> to add more rows.
+                            Select category, enter CBF/CBM & category expense. Use <b>+</b> to add more rows.
                         </p>
                     </div>
                 </div>
@@ -234,9 +234,9 @@
                                         placeholder="0.00" value="{{ $expense->cbf_cbm ?? '' }}">
                                 </div>
 
-                                {{-- Amount --}}
+                                {{-- Category Expense --}}
                                 <div class="col-md-3">
-                                    <label>Amount</label>
+                                    <label>Category Expense</label>
                                     <input type="number" step="0.01"
                                         name="expenses[{{ $i }}][amount]" class="form-control"
                                         placeholder="0.00" value="{{ $expense->amount ?? '' }}">
@@ -378,8 +378,11 @@
                                     <th style="min-width:100px;">Ctn Qty</th>
                                     <th>Total Pcs</th>
                                     <th style="min-width:110px;">Price / Pc</th>
-                                    <th style="min-width:110px;">Cost / Pc</th>
-                                    {{-- <th>Price / Dz</th> --}}
+                                    <th style="min-width:110px;"
+                                        title="Price / Pc + category expense share + total expense share">
+                                        Cost / Pc <i class="fas fa-info-circle text-muted"
+                                            style="font-size:11px;"></i>
+                                    </th>
                                     <th>Amount</th>
                                     <th>Action</th>
                                 </tr>
@@ -387,7 +390,7 @@
                             <tbody id="importProductRows"></tbody>
                             <tfoot>
                                 <tr>
-                                    <th colspan="9" class="text-right">Total Amount</th>
+                                    <th colspan="10" class="text-right">Total Amount</th>
                                     <th id="importProductsTotal">0.00</th>
                                     <th></th>
                                 </tr>
@@ -456,7 +459,7 @@
                     </div>
 
                     <div class="col-md-3">
-                        <label>Amount</label>
+                        <label>Category Expense</label>
                         <input type="number" step="0.01"
                             name="expenses[${index}][amount]"
                             class="form-control" placeholder="0.00">
@@ -797,19 +800,18 @@
 
                 clearTimeout(timer);
 
-                // Hide results if the input is empty.
-                if (term.length === 0) {
-                    closeResults();
-                    return;
-                }
-
-                // Search only after at least one character is typed.
-                timer = setTimeout(() => search(term), 250);
+                // Empty term = show the default list; otherwise filter.
+                timer = setTimeout(() => search(term), term.length === 0 ? 0 : 250);
             });
 
             input.addEventListener('focus', () => {
-                // Do not load products until the user types something.
-                if (input.value.trim().length >= 1 && !hidden.value) {
+                input.select(); // optional: select text so typing replaces it
+                search(input.value.trim());
+            });
+
+            // Reopen the list if the input is already focused and closed
+            input.addEventListener('click', () => {
+                if (!results.classList.contains('open')) {
                     search(input.value.trim());
                 }
             });
@@ -830,7 +832,7 @@
                         product: null
                     },
                 }));
-                input.focus();
+                input.focus(); // focus handler opens the list
             });
 
             // If edit-mode, resolve the initial product via API so variations render.
@@ -1047,6 +1049,7 @@
             button.closest('tr').remove();
             updateRowNumbers();
             calculateTotal();
+            recalcCosts();
         });
 
         if (existingRows.length) {
@@ -1103,14 +1106,13 @@
 
 
         function recalcCosts() {
-            // category pools from step 1: amount + cbf/cbm
+            // category pools from step 1: amount
             const pools = {};
             document.querySelectorAll('#expense-rows .expense-row').forEach(r => {
                 const cat = r.querySelector('.expense-category').value;
                 if (!cat) return;
-                const cbf = Number(r.querySelector('.cbf-input').value) || 0;
                 const amt = Number(r.querySelector('input[name*="[amount]"]').value) || 0;
-                pools[cat] = (pools[cat] || 0) + cbf + amt;
+                pools[cat] = (pools[cat] || 0) + amt;
             });
 
             const globalExpense = Number(document.querySelector('[name="total_expense_2"]').value) || 0;
@@ -1130,7 +1132,18 @@
                 const c = r.dataset.categoryId;
                 const catPerPc = (c && pcsByCat[c] > 0) ? (pools[c] || 0) / pcsByCat[c] : 0;
                 const globalPerPc = totalPcs > 0 ? globalExpense / totalPcs : 0;
-                r.querySelector('.cost-pc').value = (price + catPerPc + globalPerPc).toFixed(2);
+                const cost = price + catPerPc + globalPerPc;
+
+                const costInput = r.querySelector('.cost-pc');
+                costInput.value = cost.toFixed(2);
+
+                // Hover text on the cost input and its cell
+                const tip = `Price: ${price.toFixed(2)}\n` +
+                    `Category expense: ${catPerPc.toFixed(2)}\n` +
+                    `Total expense: ${globalPerPc.toFixed(2)}\n` +
+                    `Cost: ${cost.toFixed(2)}`;
+                costInput.title = tip;
+                costInput.closest('td').title = tip;
             });
         }
 
