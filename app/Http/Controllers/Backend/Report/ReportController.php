@@ -5,10 +5,10 @@ namespace App\Http\Controllers\Backend\Report;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Product;
+use App\Services\FbrTokenService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Yajra\DataTables\DataTables;
-use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
@@ -27,7 +27,6 @@ class ReportController extends Controller
         $start_date = Carbon::createFromFormat('Y-m-d', $start_date_input)->startOfDay();
         $end_date = Carbon::createFromFormat('Y-m-d', $end_date_input)->endOfDay();
 
-        $environment = $request->input('environment');
         $dateField = $request->input('date_field', 'created_at');
 
         $isSuperAdmin = auth()->user()->hasRole('super_admin');
@@ -37,24 +36,27 @@ class ReportController extends Controller
             $dateField = 'created_at';
         }
 
-        // Only super admin can use environment filter
-        if (!$isSuperAdmin) {
-            $environment = null;
-        }
-
         // ── Fetch business once (avoids repeated DB hits for business_type) ──
         $business = \App\Models\Business::select('id', 'business_type')->find($businessId);
 
-        // ── Single optimized query — no N+1 ─────────────────────────────────
-        // 'products'         → OrderProduct (pivot/intermediate model)
-        // 'products.product' → the actual Product model via OrderProduct
-        $orders = Order::where('business_id', $businessId)
-            ->when(
-                $isSuperAdmin && $environment,
-                fn($q) => $q->where('invoice_environment', $environment)
-            )
-            ->whereNotNull($dateField)
-            ->whereBetween($dateField, [$start_date, $end_date])
+        $ordersQuery = Order::where('business_id', $businessId);
+
+        //  Environment scoping
+        if ($isSuperAdmin) {
+            // Super admin: optional filter, null/empty = all environments
+            $environment = $request->input('environment');
+            if ($environment) {
+                $ordersQuery->where('invoice_environment', $environment);
+            }
+        } else {
+            // Normal user: locked to current environment + null (legacy) records
+            $environment = FbrTokenService::getURLEnvironment();
+            $ordersQuery->where(function ($query) use ($environment) {
+                $query->where('invoice_environment', $environment)->orWhereNull('invoice_environment');
+            });
+        }
+
+        $orders = $ordersQuery->whereNotNull($dateField)->whereBetween($dateField, [$start_date, $end_date])
             ->when($customerId, fn($q) => $q->where('customer_id', $customerId))
             ->with([
                 'customer:id,name,is_registered',
@@ -70,7 +72,7 @@ class ReportController extends Controller
 
         $orders->each(function ($order) {
 
-            // ── Tax calculation ──────────────────────────────────────────────
+            //  Tax calculation 
             $orderSalesTax = 0;
             $orderFurtherTax = 0;
             $customer = $order->customer;
@@ -103,7 +105,7 @@ class ReportController extends Controller
             $saleTax = $order->sale_tax_final;
             $furtherTax = $order->further_tax_final;
 
-            // ── Cost / profit ────────────────────────────────────────────────
+            //  Cost / profit 
             $order->order_cost = $order->products->sum(
                 fn($item) => $item->product->purchase_price * $item->quantity
             );
@@ -141,7 +143,6 @@ class ReportController extends Controller
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('reports_summary'), 403);
 
-        // abort_if(!auth()->user()->can('reports_summary'), 403);
         // Get user input or set default values
 
         $businessId = session('business_id');
@@ -185,16 +186,9 @@ class ReportController extends Controller
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('reports_inventory'), 403);
 
-        // abort_if(!auth()->user()->can('reports_inventory'), 403);
         $businessId = session('business_id');
 
         if ($request->ajax()) {
-            // $products = Product::select('products.* , sum(purchase_items.purchase_price) as total_purchase_price , sum(purchase_items.quantity) as purchase_quantity')
-            // ->where('business_id', $businessId) 
-            // ->leftJoin('purchase_items', 'products.id', '=', 'purchase_items.product_id')
-            // ->latest()
-            // ->active()
-            // ->get();
             $products = Product::where('business_id', $businessId)
                 ->active()
                 ->with([

@@ -104,7 +104,8 @@
                                                     @if ($isSuperAdmin)
                                                         <th>Environment</th>
                                                     @endif
-                                                    <th>Date</th>
+                                                    <th>Order Date</th>
+                                                    <th>Created At</th>
                                                     <th>Item</th>
                                                     <th>Cost {{ currency()->symbol ?? '' }}</th>
                                                     <th>Sub Total {{ currency()->symbol ?? '' }}</th>
@@ -139,11 +140,10 @@
                                                             </td>
                                                         @endif
                                                         <td>
-                                                            @if ($date_field === 'order_date')
-                                                                {{ $order->order_date ? \Carbon\Carbon::parse($order->order_date)->format('d-m-Y') : '-' }}
-                                                            @else
-                                                                {{ $order->created_at ? $order->created_at->format('d-m-Y') : '-' }}
-                                                            @endif
+                                                            {{ $order->order_date ? \Carbon\Carbon::parse($order->order_date)->format('d-m-Y') : '-' }}
+                                                        </td>
+                                                        <td>
+                                                            {{ $order->created_at ? $order->created_at->format('d-m-Y') : '-' }}
                                                         </td>
                                                         <td>{{ $order->total_item }}</td>
                                                         <td>{{ number_format($order->order_cost, 2, '.', ',') }}</td>

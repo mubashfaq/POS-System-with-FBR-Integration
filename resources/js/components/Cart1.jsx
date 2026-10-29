@@ -75,6 +75,8 @@ export default function Cart1({
     const [localCarts, setLocalCarts] = useState(carts);
     const pendingUpdates = useRef({});
     const debounceTimers = useRef({});
+    const toastIdRef = useRef({}); // per-item toast id
+
 
     useEffect(() => {
         setLocalCarts((prev) => {
@@ -166,17 +168,27 @@ export default function Cart1({
             const finalQty = pendingUpdates.current[id];
             delete pendingUpdates.current[id];
 
+            toastIdRef.current[id] = toast.loading("Updating quantity...", {
+                id: toastIdRef.current[id], // reuse same toast
+            });
+
             axios
-                .put("/admin/cart/update-quantity", {
-                    id: id,
-                    quantity: finalQty,
-                })
+                .put("/admin/cart/update-quantity", { id: id, quantity: finalQty })
                 .then((res) => {
                     playSound(SuccessSound);
+                    toast.success(res?.data?.message || "Quantity updated", {
+                        id: toastIdRef.current[id], // replace loading toast
+                        duration: 1500,
+                    });
+                    delete toastIdRef.current[id];
                 })
                 .catch((err) => {
                     playSound(WarningSound);
-                    toast.error(err.response?.data?.message || "Something went wrong");
+                    toast.error(err.response?.data?.message || "Something went wrong", {
+                        id: toastIdRef.current[id],
+                        duration: 2500,
+                    });
+                    delete toastIdRef.current[id];
                     // Rollback: server se fresh carts le lo
                     setCartUpdated((prev) => !prev);
                 })

@@ -101,7 +101,7 @@ class SupplierController extends Controller
                 'required',
                 'string',
                 'max:20',
-                Rule::unique('customers')->where(function ($query) use ($businessId) {
+                Rule::unique('suppliers')->where(function ($query) use ($businessId) {
                     return $query->where('business_id', $businessId);
                 }),
             ],

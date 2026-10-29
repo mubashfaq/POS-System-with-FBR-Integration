@@ -38,7 +38,7 @@
                                 Collection Amount <span class="text-danger">*</span>
                             </label>
                             <input type="number" class="form-control" placeholder="Enter amount"
-                                value="{{ $order->due_with__advance_tax }}" name="amount" required min="1"
+                                value="{{ $order->due_with__advance_tax }}" name="amount" required min="0.1"
                                 max="{{ $order->due_with_advance_tax }}">
                         </div>
                     </div>

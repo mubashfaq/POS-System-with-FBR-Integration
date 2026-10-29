@@ -64,7 +64,7 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
     const today = new Date().toISOString().split("T")[0];
 
     const minDateObj = new Date();
-    minDateObj.setDate(minDateObj.getDate() - 15);
+    minDateObj.setDate(minDateObj.getDate() - 20);
     const minDate = minDateObj.toISOString().split("T")[0];
 
     const [orderDate, setOrderDate] = useState(today);

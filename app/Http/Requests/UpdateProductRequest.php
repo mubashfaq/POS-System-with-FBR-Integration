@@ -30,8 +30,7 @@ class UpdateProductRequest extends FormRequest
             $businessId = $this->attributes->get('business')->id;
         }
 
-        $businessType = \App\Models\Business::where('id', $businessId)
-            ->value('business_type');
+        $businessType = \App\Models\Business::where('id', $businessId)->value('business_type');
 
         $rules = [
             'product_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
@@ -54,7 +53,7 @@ class UpdateProductRequest extends FormRequest
             'quantity' => 'nullable|integer|min:0',
             'expire_date' => 'nullable|date',
             'status' => 'nullable|boolean',
-            'variations' => 'required|array|min:1',
+            'variations' => 'nullable|array|min:1',
             'variations.*.id' => 'nullable|integer',
             'variations.*.options' => 'required|array|min:1',
             'variations.*.options.*' => 'required|string|max:100',
