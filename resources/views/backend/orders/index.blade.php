@@ -246,7 +246,8 @@
                                     <th>Due {{ currency()->symbol ?? '' }}</th>
                                     <th>Type</th>
                                     <th>Environment</th>
-                                    <th>Date</th>
+                                    <th>Order Date</th>
+                                    <th>Created At</th>
                                     <th>Status</th>
                                     <th>FBR Status</th>
                                     <th data-orderable="false">Action</th>
@@ -425,8 +426,12 @@
                         className: 'text-center'
                     },
                     {
-                        data: 'date',
-                        name: 'date'
+                        data: 'order_date',
+                        name: 'order_date'
+                    },
+                    {
+                        data: 'created_at',
+                        name: 'created_at'
                     },
                     {
                         data: 'status',
