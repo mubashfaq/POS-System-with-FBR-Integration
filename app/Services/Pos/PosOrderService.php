@@ -53,8 +53,7 @@ class PosOrderService
                 abort(422, 'One or more products do not belong to this business');
             }
 
-            $counter = BusinessCounter::lockForUpdate()
-                ->firstOrCreate(['business_id' => $business->id], ['last_invoice_number' => 0]);
+            $counter = BusinessCounter::lockForUpdate()->firstOrCreate(['business_id' => $business->id], ['last_invoice_number' => 0]);
             $counter->increment('last_invoice_number');
 
             $isFbrEnabled = $data['is_fbr_enabled'] ?? FbrTokenService::isIntegrationEnabled($business->id);
@@ -144,6 +143,11 @@ class PosOrderService
             }
 
             $total = $totals['amount'] - $discount;
+
+            if ($paid > $total) {
+                abort(422, 'Paid amount cannot be greater than the order total.');
+            }
+
             $due = round($total - $paid, 2);
 
             $order->update([
@@ -168,7 +172,7 @@ class PosOrderService
                 $tokens = FbrTokenService::getToken($business->id);
                 $token = is_array($tokens) ? $tokens['pos_token'] : $tokens;
                 $payload = $this->fbr->buildPayload($order, $customer, $lines);
-                \Log::info('FBR payload DateTime', [
+                Log::info('FBR payload DateTime', [
                     'DateTime' => $payload['DateTime'] ?? null,
                     'order_date_raw' => $order->getRawOriginal('order_date'),
                     'order_date_cast' => (string) $order->order_date,

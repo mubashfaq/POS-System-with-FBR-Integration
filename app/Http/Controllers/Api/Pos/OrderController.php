@@ -12,6 +12,7 @@ use App\Models\OrderLog;
 use App\Models\Product;
 use App\Models\PurchaseItem;
 use App\Services\Pos\OrderLineCalculator;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -167,12 +168,10 @@ class OrderController extends Controller
 
     public function storeScheduler(Request $request)
     {
-       
-
         $data = $request->validate([
             'business_id' => ['required', 'integer', 'exists:businesses,id'],
             'customer_id' => ['required', 'integer', 'exists:customers,id'],
-            'user_id' => [ 'integer'],
+            'user_id' => ['integer'],
             'order_date' => ['required', 'date_format:Y-m-d'],
             'order_stage' => ['nullable', 'in:draft,submitted'],
             'order_discount' => ['nullable', 'numeric', 'min:0'],
@@ -183,36 +182,46 @@ class OrderController extends Controller
             'items.*.price' => ['required', 'numeric', 'min:0'],
         ]);
 
-
-        // IMPORTANT: make sure this user is allowed to use this business
-        // abort_unless(
-        //     $request->user()->businesses()->whereKey($data['business_id'])->exists(),
-        //     403,
-        //     'You do not have access to this business'
-        // );
-
         $data['order_stage'] = 'submitted';
         $data['is_fbr_enabled'] = true;
-        $userId = 0;
+        $userId = $data['user_id'] ?? null;
 
-        $customer = Customer::where('business_id', $data['business_id'])
-            ->findOrFail($data['customer_id']);
+        // ✅ Date validation: cannot be future, cannot be older than 7 days
+        $orderDate = Carbon::createFromFormat('Y-m-d', $data['order_date'])->startOfDay();
+        $today = Carbon::today();
+
+        if ($orderDate->gt($today)) {
+            $this->logFailedOrder($data, $userId, 'future_date', 'Order date is in the future. Today: ' . $today->toDateString() . ', Order date: ' . $orderDate->toDateString());
+
+            return response()->json([
+                'error' => 'This order is in future date.',
+                'order_date' => $orderDate->toDateString(),
+                'today' => $today->toDateString(),
+            ], 422);
+        }
+
+        if ($orderDate->lt($today->copy()->subDays(7))) {
+            $this->logFailedOrder($data, $userId, 'past_date', 'Order date is more than 7 days old. Today: ' . $today->toDateString() . ', Order date: ' . $orderDate->toDateString());
+
+            return response()->json([
+                'error' => 'Order date is more than 7 days old.',
+                'order_date' => $orderDate->toDateString(),
+                'today' => $today->toDateString(),
+                'oldest_allowed' => $today->copy()->subDays(7)->toDateString(),
+            ], 422);
+        }
+
+        $customer = Customer::where('business_id', $data['business_id'])->findOrFail($data['customer_id']);
 
         $orderTotal = 0;
 
         foreach ($data['items'] as $item) {
-            $product = Product::where('business_id', $data['business_id'])
-                ->findOrFail($item['product_id']);
+            $product = Product::where('business_id', $data['business_id'])->findOrFail($item['product_id']);
 
             $qty = (float) $item['qty'];
             $price = (float) $item['price'];
 
-            $calc = $this->calculator->calculate(
-                $product,
-                $qty,
-                $price,
-                $customer->customer_tax_type
-            );
+            $calc = $this->calculator->calculate($product, $qty, $price, $customer->customer_tax_type);
 
             $orderTotal += $calc['total'];
         }
@@ -220,9 +229,24 @@ class OrderController extends Controller
         $orderTotal -= (float) ($data['order_discount'] ?? 0);
         $orderTotal = round($orderTotal, 2);
 
+        // ✅ Amount > 40000 check with logging
         if ($orderTotal > 40000) {
+            $this->logFailedOrder($data, $userId, 'amount_limit', 'Total amount is greater than 40000: ' . $orderTotal);
+
             return response()->json([
-                'error' => 'Total amount is greater than  40000, please check this or make it from Pakkhata.',
+                'error' => 'Total amount is greater than 40000, please check this or make it from Pakkhata.',
+                'order_total' => $orderTotal,
+            ], 422);
+        }
+
+        // ✅ Paid > total check with logging
+        $paid = (float) ($data['paid'] ?? 0);
+        if ($paid > $orderTotal) {
+            $this->logFailedOrder($data, $userId, 'paid_exceeds_total', 'Paid amount (' . $paid . ') is greater than order total (' . $orderTotal . ')');
+
+            return response()->json([
+                'error' => 'Paid amount cannot be greater than the order total.',
+                'paid' => $paid,
                 'order_total' => $orderTotal,
             ], 422);
         }
@@ -230,6 +254,7 @@ class OrderController extends Controller
         try {
             $result = $this->orders->create($data, $userId);
         } catch (InsufficientStockException $e) {
+            $this->logFailedOrder($data, $userId, 'insufficient_stock', $e->getMessage());
             return response()->json(['error' => $e->getMessage()], 422);
         } catch (FbrRejectedException $e) {
             Log::info($e);
@@ -238,6 +263,7 @@ class OrderController extends Controller
                 'business_id' => $data['business_id'],
                 'request_payload' => $e->payload,
                 'response' => $e->fbrResponse,
+                'status_code' => 422,
                 'error_code' => $e->fbrCode,
                 'error_message' => $e->getMessage(),
                 'success' => false,
@@ -262,6 +288,24 @@ class OrderController extends Controller
             'fbr_invoice_no' => $result['fbr']['invoice_number'] ?? null,
             'fbr_api_response' => $result['fbr']['raw'] ?? null,
         ], 201);
+    }
+
+    /**
+     * Log a failed order attempt into order_logs.
+     */
+    private function logFailedOrder(array $data, int $userId, string $errorCode, string $errorMessage, int $statusCode = 422): void
+    {
+        OrderLog::create([
+            'user_id' => $userId,
+            'business_id' => $data['business_id'] ?? null,
+            'order_id' => null,
+            'request_payload' => $data,
+            'response' => null,
+            'status_code' => $statusCode,
+            'error_code' => $errorCode,
+            'error_message' => $errorMessage,
+            'success' => false,
+        ]);
     }
 
     public function store(Request $request)
@@ -460,6 +504,12 @@ class OrderController extends Controller
         }
 
         $total = $totalAmountOrder - $orderDiscount;
+        if ($request->paid > $total) {
+            DB::rollBack();
+            return response()->json([
+                'error' => 'Paid amount cannot be greater than the order total.'
+            ], 422);
+        }
         $due = $total - ($request->paid ?? 0);
 
         $order->update([
@@ -837,6 +887,14 @@ class OrderController extends Controller
         }
 
         $total = $totalAmountOrder - $orderDiscount;
+        if ($request->paid > $total) {
+            DB::rollBack();
+            return response()->json([
+                'error' => 'Paid amount cannot be greater than the order total.',
+                'total' => round($total, 2),
+                'paid' => $request->paid,
+            ], 422);
+        }
         $due = $total - ($request->paid ?? 0);
 
         $order->update([
