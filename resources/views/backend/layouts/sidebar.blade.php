@@ -394,18 +394,81 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
                 </li>
             @endif
 
-            {{-- Order Log --}}
-            @if (currentUserBusiness() && currentUserBusiness()->hasAnyPermission(['order_logs_view']))
-            <li class="nav-item">
-                <a href="{{ route('backend.admin.order-logs.index') }}"
-                    class="nav-link {{ $route === 'backend.admin.order-logs.index' ? 'active' : '' }}">
-                    <i class="nav-icon fas fa-file-alt"></i>
-                    <p>
-                        Order Logs
-                    </p>
-                </a>
-            </li>
+            @hasrole('super_admin')
+                <li
+                    class="nav-item {{ request()->routeIs([
+                        'backend.admin.invoice-templates.index',
+                        'backend.admin.invoice-templates.create',
+                        'backend.admin.invoice-templates.edit',
+                    ])
+                        ? 'menu-open'
+                        : '' }}">
+                    <a href="#"
+                        class="nav-link {{ request()->routeIs([
+                            'backend.admin.invoice-templates.index',
+                            'backend.admin.invoice-templates.create',
+                            'backend.admin.invoice-templates.edit',
+                        ])
+                            ? 'active'
+                            : '' }}">
+
+                        <i class="fas fa-layer-group nav-icon"></i>
+                        <p> Invoice Templates <i class="fas fa-angle-left right"></i></p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="{{ route('backend.admin.invoice-templates.index') }}"
+                                class="nav-link {{ request()->routeIs(['backend.admin.invoice-templates.index', 'backend.admin.invoice-templates.edit']) ? 'active' : '' }}">
+                                <i class="fas fa-circle nav-icon"></i>
+                                <p>Template List</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('backend.admin.invoice-templates.create') }}"
+                                class="nav-link {{ request()->routeIs(['backend.admin.invoice-templates.create']) ? 'active' : '' }}">
+                                <i class="fas fa-circle nav-icon"></i>
+                                <p>Create Template</p>
+                            </a>
+                        </li>
+
+                    </ul>
+                </li>
+            @endhasrole
+
+            {{-- Log --}}
+            @if (currentUserBusiness() && currentUserBusiness()->hasAnyPermission(['order_logs_view', 'product_logs_view']))
+                <li
+                    class="nav-item {{ request()->routeIs(['backend.admin.order-logs.index', 'backend.admin.product-logs.index'])
+                        ? 'menu-open'
+                        : '' }}">
+                    <a class="nav-link {{ request()->routeIs(['backend.admin.order-logs.index', 'backend.admin.product-logs.index']) ? 'active' : '' }}"
+                        href="#">
+                        <i class="fas fa-history nav-icon"></i>
+                        <p> Logs <i class="fas fa-angle-left right"></i></p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        @if ($currentBusiness->hasAnyPermission(['order_logs_view']))
+                            <li class="nav-item">
+                                <a href="{{ route('backend.admin.order-logs.index') }}"
+                                    class="nav-link {{ request()->routeIs(['backend.admin.order-logs.index']) ? 'active' : '' }}">
+                                    <i class="fas fa-circle nav-icon"></i>
+                                    <p>Order Logs</p>
+                                </a>
+                            </li>
+                        @endif
+                        @if ($currentBusiness->hasAnyPermission(['product_logs_view']))
+                            <li class="nav-item">
+                                <a href="{{ route('backend.admin.product-logs.index') }}"
+                                    class="nav-link {{ request()->routeIs(['backend.admin.product-logs.index']) ? 'active' : '' }}">
+                                    <i class="fas fa-circle nav-icon"></i>
+                                    <p>Product Logs</p>
+                                </a>
+                            </li>
+                        @endif
+                    </ul>
+                </li>
             @endif
+            
             {{-- settings --}}
             @if ($currentBusiness->hasAnyPermission([
             //currency

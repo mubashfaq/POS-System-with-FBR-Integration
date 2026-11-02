@@ -43,6 +43,11 @@
                             <div class="party-detail">{{ $order->customer->address ?? 'N/A' }}</div>
                             <div class="party-detail">{{ $order->customer->phone ?? 'N/A' }}</div>
                             <div class="party-detail">NTN/CNIC: {{ $order->customer->ntn_cnic ?? 'N/A' }}</div>
+                            @if (($invoiceSettings?->sale_tax_number ?? 0) == 1)
+                                <div class="party-detail">Sale Tax Number: {{ $order->customer->sale_tax_number ?? 'N/A' }}
+                                </div>
+                            @endif
+
                         </div>
                     @endif
 

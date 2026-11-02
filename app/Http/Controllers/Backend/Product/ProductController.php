@@ -13,12 +13,14 @@ use App\Models\Business;
 use App\Models\Category;
 use App\Models\HsCode;
 use App\Models\Product;
+use App\Models\ProductLog;
 use App\Models\quantity_validation;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\SaleType;
 use App\Models\SroItemCode;
 use App\Models\Uom;
+use App\Services\ProductLogService;
 use App\Services\ProductVariationService;
 use App\Services\StockReconciliationService;
 use App\Trait\FileHandler;
@@ -112,14 +114,14 @@ class ProductController extends Controller
             $term = $request->search;
 
             $products = Product::with([
-                'variations' => fn($q) => $q->where('status', 1)
+                'variations' => fn($q) => $q
                     ->withSum('purchaseItems as stock_sum', 'remaining_qty')->with('values')
             ])
                 ->where('business_id', $businessId)
                 ->where(fn($q) => $q
                     ->where('name', 'LIKE', "%{$term}%")
                     ->orWhere('sku', $term)
-                    ->orWhereHas('variations', fn($v) => $v->where('sku', $term)->where('status', 1)))
+                    ->orWhereHas('variations', fn($v) => $v->where('sku', $term)))
                 ->get();
             // Return the results as a JSON response
             return ProductResource::collection($products);
@@ -246,6 +248,13 @@ class ProductController extends Controller
 
             DB::commit();
 
+            ProductLogService::log(
+                ProductLog::ACTION_CREATED,
+                $product,
+                null,
+                $product->fresh()->only(['name', 'sku', 'price', 'purchase_price', 'quantity', 'status', 'category_id', 'brand_id', 'unit_id'])
+            );
+
             return redirect()->route('backend.admin.products.index')->with('success', 'Product created successfully!');
 
         } catch (\Exception $e) {
@@ -275,7 +284,12 @@ class ProductController extends Controller
         $businessId = session('business_id');
         $business_type = Business::where('id', $businessId)->value('business_type');
 
-        $product = Product::with(['accessories', 'variations.values.attribute'])->findOrFail($id);
+        $product = Product::with([
+            'accessories',
+            'variations' => fn($q) => $q
+                ->withSum('purchaseItems as stock_sum', 'remaining_qty')
+                ->with('values.attribute'),
+        ])->findOrFail($id);
         $brands = Brand::where('status', true)->where(function ($query) use ($businessId) {
             $query->where('business_id', $businessId);
         })->get();
@@ -336,6 +350,20 @@ class ProductController extends Controller
 
         DB::beginTransaction();
 
+        $oldSnapshot = $product->only([
+            'name',
+            'sku',
+            'price',
+            'purchase_price',
+            'quantity',
+            'status',
+            'category_id',
+            'brand_id',
+            'unit_id',
+            'description',
+            'image',
+        ]);
+
         try {
             $product->update($validated);
 
@@ -363,12 +391,7 @@ class ProductController extends Controller
                 $newUnits = $variations->sync($product, $request->input('variations', []), $businessId);
 
                 if ($newUnits->isNotEmpty()) {
-                    $variations->postOpeningBatch(
-                        $product,
-                        $newUnits,
-                        $validated['supplier_id'] ?? null,
-                        $businessId
-                    );
+                    $variations->postOpeningBatch($product, $newUnits, $validated['supplier_id'] ?? null, $businessId);
                 }
             }
 
@@ -376,9 +399,12 @@ class ProductController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
 
-            return redirect()->back()->withInput()
-                ->with('error', 'Product update failed: ' . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'Product update failed: ' . $e->getMessage());
         }
+
+        $newSnapshot = $product->fresh()->only(array_keys($oldSnapshot));
+
+        ProductLogService::log(ProductLog::ACTION_UPDATED, $product, $oldSnapshot, $newSnapshot);
 
         // Delete the old file only after the database commit succeeded
         if ($imageReplaced) {
@@ -397,9 +423,29 @@ class ProductController extends Controller
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_delete'), 403);
 
         $product = Product::findOrFail($id);
+
+        $oldSnapshot = $product->only([
+            'name',
+            'sku',
+            'price',
+            'purchase_price',
+            'quantity',
+            'status',
+            'category_id',
+            'brand_id',
+            'unit_id',
+            'description'
+        ]);
+
+        ProductLogService::log(ProductLog::ACTION_DELETED, $product, $oldSnapshot, null);
+
         if ($product->image != '') {
             $this->fileHandler->secureUnlink($product->image);
         }
+
+        // Soft-delete all variations first (FK is now restrict, not cascade)
+        $product->variations()->delete();
+
         $product->delete();
         return redirect()->back()->with('success', 'Product Deleted Successfully');
     }
@@ -1058,6 +1104,13 @@ class ProductController extends Controller
             }
 
             DB::commit();
+
+            ProductLogService::log(
+                ProductLog::ACTION_CREATED,
+                $product,
+                null,
+                $product->fresh()->only(['name', 'sku', 'price', 'purchase_price', 'quantity', 'status'])
+            );
 
             return response()->json([
                 'status' => true,

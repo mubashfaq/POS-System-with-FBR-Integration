@@ -537,24 +537,24 @@
                                 <div class="form-group">
                                     <label class="font-weight-bold">Invoice Template</label>
                                     <small class="text-muted d-block mb-2">
-                                        Choose how your invoices will look when printed. This applies to all future invoices.
+                                        Choose how your invoices will look when printed.
                                     </small>
 
                                     <div class="row">
-                                        @foreach (config('invoice_templates') as $key => $tpl)
-                                            @php $isActive = ($invoiceSetting->template ?? 'default') === $key; @endphp
+                                        @foreach ($invoiceTemplates as $tpl)
+                                            @php $isActive = ($invoiceSetting->template ?? 'default') === $tpl->key; @endphp
                                             <div class="col-md-4 col-sm-6 col-12 mb-3">
                                                 <label class="template-option {{ $isActive ? 'active' : '' }}">
-                                                    <input type="radio" name="template" value="{{ $key }}"
+                                                    <input type="radio" name="template" value="{{ $tpl->key }}"
                                                         @checked($isActive) hidden>
 
                                                     <div class="template-thumb">
-                                                        <img src="{{ asset($tpl['image']) }}" alt="{{ $tpl['name'] }}">
+                                                        <img src="{{ asset($tpl->image) }}" alt="{{ $tpl->name }}">
                                                     </div>
 
                                                     <div class="template-meta">
-                                                        <span class="template-name">{{ $tpl['name'] }}</span>
-                                                        @if ($key === 'default')
+                                                        <span class="template-name">{{ $tpl->name }}</span>
+                                                        @if ($tpl->is_default)
                                                             <span class="badge badge-secondary template-badge">DEFAULT</span>
                                                         @endif
                                                     </div>
@@ -634,6 +634,16 @@
                                         <span class="slider round"></span>
                                     </label>
                                     <span class="ml-3">Show Customer Details</span>
+                                </div>
+
+                                <div class="form-group d-flex align-items-center">
+                                    <label class="switch">
+                                        <input type="hidden" name="is_show_sale_tax_number" value="0">
+                                        <input type="checkbox" name="is_show_sale_tax_number" value="1"
+                                            {{ isset($invoiceSetting) && $invoiceSetting->sale_tax_number == 1 ? 'checked' : '' }}>
+                                        <span class="slider round"></span>
+                                    </label>
+                                    <span class="ml-3">Show Sale Tax Number</span>
                                 </div>
 
                                 <div class="form-group d-flex align-items-center">

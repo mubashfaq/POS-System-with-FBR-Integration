@@ -114,6 +114,14 @@ class Product extends Model
         return $this->hasMany(ProductVariation::class);
     }
 
+    /**
+     * All variations including soft-deleted ones (for history/admin views).
+     */
+    public function allVariations()
+    {
+        return $this->hasMany(ProductVariation::class)->withTrashed();
+    }
+
     public function getQuantityAttribute($value): float
     {
         if (array_key_exists('stock_sum', $this->attributes)) {

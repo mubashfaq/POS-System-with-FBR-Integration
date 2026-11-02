@@ -46,7 +46,7 @@ class PosCart extends Model
 
     public function variation()
     {
-        return $this->belongsTo(ProductVariation::class, 'product_variation_id');
+        return $this->belongsTo(ProductVariation::class, 'product_variation_id')->withTrashed();
     }
 
     public function getVariationLabelAttribute()

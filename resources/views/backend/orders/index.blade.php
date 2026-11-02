@@ -427,11 +427,13 @@
                     },
                     {
                         data: 'order_date',
-                        name: 'order_date'
+                        name: 'order_date',
+                        className: 'text-nowrap'
                     },
                     {
                         data: 'created_at',
-                        name: 'created_at'
+                        name: 'created_at',
+                        className: 'text-nowrap'
                     },
                     {
                         data: 'status',

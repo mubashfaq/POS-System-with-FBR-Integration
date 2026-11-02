@@ -31,7 +31,7 @@ class ProductResource extends JsonResource
             // 'image_url' => $this->getImageUrl(),
             'has_variations' => (bool) $this->has_variations,
             'variations' => $this->when($this->has_variations, fn() =>
-                $this->variations->where('status', 1)->values()->map(fn($v) => [
+                $this->variations->values()->map(fn($v) => [
                     'id' => $v->id,
                     'sku' => $v->sku,
                     'label' => $v->label,

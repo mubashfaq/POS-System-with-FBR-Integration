@@ -144,8 +144,8 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
     };
 
 
-    const fullDomainWithPort = `${protocol}//${hostname}${port ? `:${port}` : ""
-        }`;
+    const fullDomainWithPort = `${protocol}//${hostname}${port ? `:${port}` : ""}`;
+
     const getProducts = useCallback(
         async (search = "", page = 1, barcode = "") => {
             setLoading(true);
@@ -154,7 +154,9 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
                     params: { search, page, barcode },
                 });
                 const productsData = res.data;
-                setProducts((prev) => [...prev, ...productsData.data]); // Append new products
+                setProducts(prev =>
+                    page === 1 ? productsData.data : [...prev, ...productsData.data]
+                );
                 if (productsData.data.length === 1 && barcode != "") {
                     const matched = productsData.data[0];
                     const scannedVariation = matched.has_variations
@@ -234,16 +236,21 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
         setDue(dueAmount.toFixed(2));
 
     }, [orderDiscount, paid, total, saleTaxTotal, furtherTaxTotal]); // ✅ No updateTotal dependency
-    // ✅ Opt-2: Debounce product name search — wait 300ms after last keystroke
+    // ✅ Reset page whenever the search term changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery]);
+
     useEffect(() => {
         setSearchBarcode("");
-        if (!searchQuery) return;
+
         const timer = setTimeout(() => {
-            setProducts([]);
-            getProducts(searchQuery, currentPage, "");
+            setProducts([]);                       // clear old results
+            getProducts(searchQuery, 1, "");       // empty search -> backend returns all products (page 1)
         }, 300);
-        return () => clearTimeout(timer); // cleanup on next keystroke
-    }, [currentPage, searchQuery]);
+
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     useEffect(() => {
         if (searchBarcode) {

@@ -365,3 +365,168 @@ input:checked+.slider:before {
 .tax-dropdown .btn-expand.btn-outline-info.dropdown-toggle::after {
     margin-left: 2px;
 }
+
+.modal .close,
+.modal .btn-close {
+    font-size: 1.6rem;
+    line-height: 1;
+    opacity: .55;
+    color: inherit;
+    text-shadow: none;
+    transition: color .2s ease, opacity .2s ease, transform .2s ease;
+    outline: none;
+}
+
+.modal .close:hover,
+.modal .close:focus-visible,
+.modal .btn-close:hover,
+.modal .btn-close:focus-visible {
+    opacity: 1;
+    color: #dc3545;
+    transform: rotate(90deg);
+}
+
+.modal .close:focus,
+.modal .btn-close:focus {
+    box-shadow: none;
+}
+
+/* ---------- Shared Modal System ---------- */
+.app-modal .modal-content {
+    border: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .18);
+}
+
+.app-modal .modal-header {
+    background: #fff;
+    border-bottom: 1px solid #eee;
+    border-left: 5px solid var(--brand-accent, #fd6802);
+    padding: 16px 22px;
+}
+
+.app-modal .modal-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #343a40;
+}
+
+.app-modal .modal-title i {
+    color: var(--brand-accent, #fd6802);
+}
+
+.app-modal .modal-body {
+    background: #f8f9fb;
+    padding: 22px;
+}
+
+.app-modal .modal-footer {
+    background: #fff;
+    border-top: 1px solid #eee;
+    padding: 14px 22px;
+}
+
+/* Close button — consistent hover everywhere */
+.app-modal .close,
+.app-modal .btn-close {
+    font-size: 1.6rem;
+    line-height: 1;
+    opacity: .55;
+    color: inherit;
+    text-shadow: none;
+    transition: color .2s ease, opacity .2s ease, transform .2s ease;
+    outline: none;
+    background: transparent;
+    border: 0;
+}
+
+.app-modal .close:hover,
+.app-modal .close:focus-visible,
+.app-modal .btn-close:hover,
+.app-modal .btn-close:focus-visible {
+    opacity: 1;
+    color: #dc3545;
+    transform: rotate(90deg);
+}
+
+.app-modal .close:focus,
+.app-modal .btn-close:focus {
+    box-shadow: none;
+}
+
+/* Section wrapper used inside modal body */
+.app-modal .modal-section {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-left: 4px solid var(--brand-accent, #fd6802);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 18px;
+}
+
+.app-modal .modal-section:last-child {
+    margin-bottom: 0;
+}
+
+.app-modal .modal-section-title {
+    font-size: .95rem;
+    font-weight: 700;
+    color: #343a40;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.app-modal .modal-section-title i {
+    color: var(--brand-accent, #fd6802);
+}
+
+/* JSON <pre> blocks */
+.app-modal pre.json-block {
+    background: #f1f3f5;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: .8rem;
+    max-height: 350px;
+    overflow: auto;
+    margin: 0;
+}
+
+/* ---------- Tables inside app-modal ---------- */
+.app-modal .modal-section .table {
+    margin-bottom: 0;
+    font-size: .85rem;
+    vertical-align: middle;
+}
+
+.app-modal .modal-section .table thead th {
+    background: #fff4ec;
+    color: #7a421f;
+    font-weight: 700;
+    border-top: 0;
+    border-bottom: 1px solid #f0d9c9;
+    border-right: 1px solid #f4e7df;
+    white-space: nowrap;
+    padding: 11px 10px;
+}
+
+.app-modal .modal-section .table tbody td,
+.app-modal .modal-section .table tfoot th {
+    padding: 10px;
+    vertical-align: middle;
+}
+
+.app-modal .modal-section .table tfoot {
+    background: #fff7f0;
+}
+
+.app-modal .modal-section .table tfoot th:last-child {
+    color: #d95700;
+    white-space: nowrap;
+}
