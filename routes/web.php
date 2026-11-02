@@ -6,7 +6,9 @@ use App\Http\Controllers\Backend\ImportController;
 use App\Http\Controllers\Backend\ImportGodownController;
 use App\Http\Controllers\Backend\Pos\CartController;
 use App\Http\Controllers\Backend\Pos\FbrReconciliationController;
+use App\Http\Controllers\Backend\Pos\InvoiceTemplateController;
 use App\Http\Controllers\Backend\Product\ProductController;
+use App\Http\Controllers\Backend\Product\ProductLogController;
 use App\Http\Controllers\Backend\Report\ReportController;
 use App\Http\Controllers\Backend\SupplierController;
 use App\Http\Controllers\CustomerController;
@@ -100,6 +102,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::resource('business', BusinessController::class)->middleware('current.business');
     Route::get('/imports/{id}/details', [ImportController::class, 'details'])->name('imports.details');
     Route::get('imports/search-products', [ImportController::class, 'searchProducts'])->name('imports.search-products');
+    Route::get('/api/exchange-rate', [ImportController::class, 'getExchangeRate'])->name('api.exchange-rate');
     Route::resource('imports', ImportController::class);
 
     Route::controller(ImportGodownController::class)->prefix('import-godown')->name('import-godown.')->group(function () {
@@ -108,6 +111,16 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
         Route::put('/{godown}', 'update')->name('update');
         Route::delete('/{godown}', 'destroy')->name('destroy');
     });
+
+    Route::controller(InvoiceTemplateController::class)->prefix('invoice-templates')->name('invoice-templates.')
+        ->middleware('role:super_admin')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/create', 'create')->name('create');
+            Route::post('/', 'store')->name('store');
+            Route::get('/{id}/edit', 'edit')->name('edit');
+            Route::put('/{id}', 'update')->name('update');
+            Route::delete('/{id}', 'destroy')->name('destroy');
+        });
 
     //  Subscription management
     Route::prefix('subscription')->name('subscription.')->group(function () {
@@ -150,6 +163,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::post('customers/is-registered/{cnic}', [CustomerController::class, 'isRegisteredCustomer'])->name('customers.is-registered');
 
     Route::get('order/logs', [OrderLogController::class, 'index'])->name('order-logs.index');
+    Route::get('product/logs', [ProductLogController::class, 'index'])->name('product-logs.index');
 
     Route::resource('units', UnitController::class);
     Route::resource('currencies', CurrencyController::class)->middleware('role:super_admin');

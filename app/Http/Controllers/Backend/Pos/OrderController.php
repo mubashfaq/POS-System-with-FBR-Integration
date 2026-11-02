@@ -8,6 +8,7 @@ use App\Models\BusinessCounter;
 use App\Models\BusinessCustomField;
 use App\Models\Customer;
 use App\Models\InvoiceSetting;
+use App\Models\InvoiceTemplate;
 use App\Models\Order;
 use App\Models\OrderLog;
 use App\Models\OrderTransaction;
@@ -1221,6 +1222,9 @@ class OrderController extends Controller
         }
 
         $total = $totalAmountOrder - $orderDiscount;
+        if ($request->paid > $total) {
+            return response()->json(['error' => 'Paid amount cannot be greater than total amount'], 422);
+        }
         $due = $total - ($request->paid ?? 0);
 
         $order->update([
@@ -1754,10 +1758,43 @@ class OrderController extends Controller
             });
         })->values();
 
-        $templateKey = $invoiceSettings->template ?? 'default';
-        $templateView = config("invoice_templates.{$templateKey}.view", 'backend.orders.invoice-templates.default');
+        // 🔑 Resolve template safely
+        $templateView = $this->resolveInvoiceTemplateView($invoiceSettings->template ?? null);
 
         return view($templateView, compact('order', 'business', 'fbrIntegration', 'invoiceSettings', 'customFields'));
+    }
+
+    /**
+     * Safely resolve the invoice template view path.
+     * Priority: chosen template → default template → hardcoded fallback.
+     */
+    protected function resolveInvoiceTemplateView(?string $key): string
+    {
+        $hardcodedFallback = 'backend.orders.invoice-templates.default';
+
+        // 1. Try the business's chosen template
+        if ($key) {
+            $tpl = InvoiceTemplate::findByKey($key);
+            if ($tpl && \View::exists($tpl->view)) {
+                return $tpl->view;
+            }
+            // log so you can debug in production
+            \Log::warning("Invoice template '{$key}' missing or view file not found. Falling back.");
+        }
+
+        // 2. Try the DB default
+        $default = InvoiceTemplate::getDefault();
+        if ($default && \View::exists($default->view)) {
+            return $default->view;
+        }
+
+        // 3. Last resort — hardcoded
+        if (\View::exists($hardcodedFallback)) {
+            return $hardcodedFallback;
+        }
+
+        // 4. Nothing works — throw a clear exception
+        abort(500, 'No valid invoice template found. Please contact support.');
     }
 
     public function downloadInvoicesPdf(Request $request)

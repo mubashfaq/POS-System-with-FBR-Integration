@@ -46,6 +46,9 @@
                                 Address: {{ $order->customer->address ?? 'N/A' }}<br>
                                 Phone: {{ $order->customer->phone ?? 'N/A' }}<br>
                                 NTN/CNIC: {{ $order->customer->ntn_cnic ?? 'N/A' }}<br>
+                                @if (($invoiceSettings?->sale_tax_number ?? 0) == 1)
+                                    Sale Tax Number: {{ $order->customer->sale_tax_number ?? 'N/A' }}<br>
+                                @endif
                             </address>
                         @endif
                     </div>
@@ -207,7 +210,8 @@
                                     <tr>
                                         <th>Sales Tax:</th>
                                         <td class="text-right">
-                                            {{ currency()->symbol . ' ' . number_format($totalSalesTax, 2, '.', ',') }}</td>
+                                            {{ currency()->symbol . ' ' . number_format($totalSalesTax, 2, '.', ',') }}
+                                        </td>
                                     </tr>
                                 @endif
 
@@ -221,7 +225,8 @@
                                     <tr>
                                         <th>Further Tax:</th>
                                         <td class="text-right">
-                                            {{ currency()->symbol . ' ' . number_format($totalFurtherTax, 2, '.', ',') }}</td>
+                                            {{ currency()->symbol . ' ' . number_format($totalFurtherTax, 2, '.', ',') }}
+                                        </td>
                                     </tr>
                                 @endif
 

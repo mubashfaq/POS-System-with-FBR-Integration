@@ -7,6 +7,7 @@ use App\Models\Product;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Blade;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -29,5 +30,10 @@ class AppServiceProvider extends ServiceProvider
             $currentBusinessId = session('business_id');
             $view->with('currentBusinessId', $currentBusinessId);
         });
+
+        Blade::anonymousComponentPath(
+            resource_path('views/backend/components'),
+            'backend'   // → <x-backend.modal>
+        );
     }
 }

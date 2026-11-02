@@ -18,7 +18,8 @@ class ImportProduct extends Model
         'ctn_qty',
         'total_pcs',
         'price_pc',
-        'price_dz',
+        'sale_price',
+        'sale_percent',
         'amount',
     ];
 
@@ -39,6 +40,6 @@ class ImportProduct extends Model
 
     public function variation()
     {
-        return $this->belongsTo(ProductVariation::class, 'product_variation_id');
+        return $this->belongsTo(ProductVariation::class, 'product_variation_id')->withTrashed();
     }
 }

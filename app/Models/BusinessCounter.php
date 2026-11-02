@@ -12,5 +12,6 @@ class BusinessCounter extends Model
     protected $fillable = [
         'business_id',
         'last_invoice_number',
+        'last_import_number',
     ];
 }

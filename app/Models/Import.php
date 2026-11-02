@@ -15,10 +15,9 @@ class Import extends Model
         'container_code',
         'p_date',
         'clear_date',
-        'currency',
+        'currency_id',
         'ex_rate',
         'inv_amount',
-        'total_expense_1',
         'inv_amount_pkr',
         'godown_id',
         'supplier_id',
@@ -29,7 +28,7 @@ class Import extends Model
         'fitting_expense',
         'co_expense',
         'other_expense',
-        'total_expense_2',
+        'total_expense',
     ];
 
     protected $casts = [
@@ -74,5 +73,10 @@ class Import extends Model
     public function purchase()
     {
         return $this->belongsTo(Purchase::class);
+    }
+
+    public function currency()
+    {
+        return $this->belongsTo(Currency::class);
     }
 }
