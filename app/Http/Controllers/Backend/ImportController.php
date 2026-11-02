@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers\Backend;
 
+use App\Models\BusinessCounter;
+use Illuminate\Support\Facades\Http;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\Currency;
 use App\Models\Godown;
 use App\Models\Import;
 use App\Models\ProductVariation;
@@ -15,9 +18,11 @@ use App\Models\Unit;
 use App\Services\StockReconciliationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Log;
 use Yajra\DataTables\Facades\DataTables;
 
 class ImportController extends Controller
@@ -29,6 +34,34 @@ class ImportController extends Controller
             throw ValidationException::withMessages(['No business selected in session.',]);
         }
         return (int) $businessId;
+    }
+
+    private function generateImportNumber(int $businessId): string
+    {
+        $counter = BusinessCounter::lockForUpdate()->firstOrCreate(
+            ['business_id' => $businessId],
+            ['last_invoice_number' => 0, 'last_import_number' => 0]
+        );
+
+        $counter->increment('last_import_number');
+
+        return 'IMP-' . $businessId . '-' . str_pad((string) $counter->last_import_number, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Preview the NEXT import number for this business.
+     * Does NOT consume/increment the counter.
+     */
+    private function peekNextImportNumber(int $businessId): string
+    {
+        $counter = BusinessCounter::firstOrCreate(
+            ['business_id' => $businessId],
+            ['last_invoice_number' => 0, 'last_import_number' => 0]
+        );
+
+        $next = (int) $counter->last_import_number + 1;
+
+        return 'IMP-' . $businessId . '-' . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -50,14 +83,12 @@ class ImportController extends Controller
     private function allowedImportFields(): array
     {
         return [
-            'import_no',
             'container_code',
             'p_date',
             'clear_date',
-            'currency',
+            'currency_id',
             'ex_rate',
             'inv_amount',
-            'total_expense_1',
             'inv_amount_pkr',
             'godown_id',
             'supplier_id',
@@ -67,7 +98,7 @@ class ImportController extends Controller
             'fitting_expense',
             'co_expense',
             'other_expense',
-            'total_expense_2',
+            'total_expense',
         ];
     }
 
@@ -318,7 +349,8 @@ class ImportController extends Controller
                 return response()->json(['error' => 'No business selected'], 422);
             }
 
-            $importsQuery = Import::with(['supplier', 'godown', 'expenses'])->where('business_id', $businessId)->orderBy('id', 'desc');
+            $importsQuery = Import::with(['supplier', 'godown', 'expenses', 'currency'])->where('business_id', $businessId)
+                ->orderBy('id', 'desc');
 
             /* ---------- Date Filter ---------- */
             if ($request->filled('start_date')) {
@@ -342,11 +374,11 @@ class ImportController extends Controller
                 ->addColumn('clear_date', fn($d) => $d->clear_date ? Carbon::parse($d->clear_date)->format('Y-m-d') : '-')
 
                 ->addColumn('currency', function ($d) {
-                    return $d->currency ? '<span class="badge bg-primary">' . e($d->currency) . '</span>' : '-';
+                    return $d->currency ? '<span class="badge bg-primary">' . e($d->currency->code) . '</span>' : '-';
                 })
 
                 ->addColumn('inv_amount', fn($d) => number_format((float) $d->inv_amount, 2, '.', ','))
-                ->addColumn('total_expense_2', fn($d) => number_format((float) $d->total_expense_2, 2, '.', ','))
+                ->addColumn('total_expense', fn($d) => number_format((float) $d->total_expense, 2, '.', ','))
 
 
                 ->addColumn('created_at', fn($d) => $d->created_at ? $d->created_at->format('Y-m-d') : '-')
@@ -397,16 +429,17 @@ class ImportController extends Controller
     {
         $businessId = $this->getBusinessId();
 
-        $import = Import::with(['products.product', 'products.unit', 'expenses.category',])
+        $import = Import::with(['products.product', 'products.unit', 'expenses.category'])
             ->where('business_id', $businessId)->findOrFail($id);
 
         // ---- Same landed-cost formula as createPurchaseFromImport ----
-        $categoryPool = $import->expenses
-            ->groupBy('category_id')
+        $categoryPool = $import->expenses->groupBy('category_id')
             ->map(fn($g) => $g->sum(fn($e) => (float) $e->amount));
 
-        $globalExpense = collect(['freight_expense', 'fta_expense', 'fitting_expense', 'co_expense', 'other_expense'])
-            ->sum(fn($f) => (float) $import->{$f});
+        $fixedExpenses = collect(['freight_expense', 'fta_expense', 'fitting_expense', 'co_expense', 'other_expense'])
+            ->mapWithKeys(fn($f) => [$f => (float) $import->{$f}]);
+
+        $globalExpense = $fixedExpenses->sum();
 
         $pcsOf = fn($item) => (float) $item->pcs_per_carton * (float) $item->ctn_qty;
 
@@ -421,14 +454,18 @@ class ImportController extends Controller
         return response()->json([
             'import_no' => $import->import_no,
 
-            'products' => $import->products->map(function ($item) use ($categoryPool, $pcsByCategory, $globalPerPc) {
+            'products' => $import->products->map(function ($item) use ($categoryPool, $pcsByCategory, $globalPerPc, $globalExpense, $totalPcs) {
                 $pcs = (float) $item->pcs_per_carton;
                 $cartons = (float) $item->ctn_qty;
                 $price = (float) $item->price_pc;
 
                 $catId = $item->product?->category_id ?? '';
                 $catPcs = (float) ($pcsByCategory[$catId] ?? 0);
-                $catPerPc = $catPcs > 0 ? ((float) ($categoryPool[$catId] ?? 0)) / $catPcs : 0;
+                $catTotal = (float) ($categoryPool[$catId] ?? 0);
+                $catPerPc = $catPcs > 0 ? $catTotal / $catPcs : 0;
+
+                $totalPieces = $pcs * $cartons;
+                $costPerPc = round($price + $catPerPc + $globalPerPc, 2);
 
                 return [
                     'name' => $item->product?->name ?? '-',
@@ -436,10 +473,23 @@ class ImportController extends Controller
                     'unit' => $item->unit?->title ?? '-',
                     'pcs_per_carton' => $pcs,
                     'ctn_qty' => $cartons,
-                    'total_pcs' => $pcs * $cartons,
+                    'total_pcs' => $totalPieces,
                     'price_pc' => $price,
-                    'cost_pc' => round($price + $catPerPc + $globalPerPc, 2),
-                    'amount' => $pcs * $cartons * $price,
+                    'cost_pc' => $costPerPc,
+                    'sale_price' => $item->sale_price,
+                    'sale_percent' => $item->sale_percent,
+                    'amount' => $totalPieces * $price,
+
+                    // NEW: parts that make up cost_pc — used for the hover tooltip
+                    'cost_breakdown' => [
+                        'price_pc' => round($price, 2),
+                        'category_per_pc' => round($catPerPc, 2),
+                        'global_per_pc' => round($globalPerPc, 2),
+                        'category_total' => round($catTotal, 2),
+                        'category_pcs' => $catPcs,
+                        'global_total' => round($globalExpense, 2),
+                        'total_pcs' => $totalPcs,
+                    ],
                 ];
             })->values(),
 
@@ -448,6 +498,15 @@ class ImportController extends Controller
                 'cbf_cbm' => $expense->cbf_cbm,
                 'amount' => $expense->amount,
             ])->values(),
+
+            'fixed_expenses' => [
+                ['label' => 'Freight Expense', 'amount' => $fixedExpenses['freight_expense']],
+                ['label' => 'F.T.A Expense', 'amount' => $fixedExpenses['fta_expense']],
+                ['label' => 'Fitting Expense', 'amount' => $fixedExpenses['fitting_expense']],
+                ['label' => 'C.O Expense', 'amount' => $fixedExpenses['co_expense']],
+                ['label' => 'Other Expense', 'amount' => $fixedExpenses['other_expense']],
+            ],
+            'fixed_expenses_total' => round($globalExpense, 2),
         ]);
     }
 
@@ -460,10 +519,11 @@ class ImportController extends Controller
         $categories = Category::where('business_id', $businessId)->where('status', true)->get();
         $godowns = Godown::where('business_id', $businessId)->where('status', true)->get();
 
-
         $units = Unit::get(['id', 'title']);
+        $currencies = Currency::get(['id', 'code', 'name', 'symbol']);
+        $nextImportNo = $this->peekNextImportNumber($businessId);
 
-        return view('backend.imports.create', compact('categories', 'suppliers', 'godowns', 'units'));
+        return view('backend.imports.create', compact('categories', 'suppliers', 'godowns', 'units', 'currencies', 'nextImportNo'));
     }
 
     public function store(Request $request)
@@ -474,8 +534,11 @@ class ImportController extends Controller
 
         $data = $this->sanitize($request->only($this->allowedImportFields()));
         $data['business_id'] = $businessId;
+        $this->computeTotals($data);
 
         DB::transaction(function () use ($data, $request, $businessId) {
+            $data['import_no'] = $this->generateImportNumber($businessId);
+
             $import = Import::create($data);
             $this->syncExpenses($import, $request->input('expenses', []), $businessId);
 
@@ -505,7 +568,9 @@ class ImportController extends Controller
 
         $import->load('expenses.category', 'products.product', 'products.unit', 'products.variation');
 
-        return view('backend.imports.edit', compact('import', 'categories', 'suppliers', 'godowns', 'units'));
+        $currencies = Currency::get(['id', 'code', 'name', 'symbol']);
+
+        return view('backend.imports.edit', compact('import', 'categories', 'suppliers', 'godowns', 'units', 'currencies'));
     }
 
     public function update(Request $request, $id)
@@ -516,6 +581,7 @@ class ImportController extends Controller
         $this->validateImportRequest($request, $businessId, $import->id);
 
         $data = $this->sanitize($request->only($this->allowedImportFields()));
+        $this->computeTotals($data);
 
         DB::transaction(function () use ($import, $data, $request, $businessId) {
             $import->update($data);
@@ -533,11 +599,17 @@ class ImportController extends Controller
     {
         $request->validate([
             'import_no' => [
-                'required',
+                'nullable',
+                'string',
                 Rule::unique('imports', 'import_no')->where(fn($q) => $q->where('business_id', $businessId))->ignore($importId),
             ],
             'supplier_id' => ['nullable', Rule::exists('suppliers', 'id')->where('business_id', $businessId)],
             'godown_id' => ['nullable', Rule::exists('godowns', 'id')->where('business_id', $businessId)],
+            'currency_id' => ['nullable', 'integer', 'exists:currencies,id'],
+
+            'ex_rate' => ['nullable', 'numeric', 'min:0.000001', 'required_with:currency_id'],
+            'inv_amount' => ['nullable', 'numeric', 'min:0'],
+            'inv_amount_pkr' => ['nullable', 'numeric', 'min:0', 'required_without:inv_amount'],
 
             'expenses' => ['nullable', 'array'],
             'expenses.*.category_id' => ['nullable', 'integer', 'exists:categories,id'],
@@ -546,11 +618,16 @@ class ImportController extends Controller
 
             'import_products' => ['nullable', 'array'],
             'import_products.*.product_id' => ['nullable', 'integer'],
-            'import_products.*.product_variation_id' => ['nullable', 'integer', 'exists:product_variations,id'],
-            'import_products.*.unit_id' => ['required_with:import_products.*.product_id', 'integer', 'exists:units,id'],
+            'import_products.*.product_variation_id' => ['nullable', 'integer'],
+            'import_products.*.unit_id' => ['nullable', 'integer'],
             'import_products.*.pcs_per_carton' => ['nullable', 'numeric', 'min:1'],
             'import_products.*.ctn_qty' => ['nullable', 'numeric', 'min:0'],
-            'import_products.*.price_pc' => ['nullable', 'numeric', 'min:0'],
+            'import_products.*.price_pc' => 'nullable|numeric|min:0',
+            'import_products.*.sale_price' => 'nullable|numeric|min:0',
+            'import_products.*.sale_percent' => 'nullable|numeric',
+        ], [
+            'ex_rate.required_with' => 'Exchange rate is required when a currency is selected.',
+            'inv_amount_pkr.required_without' => 'Enter either Inv Amount or Inv Amount / PKR.',
         ]);
 
         // Validate that product + variation combos are unique
@@ -581,6 +658,17 @@ class ImportController extends Controller
         }
     }
 
+    private function computeTotals(array &$data): void
+    {
+        $fixed = ['freight_expense', 'fta_expense', 'fitting_expense', 'co_expense', 'other_expense'];
+        $total = 0;
+        foreach ($fixed as $field) {
+            $total += (float) ($data[$field] ?? 0);
+        }
+
+        $data['total_expense'] = round($total, 2);
+    }
+
     protected function syncImportProducts(Import $import, array $rows, int $businessId): void
     {
         $import->products()->delete();
@@ -596,7 +684,9 @@ class ImportController extends Controller
 
             // Skip rows without a valid packing unit — the user hasn't filled them yet.
             if (!$unitId || !in_array($unitId, $validUnitIds, true)) {
-                continue;
+                throw ValidationException::withMessages([
+                    'import_products' => "Select a packing unit for the selected product.",
+                ]);
             }
 
             // Ensure the product belongs to the current business.
@@ -612,7 +702,6 @@ class ImportController extends Controller
             $pricePerPiece = (float) ($row['price_pc'] ?? 0);
 
             $totalPieces = $packing * $cartons;
-            $pricePerDozen = round($pricePerPiece * 12, 2);
             $amount = round($totalPieces * $pricePerPiece, 2);
 
             // Ignore completely empty product rows.
@@ -628,7 +717,8 @@ class ImportController extends Controller
                 'ctn_qty' => $cartons,
                 'total_pcs' => $totalPieces,
                 'price_pc' => $pricePerPiece,
-                'price_dz' => $pricePerDozen,
+                'sale_price' => $row['sale_price'] ?? null,
+                'sale_percent' => $row['sale_percent'] ?? null,
                 'amount' => $amount,
             ]);
         }
@@ -717,5 +807,92 @@ class ImportController extends Controller
                     : [],
             ])->values(),
         ]);
+    }
+
+    public function getExchangeRate(Request $request)
+    {
+        $request->validate([
+            'currency_id' => 'required|exists:currencies,id',
+        ]);
+
+        $currency = Currency::findOrFail($request->currency_id);
+        $code = strtolower($currency->code);
+
+        if ($code === 'pkr') {
+            return response()->json(['rate' => 1.0]);
+        }
+
+        $cacheKey = "exchange_rate_{$code}_pkr";
+
+        // 1. Try cache first
+        $cached = Cache::get($cacheKey);
+
+        if ($cached !== null) {
+            if ($cached === 'FAILED') {
+                return response()->json([
+                    'rate' => null,
+                    'message' => 'Currency exchange rate not available currently. Please enter manually.',
+                ], 422);
+            }
+
+            return response()->json(['rate' => $cached]);
+        }
+
+        // 2. Cache miss → try multiple providers
+        $rate = null;
+
+        // Provider list: primary fawazahmed0 + backup mirror for EUR (and as general fallback)
+        $providers = [
+            "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/{$code}.min.json",
+            "https://latest.currency-api.pages.dev/v1/currencies/{$code}.min.json",
+        ];
+
+        // For EUR, add independent backup providers (same API structure, different maintainers)
+        if ($code === 'eur') {
+            $providers[] = "https://cdn.jsdelivr.net/gh/irfanokr/currency-api@main/v1/currencies/eur.min.json";
+            $providers[] = "https://cdn.jsdelivr.net/gh/NemesisX1/currency-api@main/v1/currencies/eur.min.json";
+        }
+
+        foreach ($providers as $url) {
+            try {
+                $response = Http::timeout(6)->get($url);
+
+                if (!$response->successful()) {
+                    continue;
+                }
+
+                $data = $response->json();
+
+                // Compatible with both response structures: fawazahmed0 uses $data[$code]['pkr'], some mirrors use $data['pkr']
+                $candidate = $data[$code]['pkr'] ?? $data['pkr'] ?? null;
+
+                if ($candidate !== null && $candidate > 0) {
+                    $rate = $candidate;
+                    break; // Successfully obtained, exit loop
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Currency API attempt failed', [
+                    'url' => $url,
+                    'currency' => $code,
+                    'msg' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // 3. All providers failed
+        if ($rate === null || $rate <= 0) {
+            Cache::put($cacheKey, 'FAILED', now()->addMinutes(5));
+
+            return response()->json([
+                'rate' => null,
+                'message' => 'Currency exchange rate not available currently. Please enter manually.',
+            ], 422);
+        }
+
+        // 4. Success: round, cache, return
+        $roundedRate = round((float) $rate, 2);
+        Cache::put($cacheKey, $roundedRate, now()->addHours(6));
+
+        return response()->json(['rate' => $roundedRate]);
     }
 }

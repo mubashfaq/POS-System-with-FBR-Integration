@@ -8,25 +8,26 @@
 <section class="hero">
     <div class="container hero-content">
         <div class="row align-items-center">
-            <div class="col-lg-6">
-                <h1>FBR Integrated POS Software & Inventory Management System in Pakistan</h1>
+            <div class="col-lg-6 hero-copy">
+                <p class="hero-eyebrow">Retail POS &amp; digital invoicing for Pakistan</p>
+                <h1>FBR Integrated POS Software &amp; Inventory Management System in Pakistan</h1>
                 <p>The all-in-one Point of Sale solution designed for modern retailers. Manage sales, inventory,
                     customers, and expenses effortlessly from a single dashboard.</p>
 
                 <!-- Trust Bullets -->
-                <ul class="list-unstyled mb-3">
-                    <li class="mb-2">✔ FBR POS / Digital Invoicing System Integrated</li>
-                    <li class="mb-2">✔ Works Offline & Online</li>
-                    <li class="mb-2">✔ Trusted by Retailers Across Pakistan</li>
+                <ul class="list-unstyled hero-trust-list">
+                    <li>FBR POS / Digital Invoicing System Integrated</li>
+                    <li>Works Offline &amp; Online</li>
+                    <li>Trusted by Retailers Across Pakistan</li>
                 </ul>
 
-                <div class="mb-2">
+                <div class="hero-actions">
                     <a href="{{ route('login') }}" class="btn-primary-custom">Login to Dashboard</a>
                     <a href="{{ route('plans.index') }}" class="btn-secondary-custom">View Prices</a>
                 </div>
 
                 <!-- Pricing Hint -->
-                <small class="text-white-50">Starting from Rs. 4,999 / month</small>
+                <small class="hero-price-hint">Starting from Rs. 4,999 / month</small>
             </div>
             <div class="col-lg-6">
                 <div class="hero-image-box">
@@ -274,7 +275,7 @@
         <h2>Ready to Digitize Your Store?</h2>
         <p>Start managing your sales, inventory, and invoices with ease.</p>
 
-        <a href="{{ route('login') }}" class="btn-primary-custom">Start Free Trial</a>
+        <a href="{{ route('plans.index') }}" class="btn-primary-custom">Explore plans</a>
         <a href="{{ route('filer.bulk.index') }}" class="btn-secondary-custom">Check Filer Status</a>
     </div>
 </section>

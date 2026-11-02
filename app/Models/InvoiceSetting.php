@@ -17,6 +17,7 @@ class InvoiceSetting extends Model
         'email',
         'address',
         'customer',
+        'sale_tax_number',
         'unit_price',
         'invoice_number',
         'po_number',

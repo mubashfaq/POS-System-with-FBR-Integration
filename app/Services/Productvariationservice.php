@@ -56,14 +56,19 @@ class ProductVariationService
      * Sync submitted rows against the product's variations.
      *
      *  - row with a known id  -> update price / sku / options (stock untouched)
-     *  - row without id       -> create
-     *  - existing, not posted -> deactivate (never delete: purchases and sales point to it)
+     *  - row without id       -> create (or restore if a trashed match exists)
+     *  - existing, not posted -> soft-delete (history kept for invoices/purchases)
      *
      * @return Collection new units that still need an opening batch
      */
     public function sync(Product $product, array $rows, int $businessId): Collection
     {
+        // Include only non-deleted variations for matching by id
         $existing = $product->variations()->get()->keyBy('id');
+
+        // Also grab trashed variations so we can restore if same combo re-appears
+        $trashed = $product->variations()->onlyTrashed()->with('values')->get();
+
         $keep = [];
         $created = collect();
 
@@ -71,29 +76,65 @@ class ProductVariationService
             $variation = isset($row['id']) ? $existing->get((int) $row['id']) : null;
 
             if ($variation) {
+                // Existing active variation → update price/sku, keep stock
                 $variation->update([
-                    'sku' => $row['sku'] ?? null,
+                    'sku'            => $row['sku'] ?? null,
                     'purchase_price' => $product->purchase_price,
-                    'price' => $row['price'],
-                    'status' => 1,
+                    'price'          => $row['price'],
+                    'status'         => 1,
                 ]);
                 $this->syncValues($variation, $row['options'], $businessId);
             } else {
-                $variation = $this->create($product, $row, $businessId);
-                $created->push([
-                    'variation' => $variation,
-                    'purchase_price' => (float) $product->purchase_price,
-                    'price' => (float) $row['price'],
-                    'qty' => (float) ($row['quantity'] ?? 0),
-                ]);
+                // Check if a trashed variation with the same attribute combo exists
+                $restored = $this->findTrashedMatch($trashed, $row['options'] ?? []);
+
+                if ($restored) {
+                    // Restore the soft-deleted variation
+                    $restored->restore();
+                    $restored->update([
+                        'sku'            => $row['sku'] ?? null,
+                        'purchase_price' => $product->purchase_price,
+                        'price'          => $row['price'],
+                        'status'         => 1,
+                    ]);
+                    $this->syncValues($restored, $row['options'], $businessId);
+                    $variation = $restored;
+                } else {
+                    // Brand-new variation
+                    $variation = $this->create($product, $row, $businessId);
+                    $created->push([
+                        'variation'      => $variation,
+                        'purchase_price' => (float) $product->purchase_price,
+                        'price'          => (float) $row['price'],
+                        'qty'            => (float) ($row['quantity'] ?? 0),
+                    ]);
+                }
             }
 
             $keep[] = $variation->id;
         }
 
-        $product->variations()->whereNotIn('id', $keep)->update(['status' => 0]);
+        // Soft-delete variations not in the submitted list
+        $product->variations()->whereNotIn('id', $keep)->delete();
 
         return $created;
+    }
+
+    /**
+     * Find a trashed variation whose attribute values match the given options.
+     */
+    private function findTrashedMatch(Collection $trashed, array $options): ?ProductVariation
+    {
+        if (empty($options)) {
+            return null;
+        }
+
+        $needle = collect($options)->map(fn($v) => trim($v))->sort()->values()->all();
+
+        return $trashed->first(function (ProductVariation $v) use ($needle) {
+            $existing = $v->values->pluck('value')->map(fn($val) => trim($val))->sort()->values()->all();
+            return $existing === $needle;
+        });
     }
 
     /**

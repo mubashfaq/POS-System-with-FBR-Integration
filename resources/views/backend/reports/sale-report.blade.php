@@ -139,10 +139,10 @@
                                                                 @endif
                                                             </td>
                                                         @endif
-                                                        <td>
+                                                        <td class="text-nowrap date-col">
                                                             {{ $order->order_date ? \Carbon\Carbon::parse($order->order_date)->format('d-m-Y') : '-' }}
                                                         </td>
-                                                        <td>
+                                                        <td class="text-nowrap date-col">
                                                             {{ $order->created_at ? $order->created_at->format('d-m-Y') : '-' }}
                                                         </td>
                                                         <td>{{ $order->total_item }}</td>

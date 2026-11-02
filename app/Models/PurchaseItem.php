@@ -40,7 +40,7 @@ class PurchaseItem extends Model
 
     public function variation()
     {
-        return $this->belongsTo(ProductVariation::class, 'product_variation_id');
+        return $this->belongsTo(ProductVariation::class, 'product_variation_id')->withTrashed();
     }
     // Accessor for Product Name
     public function getNameAttribute()

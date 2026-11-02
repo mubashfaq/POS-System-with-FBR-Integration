@@ -93,6 +93,7 @@ return [
         'subscription_view',
 
         'order_logs_view',
+        'product_logs_view',
 
         'import_create',
         'import_view',

@@ -74,6 +74,6 @@ class OrderLogController extends Controller
                 ->make(true);
         }
 
-        return view('backend.order_logs.index');
+        return view('backend.logs.order-log');
     }
 }

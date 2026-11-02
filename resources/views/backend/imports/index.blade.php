@@ -70,142 +70,6 @@
             background: #198754;
             color: #fff;
         }
-
-        /* Import Details Modal */
-        #importDetailsModal .modal-content {
-            border: 0;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
-        }
-
-        #importDetailsModal .modal-header {
-            background: #fff;
-            border-bottom: 1px solid #eee;
-            border-left: 5px solid #fd6802;
-            padding: 18px 22px;
-        }
-
-        #importDetailsModal .modal-title {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: #343a40;
-        }
-
-        #importDetailsModal .modal-title i {
-            color: #fd6802;
-        }
-
-        #importDetailsModal .close {
-            font-size: 1.7rem;
-            opacity: 0.65;
-            transition: color 0.2s, opacity 0.2s;
-        }
-
-        #importDetailsModal .close:hover {
-            color: #fd6802;
-            opacity: 1;
-        }
-
-        #importDetailsModal .modal-body {
-            background: #f8f9fb;
-            padding: 22px;
-        }
-
-        #importDetailsModal .import-detail-summary {
-            background: #fff;
-            border: 1px solid #eee;
-            border-left: 4px solid #fd6802;
-            border-radius: 8px;
-            padding: 13px 16px;
-            margin-bottom: 24px;
-        }
-
-        #importDetailsModal .import-detail-section {
-            background: #fff;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 22px;
-        }
-
-        #importDetailsModal .import-section-title {
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: #343a40;
-            margin-bottom: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        #importDetailsModal .import-section-title i {
-            color: #fd6802;
-        }
-
-        #importDetailsModal .table {
-            margin-bottom: 0;
-            font-size: 0.85rem;
-            vertical-align: middle;
-        }
-
-        #importDetailsModal .table thead th {
-            background: #fff4ec;
-            color: #7a421f;
-            font-weight: 700;
-            border-top: 0;
-            border-bottom: 1px solid #f0d9c9;
-            border-right: 1px solid #f4e7df;
-            white-space: nowrap;
-            padding: 11px 10px;
-        }
-
-        #importDetailsModal .table tbody td,
-        #importDetailsModal .table tfoot th {
-            padding: 10px;
-            vertical-align: middle;
-        }
-
-        #importDetailsModal .table tfoot {
-            background: #fff7f0;
-        }
-
-        #importDetailsModal .table tfoot th:last-child {
-            color: #d95700;
-            white-space: nowrap;
-        }
-
-        #importDetailsModal .modal-footer {
-            background: #fff;
-            border-top: 1px solid #eee;
-            padding: 14px 22px;
-        }
-
-        #importDetailsModal .import-modal-close {
-            border-radius: 6px;
-            padding: 7px 18px;
-        }
-
-        #importDetailsModal #importDetailsLoading {
-            color: #6c757d;
-        }
-
-        #importDetailsModal .import-loading-icon {
-            color: #fd6802;
-        }
-
-        @media (max-width: 767px) {
-            #importDetailsModal .modal-body {
-                padding: 12px;
-            }
-
-            #importDetailsModal .import-detail-section {
-                padding: 10px;
-            }
-        }
     </style>
 
     {{-- ========== Top Row: New button ========== --}}
@@ -255,119 +119,110 @@
     </div>
 
 
-    <div class="modal fade" id="importDetailsModal" tabindex="-1" role="dialog" aria-labelledby="importDetailsTitle"
-        aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
-            <div class="modal-content">
+    <x-backend.modal id="importDetailsModal" title="Import Details" icon="fas fa-boxes" size="xl">
 
-                <div class="modal-header">
-                    <h5 class="modal-title" id="importDetailsTitle">
-                        <i class="fas fa-boxes"></i>
-                        Import Details
-                    </h5>
+        <div id="importDetailsLoading" class="text-center py-5">
+            <i class="fas fa-spinner fa-spin fa-2x mb-3 import-loading-icon"></i>
+            <div>Loading import details...</div>
+        </div>
 
-                    <button type="button" class="close close-import-details" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+        <div id="importDetailsContent" style="display:none;">
+            <div class="modal-section">
+                <div class="text-muted small mb-1">IMPORT NUMBER</div>
+                <div class="fw-bold" style="font-size:1.05rem;">
+                    <i class="fas fa-file-invoice me-1 text-brand"></i>
+                    <span id="detailsImportNo"></span>
                 </div>
+            </div>
 
-                <div class="modal-body">
-
-                    <div id="importDetailsLoading" class="text-center py-5">
-                        <i class="fas fa-spinner fa-spin fa-2x import-loading-icon mb-3"></i>
-                        <div>Loading import details...</div>
-                    </div>
-
-                    <div id="importDetailsContent" style="display:none;">
-
-                        <div class="import-detail-summary">
-                            <div class="text-muted small mb-1">IMPORT NUMBER</div>
-                            <div class="font-weight-bold" style="font-size: 1.05rem;">
-                                <i class="fas fa-file-invoice mr-1" style="color:#fd6802;"></i>
-                                <span id="detailsImportNo"></span>
-                            </div>
-                        </div>
-
-                        <div class="import-detail-section">
-                            <h6 class="import-section-title">
-                                <i class="fas fa-cubes"></i>
-                                Product Details
-                            </h6>
-
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover table-sm">
-                                    <thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Code</th>
-                                            <th>Product</th>
-                                            <th>Packing</th>
-                                            <th>Pcs / Ctn</th>
-                                            <th>Ctn Qty</th>
-                                            <th>Total Pcs</th>
-                                            <th>Price / Pc</th>
-                                            <th>Cost / Pc</th>
-                                            <th class="text-right">Amount</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="detailsProductRows"></tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <th colspan="9" class="text-right">Total</th>
-                                            <th id="detailsProductsTotal" class="text-right">0.00</th>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div class="import-detail-section mb-0">
-                            <h6 class="import-section-title">
-                                <i class="fas fa-money-bill-wave"></i>
-                                Category Expense Details
-                            </h6>
-
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover table-sm">
-                                    <thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Category</th>
-                                            <th class="text-right">CBF / CBM</th>
-                                            <th class="text-right">Category Expense</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="detailsExpenseRows"></tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <th colspan="3" class="text-right">
-                                                Total Category Expenses
-                                            </th>
-                                            <th id="detailsExpensesTotal" class="text-right">0.00</th>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <div id="importDetailsError" class="alert alert-danger" style="display:none;">
-                        <i class="fas fa-exclamation-circle mr-1"></i>
-                        Unable to load import details. Please try again.
-                    </div>
-
+            <div class="modal-section">
+                <h6 class="modal-section-title"><i class="fas fa-cubes"></i> Product Details</h6>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover table-sm">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Code</th>
+                                <th>Product</th>
+                                <th>Packing</th>
+                                <th>Pcs / Ctn</th>
+                                <th>Ctn Qty</th>
+                                <th>Total Pcs</th>
+                                <th>Price / Pc</th>
+                                <th>Cost / Pc</th>
+                                <th>Sale Price</th>
+                                <th>Sale Percent</th>
+                                <th class="text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailsProductRows"></tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="11" class="text-end">Total</th>
+                                <th id="detailsProductsTotal" class="text-end">0.00</th>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
+            </div>
 
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary import-modal-close close-import-details">
-                        <i class="fas fa-times mr-1"></i> Close
-                    </button>
+            <div class="modal-section">
+                <h6 class="modal-section-title"><i class="fas fa-money-bill-wave"></i> Category Expense Details</h6>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover table-sm">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Category</th>
+                                <th class="text-end">CBF / CBM</th>
+                                <th class="text-end">Category Expense</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailsExpenseRows"></tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="3" class="text-end">Total Category Expenses</th>
+                                <th id="detailsExpensesTotal" class="text-end">0.00</th>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
+            </div>
 
+            <div class="modal-section">
+                <h6 class="modal-section-title"><i class="fas fa-truck"></i> Expense Details</h6>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover table-sm">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Expense</th>
+                                <th class="text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailsFixedExpenseRows"></tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="2" class="text-end">Total Fixed Expenses</th>
+                                <th id="detailsFixedExpensesTotal" class="text-end">0.00</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
             </div>
         </div>
-    </div>
+
+        <div id="importDetailsError" class="alert alert-danger" style="display:none;">
+            <i class="fas fa-exclamation-circle me-1"></i>
+            Unable to load import details. Please try again.
+        </div>
+
+        <x-slot:footer>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                <i class="fas fa-times me-1"></i> Close
+            </button>
+        </x-slot:footer>
+    </x-backend.modal>
 
 @endsection
 
@@ -441,8 +296,8 @@
                         className: 'text-right'
                     },
                     {
-                        data: 'total_expense_2',
-                        name: 'total_expense_2',
+                        data: 'total_expense',
+                        name: 'total_expense',
                         className: 'text-right'
                     },
                     {
@@ -478,6 +333,8 @@
                 $('#detailsExpenseRows').empty();
                 $('#detailsProductsTotal').text('0.00');
                 $('#detailsExpensesTotal').text('0.00');
+                $('#detailsFixedExpenseRows').empty();
+                $('#detailsFixedExpensesTotal').text('0.00');
 
                 $('#importDetailsContent').hide();
                 $('#importDetailsError').hide();
@@ -501,6 +358,20 @@
                                 const amount = Number(product.amount) || 0;
                                 productTotal += amount;
 
+                                const breakdown = product.cost_breakdown || {};
+                                const costTip = [
+                                    'Price: ' + money(breakdown.price_pc || 0),
+                                    'Category expense: ' + money(breakdown
+                                        .category_per_pc || 0) +
+                                    ' (' + money(breakdown.category_total || 0) +
+                                    ' ÷ ' + (breakdown.category_pcs || 0) + ' pcs)',
+                                    'Total expense: ' + money(breakdown
+                                        .global_per_pc || 0) +
+                                    ' (' + money(breakdown.global_total || 0) +
+                                    ' ÷ ' + (breakdown.total_pcs || 0) + ' pcs)',
+                                    'Cost: ' + money(product.cost_pc || 0),
+                                ].join('\n');
+
                                 productHtml += `
                                     <tr>
                                         <td>${index + 1}</td>
@@ -511,7 +382,11 @@
                                         <td class="text-right">${escapeHtml(product.ctn_qty)}</td>
                                         <td class="text-right">${escapeHtml(product.total_pcs)}</td>
                                         <td class="text-right">${money(product.price_pc)}</td>
-                                        <td class="text-right">${money(product.cost_pc)}</td>
+                                        <td class="text-right" title="${escapeHtml(costTip)}" style="cursor:help;">
+                                            ${money(product.cost_pc)}
+                                        </td>
+                                        <td class="text-right">${money(product.sale_price)}</td>
+                                        <td class="text-right">${escapeHtml(product.sale_percent)}%</td>
                                         <td class="text-right">${money(amount)}</td>
                                     </tr>
                                 `;
@@ -558,6 +433,36 @@
 
                         $('#detailsExpenseRows').html(expenseHtml);
                         $('#detailsExpensesTotal').text(money(expenseTotal));
+
+                        // -------- Fixed expense breakdown --------
+                        let fixedHtml = '';
+                        let fixedTotal = 0;
+
+                        if (data.fixed_expenses && data.fixed_expenses.length) {
+                            data.fixed_expenses.forEach(function(row, index) {
+                                const amount = Number(row.amount) || 0;
+                                fixedTotal += amount;
+
+                                fixedHtml += `
+                                    <tr>
+                                        <td>${index + 1}</td>
+                                        <td>${escapeHtml(row.label)}</td>
+                                        <td class="text-right">${money(amount)}</td>
+                                    </tr>
+                                `;
+                            });
+                        } else {
+                            fixedHtml = `
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted">
+                                        No fixed expenses found.
+                                    </td>
+                                </tr>
+                            `;
+                        }
+
+                        $('#detailsFixedExpenseRows').html(fixedHtml);
+                        $('#detailsFixedExpensesTotal').text(money(fixedTotal));
 
                         $('#importDetailsLoading').hide();
                         $('#importDetailsContent').show();

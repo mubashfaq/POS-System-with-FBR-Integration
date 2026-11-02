@@ -109,7 +109,7 @@ export default function Pos({
             return;
         }
 
-        axios.put("/admin/cart/update-price", {id: cartId,price: price,})
+        axios.put("/admin/cart/update-price", { id: cartId, price: price, })
             .then(() => {
                 playSound(SuccessSound);
             })
@@ -152,7 +152,9 @@ export default function Pos({
                     params: { search, page, barcode },
                 });
                 const productsData = res.data;
-                setProducts((prev) => [...prev, ...productsData.data]); // Append new products
+                setProducts(prev =>
+                    page === 1 ? productsData.data : [...prev, ...productsData.data]
+                );
                 if (productsData.data.length === 1 && barcode != "") {
                     const matched = productsData.data[0];
                     const scannedVariation = matched.has_variations
@@ -234,12 +236,19 @@ export default function Pos({
         setDue(dueAmount?.toFixed(2));
     }, [orderDiscount, paid, total]);
     useEffect(() => {
-        if (searchQuery) {
-            setProducts([]);
-            getProducts(searchQuery, currentPage, "");
-        }
+        setCurrentPage(1);
+    }, [searchQuery]);
+
+    useEffect(() => {
         setSearchBarcode("");
-    }, [currentPage, searchQuery]);
+
+        const timer = setTimeout(() => {
+            setProducts([]);                       // clear old results
+            getProducts(searchQuery, 1, "");       // empty search -> backend returns all products (page 1)
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     useEffect(() => {
         if (searchBarcode) {

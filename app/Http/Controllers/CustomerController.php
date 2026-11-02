@@ -123,6 +123,7 @@ class CustomerController extends Controller
                 'province' => 'required|string|max:255',
                 'address' => 'required|string|max:255',
                 'is_registered' => 'nullable|string|max:255',
+                'sale_tax_number' => 'nullable|string|max:255',
                 'customer_tax_type' => 'nullable|in:retailer,distributor',
             ]);
 
@@ -133,6 +134,7 @@ class CustomerController extends Controller
                 'province' => $request->province,
                 'address' => $request->address,
                 'is_registered' => $request->is_registered ?? 'Unregistered',
+                'sale_tax_number' => $request->sale_tax_number,
                 'business_id' => $businessId,
                 'customer_tax_type' => $request->customer_tax_type,
             ]);
@@ -159,6 +161,7 @@ class CustomerController extends Controller
             'province' => 'required|string|max:255',
             'address' => 'required|string|max:255',
             'is_registered' => 'required|string|max:255',
+            'sale_tax_number' => 'nullable|string|max:255',
             'customer_tax_type' => 'nullable|in:retailer,distributor',
 
         ]);
@@ -176,6 +179,7 @@ class CustomerController extends Controller
             'address' => $request->address,
             'is_registered' => $request->is_registered,
             'business_id' => $businessId,
+            'sale_tax_number' => $request->sale_tax_number,
             'customer_tax_type' => $request->customer_tax_type,
         ]);
 
@@ -236,10 +240,20 @@ class CustomerController extends Controller
             'province' => 'required|string|max:255',
             'address' => 'required|string|max:255',
             'is_registered' => 'required|string|max:255',
+            'sale_tax_number' => 'nullable|string|max:255',
             'customer_tax_type' => 'nullable|in:retailer,distributor',
         ]);
 
-        $customer->update($request->only(['name', 'phone', 'ntn_cnic', 'province', 'address', 'is_registered', 'customer_tax_type']));
+        $customer->update($request->only([
+            'name',
+            'phone',
+            'ntn_cnic',
+            'province',
+            'address',
+            'is_registered',
+            'sale_tax_number',
+            'customer_tax_type'
+        ]));
 
         session()->flash('success', 'Customer updated successfully.');
         return to_route('backend.admin.customers.index');

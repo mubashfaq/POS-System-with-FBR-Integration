@@ -8,6 +8,7 @@ use App\Models\BusinessCounter;
 use App\Models\BusinessCustomField;
 use App\Models\Customer;
 use App\Models\InvoiceSetting;
+use App\Models\InvoiceTemplate;
 use App\Models\Order;
 use App\Models\OrderLog;
 use App\Models\OrderTransaction;
@@ -222,10 +223,9 @@ class OrderController extends Controller
                         : '<span class="badge bg-danger">Due</span>'
                 )
 
-                ->addColumn('date', function ($data) use ($dateField) {
-                    $date = $dateField === 'order_date' ? $data->order_date : $data->created_at;
-                    return $date ? Carbon::parse($date)->format('Y-m-d') : '-';
-                });
+                ->addColumn('order_date', fn($data) => Carbon::parse($data->order_date)->format('Y-m-d'))
+
+                ->addColumn('created_at', fn($data) => Carbon::parse($data->created_at)->format('Y-m-d'));
 
 
             $datatable->addColumn('fbr_status', function ($d) {
@@ -326,7 +326,7 @@ class OrderController extends Controller
                     ';
                 }
 
-                
+
                 /* Customer Tax Dropdown */
                 $taxButtons = [];
 
@@ -334,16 +334,16 @@ class OrderController extends Controller
                     <a class="dropdown-item"
                     href="' . route('backend.admin.orders.customer-tax-invoice', $data->id) . '">
                         <i class="fas fa-file-invoice-dollar mr-2"></i>
-                        Customer Tax Invoice
+                        Advance Tax Invoice
                     </a>
                 ';
 
-                if (!$data->is_cancelled && !$data->status) {
+                if (!$data->is_cancelled && $data->due_with_advance_tax > 0) {
                     $taxButtons[] = '
                         <a class="dropdown-item"
                         href="' . route('backend.admin.due.collection.advance-tax', $data->id) . '">
                             <i class="fas fa-receipt mr-2"></i>
-                            Customer Due with Advance Tax
+                            Advance Tax Due
                         </a>
                     ';
                 }
@@ -1221,6 +1221,9 @@ class OrderController extends Controller
         }
 
         $total = $totalAmountOrder - $orderDiscount;
+        if ($request->paid > $total) {
+            return response()->json(['error' => 'Paid amount cannot be greater than total amount'], 422);
+        }
         $due = $total - ($request->paid ?? 0);
 
         $order->update([
@@ -1754,10 +1757,43 @@ class OrderController extends Controller
             });
         })->values();
 
-        $templateKey = $invoiceSettings->template ?? 'default';
-        $templateView = config("invoice_templates.{$templateKey}.view", 'backend.orders.invoice-templates.default');
+        // 🔑 Resolve template safely
+        $templateView = $this->resolveInvoiceTemplateView($invoiceSettings->template ?? null);
 
         return view($templateView, compact('order', 'business', 'fbrIntegration', 'invoiceSettings', 'customFields'));
+    }
+
+    /**
+     * Safely resolve the invoice template view path.
+     * Priority: chosen template → default template → hardcoded fallback.
+     */
+    protected function resolveInvoiceTemplateView(?string $key): string
+    {
+        $hardcodedFallback = 'backend.orders.invoice-templates.default';
+
+        // 1. Try the business's chosen template
+        if ($key) {
+            $tpl = InvoiceTemplate::findByKey($key);
+            if ($tpl && \View::exists($tpl->view)) {
+                return $tpl->view;
+            }
+            // log so you can debug in production
+            \Log::warning("Invoice template '{$key}' missing or view file not found. Falling back.");
+        }
+
+        // 2. Try the DB default
+        $default = InvoiceTemplate::getDefault();
+        if ($default && \View::exists($default->view)) {
+            return $default->view;
+        }
+
+        // 3. Last resort — hardcoded
+        if (\View::exists($hardcodedFallback)) {
+            return $hardcodedFallback;
+        }
+
+        // 4. Nothing works — throw a clear exception
+        abort(500, 'No valid invoice template found. Please contact support.');
     }
 
     public function downloadInvoicesPdf(Request $request)
@@ -2032,7 +2068,7 @@ class OrderController extends Controller
             $order->due_with_advance_tax = round((float) $due_with_advance_tax, 2);
             $order->paid = round((float) $paid, 2);
             $order->paid_with_advance_tax = round((float) $paid_with_advance_tax, 2);
-            $order->status = round((float) $due_with_advance_tax, 2) <= 0;
+            $order->status = round((float) $due, 2) <= 0;
             $order->save();
             $collection_amount = $data['amount'];
             //create order transaction
@@ -2071,7 +2107,7 @@ class OrderController extends Controller
             $order->paid = round((float) $paid, 2);
             $order->due_with_advance_tax = round((float) $due_with_advance_tax, 2);
             $order->paid_with_advance_tax = round((float) $paid_with_advance_tax, 2);
-            $order->status = round((float) $due_with_advance_tax, 2) <= 0;
+            $order->status = round((float) $due, 2) <= 0;
             $order->save();
             $collection_amount = $data['amount'];
             //create order transaction

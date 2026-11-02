@@ -24,6 +24,8 @@
                         'pcs_per_carton' => $item->pcs_per_carton,
                         'ctn_qty' => $item->ctn_qty,
                         'price_pc' => $item->price_pc,
+                        'sale_price' => $item->sale_price,
+                        'sale_percent' => $item->sale_percent,
                         '_product_name' => $item->product?->name ?? '',
                     ],
                 )
@@ -84,9 +86,12 @@
                     <div class="row">
                         <div class="col-md-3">
                             <div class="form-group">
-                                <label>Import No <span class="text-danger">*</span></label>
-                                <input type="text" name="import_no" class="form-control" placeholder="IMP-001"
-                                    value="{{ $v('import_no') }}" required>
+                                <label>Import No</label>
+                                <input type="text" class="form-control" readonly
+                                    value="{{ $isEdit ? $model->import_no : $nextImportNo }}">
+                                <small class="text-muted">
+                                    {{ $isEdit ? 'This is the saved import number.' : 'This number is assigned automatically when you save.' }}
+                                </small>
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -116,29 +121,43 @@
                         <div class="col-md-3">
                             <div class="form-group">
                                 <label>Currency</label>
-                                <input type="text" name="currency" class="form-control" placeholder="PKR (₨)"
-                                    value="{{ $v('currency') }}">
+                                <select name="currency_id" id="currency_id" class="form-control select2">
+                                    <option value="">-- No Currency (PKR only) --</option>
+                                    @foreach ($currencies as $c)
+                                        <option value="{{ $c->id }}" data-code="{{ $c->code }}"
+                                            {{ old('currency_id', $v('currency_id')) == $c->id ? 'selected' : '' }}>
+                                            {{ $c->code }} ({{ $c->symbol }}) — {{ $c->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
                             </div>
                         </div>
+
                         <div class="col-md-3">
                             <div class="form-group">
                                 <label>Ex Rate</label>
-                                <input type="number" step="0.01" name="ex_rate" class="form-control"
-                                    placeholder="0.00" value="{{ $v('ex_rate') }}">
+                                <input type="number" step="0.000001" name="ex_rate" id="ex_rate" class="form-control"
+                                    placeholder="0.00" value="{{ old('ex_rate', $v('ex_rate')) }}">
+                                <small id="rate_error" class="text-danger" style="display:none;"></small>
                             </div>
                         </div>
+
                         <div class="col-md-3">
                             <div class="form-group">
                                 <label>Inv Amount</label>
-                                <input type="number" step="0.01" name="inv_amount" class="form-control"
-                                    placeholder="0.00" value="{{ $v('inv_amount') }}">
+                                <input type="number" step="0.01" name="inv_amount" id="inv_amount"
+                                    class="form-control" placeholder="0.00"
+                                    value="{{ old('inv_amount', $v('inv_amount')) }}">
                             </div>
                         </div>
+
                         <div class="col-md-3">
                             <div class="form-group">
-                                <label>Inv Amount / PKR</label>
-                                <input type="number" step="0.01" name="inv_amount_pkr" class="form-control"
-                                    placeholder="0.00" value="{{ $v('inv_amount_pkr') }}">
+                                <label>Inv Amount / PKR <span class="text-danger req-pkr"
+                                        style="display:none;">*</span></label>
+                                <input type="number" step="0.01" name="inv_amount_pkr" id="inv_amount_pkr"
+                                    class="form-control" placeholder="0.00"
+                                    value="{{ old('inv_amount_pkr', $v('inv_amount_pkr')) }}">
                             </div>
                         </div>
                     </div>
@@ -328,8 +347,8 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>Total Expense</label>
-                                <input type="number" step="0.01" name="total_expense_2" class="form-control"
-                                    placeholder="0.00" value="{{ $v('total_expense_2') }}" readonly>
+                                <input type="number" step="0.01" id="total_expense_display" class="form-control"
+                                    placeholder="0.00" value="{{ $v('total_expense') }}" readonly>
                             </div>
                         </div>
                     </div>
@@ -378,6 +397,7 @@
                                     <th>Sr No</th>
                                     <th>Code</th>
                                     <th style="min-width:200px;">Name</th>
+                                    <th>Category</th>
                                     <th style="min-width:150px;">Variation</th>
                                     <th style="min-width:130px;">Packing</th>
                                     <th style="min-width:100px;">Pcs / Ctn</th>
@@ -389,6 +409,8 @@
                                         Cost / Pc <i class="fas fa-info-circle text-muted"
                                             style="font-size:11px;"></i>
                                     </th>
+                                    <th style="min-width:110px;">Sale Price</th>
+                                    <th style="min-width:90px;">%</th>
                                     <th>Amount</th>
                                     <th>Action</th>
                                 </tr>
@@ -396,7 +418,7 @@
                             <tbody id="importProductRows"></tbody>
                             <tfoot>
                                 <tr>
-                                    <th colspan="10" class="text-right">Total Amount</th>
+                                    <th colspan="13" class="text-right">Total Amount</th>
                                     <th id="importProductsTotal">0.00</th>
                                     <th></th>
                                 </tr>
@@ -435,6 +457,61 @@
 </form>
 
 <script>
+    $(document).ready(function() {
+        const $currency = $('#currency_id');
+        const $rate = $('#ex_rate');
+        const $amt = $('#inv_amount');
+        const $pkr = $('#inv_amount_pkr');
+        const $error = $('#rate_error');
+
+        // When user selects currency: request the rate via AJAX
+        $currency.on('change', function() {
+            const currencyId = $(this).val();
+            $error.hide();
+            $rate.val('');
+
+            if (!currencyId) return;
+
+            $.ajax({
+                url: '{{ route('backend.admin.api.exchange-rate') }}',
+                data: {
+                    currency_id: currencyId
+                },
+                success: function(res) {
+                    // Successfully retrieved rate, auto-fill
+                    $rate.val(res.rate);
+                    if ($amt.val() !== '') calculatePkr();
+                },
+                error: function(xhr) {
+                    // Core: rate unavailable
+                    let msg =
+                        'Currency exchange rate not available currently. Please enter manually.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        msg = xhr.responseJSON.message;
+                    }
+                    $error.text(msg).show();
+                    $rate.prop('readonly', false); // Allow manual entry
+                }
+            });
+        });
+
+        // Amount linkage calculation (same as before)
+        $rate.on('input', calculatePkr);
+        $amt.on('input', calculatePkr);
+        $pkr.on('input', function() {
+            if ($amt.val() === '') {
+                const pkrVal = parseFloat($(this).val()) || 0;
+                const rateVal = parseFloat($rate.val()) || 0;
+                if (rateVal > 0) $amt.val((pkrVal / rateVal).toFixed(2));
+            }
+        });
+
+        function calculatePkr() {
+            const a = parseFloat($amt.val()) || 0;
+            const r = parseFloat($rate.val()) || 0;
+            if (a > 0 && r > 0) $pkr.val((a * r).toFixed(2));
+        }
+    });
     document.addEventListener('DOMContentLoaded', function() {
 
         const expenseRows = document.getElementById('expense-rows');
@@ -563,6 +640,7 @@
         const rowsContainer = document.getElementById('importProductRows');
 
         const units = @json($units->map(fn($u) => ['id' => $u->id, 'name' => $u->title])->values());
+        const categoriesById = @json($categories->mapWithKeys(fn($c) => [$c->id => $c->name]));
 
         const existingRows = @json($existingRows);
 
@@ -593,14 +671,6 @@
         }
 
         nextBtn.addEventListener('click', function() {
-            const importNo = document.querySelector('[name="import_no"]');
-
-            if (!importNo.value.trim()) {
-                importNo.reportValidity();
-                importNo.focus();
-                return;
-            }
-
             showStep(2);
         });
 
@@ -608,19 +678,7 @@
 
         document.querySelectorAll('.import-step').forEach(button => {
             button.addEventListener('click', function() {
-                const targetStep = Number(this.dataset.step);
-
-                if (targetStep === 2) {
-                    const importNo = document.querySelector('[name="import_no"]');
-
-                    if (!importNo.value.trim()) {
-                        importNo.reportValidity();
-                        importNo.focus();
-                        return;
-                    }
-                }
-
-                showStep(targetStep);
+                showStep(Number(this.dataset.step));
             });
         });
 
@@ -908,13 +966,25 @@
             const cartonInput = createInput(index, 'number', 'ctn_qty', data.ctn_qty ?? 0, '1');
             const totalInput = createInput(index, 'number', 'total_pcs', 0, '1');
             const pricePcInput = createInput(index, 'number', 'price_pc', data.price_pc ?? 0, '0.01');
-            // const priceDzInput = createInput(index, 'number', 'price_dz', 0, '0.01');
             const amountInput = createInput(index, 'number', 'amount', 0, '0.01');
 
             const costPcInput = createInput(index, 'number', 'cost_pc', 0, '0.01');
             costPcInput.removeAttribute('name'); // display only, server recalculates
             costPcInput.readOnly = true;
             costPcInput.classList.add('cost-pc');
+
+            const categoryDisplay = document.createElement('input');
+            categoryDisplay.type = 'text';
+            categoryDisplay.className = 'form-control form-control-sm product-category';
+            categoryDisplay.readOnly = true;
+            categoryDisplay.placeholder = '—';
+
+            const salePriceInput = createInput(index, 'number', 'sale_price', data.sale_price ?? 0, '0.01');
+            salePriceInput.min = '0';
+            salePriceInput.classList.add('sale-price');
+
+            const percentInput = createInput(index, 'number', 'sale_percent', data.sale_percent ?? 0, '0.01');
+            percentInput.classList.add('sale-percent');
 
             pcsInput.min = '1';
             pcsInput.classList.add('pcs-per-carton');
@@ -924,19 +994,14 @@
             totalInput.classList.add('total-pcs');
             pricePcInput.min = '0';
             pricePcInput.classList.add('price-pc');
-            // priceDzInput.readOnly = true;
-            // priceDzInput.classList.add('price-dz');
             amountInput.readOnly = true;
             amountInput.classList.add('product-amount');
 
             const cells = [
-                document.createTextNode(''), // Sr No
-                codeInput, // Code
-                picker, // Name → searchable picker
-                variationSelect, // Variation
-                unitSelect, // Packing
-                pcsInput, cartonInput, totalInput,
-                pricePcInput, costPcInput, amountInput,
+                document.createTextNode(''), codeInput, picker, categoryDisplay, variationSelect,
+                unitSelect, pcsInput,
+                cartonInput, totalInput, pricePcInput, costPcInput, salePriceInput, percentInput,
+                amountInput,
             ];
 
             cells.forEach((content, i) => {
@@ -966,6 +1031,16 @@
                 variationSelect.innerHTML = '<option value="">—</option>';
                 codeInput.value = product?.sku ?? '';
                 row.dataset.categoryId = product?.category_id ?? '';
+
+                const categoryDisplay = row.querySelector('.product-category');
+                categoryDisplay.value = product?.category_id ? (categoriesById[product.category_id] ??
+                    '') : '';
+
+                const salePriceEl = row.querySelector('.sale-price');
+                const priceEl = row.querySelector('.price-pc');
+                if (salePriceEl && !Number(salePriceEl.value)) {
+                    salePriceEl.value = Number(priceEl.value || 0).toFixed(2);
+                }
 
                 if (product && product.has_variations && product.variations.length) {
                     product.variations.forEach(v => {
@@ -1003,15 +1078,35 @@
             const price = Number(row.querySelector('.price-pc').value) || 0;
 
             const totalPieces = pcs * cartons;
-            // const priceDozen = price * 12;
             const amount = totalPieces * price;
 
             row.querySelector('.total-pcs').value = totalPieces;
-            // row.querySelector('.price-dz').value = priceDozen.toFixed(2);
             row.querySelector('.product-amount').value = amount.toFixed(2);
+
+            const saleEl = row.querySelector('.sale-price');
+            const pctEl = row.querySelector('.sale-percent');
+            if (saleEl && pctEl && (pctEl.value === '' || pctEl.value === '0' || pctEl.value === '0.00')) {
+                if (Number(saleEl.value)) syncPercentFromSale(row);
+            }
 
             calculateTotal();
             recalcCosts();
+        }
+
+        // Sync sale price → percentage based on price/pc
+        function syncPercentFromSale(row) {
+            const price = Number(row.querySelector('.price-pc').value) || 0;
+            const sale = Number(row.querySelector('.sale-price').value) || 0;
+            const pct = price > 0 ? ((sale - price) / price) * 100 : 0;
+            row.querySelector('.sale-percent').value = pct.toFixed(2);
+        }
+
+        // Sync percentage → sale price based on price/pc
+        function syncSaleFromPercent(row) {
+            const price = Number(row.querySelector('.price-pc').value) || 0;
+            const pct = Number(row.querySelector('.sale-percent').value) || 0;
+            const sale = price * (1 + pct / 100);
+            row.querySelector('.sale-price').value = sale.toFixed(2);
         }
 
         function calculateAllRows() {
@@ -1045,7 +1140,26 @@
 
         rowsContainer.addEventListener('input', function(event) {
             const row = event.target.closest('.import-product-row');
-            if (row) calculateRow(row);
+            if (!row) return;
+
+            // Two-way sync between sale price and percentage
+            if (event.target.classList.contains('sale-price')) {
+                syncPercentFromSale(row);
+                calculateRow(row);
+                return;
+            }
+            if (event.target.classList.contains('sale-percent')) {
+                syncSaleFromPercent(row);
+                calculateRow(row);
+                return;
+            }
+            if (event.target.classList.contains('price-pc')) {
+                // If price/pc changes, keep the sale price fixed and re-derive %
+                // (Alternative: keep % fixed and re-derive sale price — uncomment if preferred)
+                syncPercentFromSale(row);
+            }
+
+            calculateRow(row);
         });
 
         rowsContainer.addEventListener('click', function(event) {
@@ -1075,7 +1189,8 @@
                     ['.carton-qty', 'ctn_qty'],
                     ['.total-pcs', 'total_pcs'],
                     ['.price-pc', 'price_pc'],
-                    // ['.price-dz', 'price_dz'],
+                    ['.sale-price', 'sale_price'],
+                    ['.sale-percent', 'sale_percent'],
                     ['.product-amount', 'amount']
                 ];
 
@@ -1121,7 +1236,7 @@
                 pools[cat] = (pools[cat] || 0) + amt;
             });
 
-            const globalExpense = Number(document.querySelector('[name="total_expense_2"]').value) || 0;
+            const globalExpense = Number(document.querySelector('#total_expense_display').value) || 0;
 
             const rows = [...rowsContainer.querySelectorAll('.import-product-row')];
             let totalPcs = 0;
@@ -1168,7 +1283,7 @@
                 if (input) total += parseFloat(input.value) || 0;
             });
 
-            const totalField = document.querySelector('[name="total_expense_2"]');
+            const totalField = document.querySelector('#total_expense_display');
             if (totalField) totalField.value = total.toFixed(2);
             recalcCosts();
         }

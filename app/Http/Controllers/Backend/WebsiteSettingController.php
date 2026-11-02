@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Backend;
 
 use App\Models\Business;
 use App\Models\CartSetting;
+use App\Models\InvoiceTemplate;
 use Illuminate\Http\Request;
 use App\Rules\ValidImageType;
 use App\Http\Controllers\Controller;
@@ -12,6 +13,7 @@ use App\Models\InvoiceSetting;
 use App\Models\quantity_validation;
 use App\Trait\FileHandler;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class WebsiteSettingController extends Controller
 {
@@ -27,18 +29,13 @@ class WebsiteSettingController extends Controller
         $businessId = session('business_id');
         $invoiceSetting = null;
         $fbrToken = null;
+        $invoiceTemplates = InvoiceTemplate::selectable();
 
         if ($businessId) {
-            $invoiceSetting = \App\Models\InvoiceSetting::where('business_id', $businessId)->first();
-            $fbrToken = DB::table('fbr_tokens')
-                ->where('business_id', $businessId)
-                ->latest('id')
-                ->first();
+            $invoiceSetting = InvoiceSetting::where('business_id', $businessId)->first();
+            $fbrToken = DB::table('fbr_tokens')->where('business_id', $businessId)->latest('id')->first();
 
-            $status = quantity_validation::select('product_quantity_validation')
-                ->where('business_id', $businessId)
-                ->first();
-
+            $status = quantity_validation::select('product_quantity_validation')->where('business_id', $businessId)->first();
             $quantityValidationStatus = $status ? $status->product_quantity_validation : 'disabled'; // default
 
             $cartSetting = CartSetting::where('business_id', $businessId)->first()
@@ -48,7 +45,14 @@ class WebsiteSettingController extends Controller
 
 
         }
-        return view('backend.settings.website-settings.general', compact('invoiceSetting', 'fbrToken', 'quantityValidationStatus', 'cartSetting', 'businessType'));
+        return view('backend.settings.website-settings.general', compact(
+            'invoiceSetting',
+            'fbrToken',
+            'quantityValidationStatus',
+            'cartSetting',
+            'businessType',
+            'invoiceTemplates'
+        ));
     }
 
     public function websiteInfoUpdate(Request $request)
@@ -158,7 +162,7 @@ class WebsiteSettingController extends Controller
         }
 
         $request->validate([
-            'template' => 'required|in:' . implode(',', array_keys(config('invoice_templates'))),
+            'template' => ['required', Rule::exists('invoice_templates', 'key')->where('is_active', 1),],
         ]);
         // Invoice settings ko database mein save karein
         $invoiceSetting = InvoiceSetting::firstOrNew(['business_id' => $businessId]);
@@ -169,6 +173,7 @@ class WebsiteSettingController extends Controller
         $invoiceSetting->email = $request->is_show_email_invoice ?? 0;
         $invoiceSetting->address = $request->is_show_address_invoice ?? 0;
         $invoiceSetting->customer = $request->is_show_customer_invoice ?? 0;
+        $invoiceSetting->sale_tax_number = $request->is_show_sale_tax_number ?? 0;
         $invoiceSetting->unit_price = $request->is_show_unit_price_invoice ?? 0;
         $invoiceSetting->invoice_number = $request->is_show_invoice_number_invoice ?? 0;
         $invoiceSetting->po_number = $request->is_show_po_number ?? 0;
