@@ -26,12 +26,21 @@ class AuthServiceProvider extends ServiceProvider
 
         // Register one Gate per permission, all delegating to the
         // current UserBusiness's Spatie permissions.
-        foreach (config('permissions.list') as $permission) {
-            Gate::define($permission, function ($user) use ($permission) {
-                $business = currentUserBusiness();
+        // foreach (config('permissions.list') as $permission) {
+        //     Gate::define($permission, function ($user) use ($permission) {
+        //         $business = currentUserBusiness();
 
-                return $business !== null && $business->hasPermissionTo($permission);
-            });
+        //         return $business !== null && $business->hasPermissionTo($permission);
+        //     });
+        // }
+
+       
+        foreach (config('permissions.list', []) as $permission) {
+                Gate::define($permission, function ($user) use ($permission) {
+                    $business = currentUserBusiness();
+
+                    return $business !== null && $business->hasPermissionTo($permission);
+                });
         }
 
     }
