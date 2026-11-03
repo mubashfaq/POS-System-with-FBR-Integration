@@ -1,46 +1,26 @@
 import axios from "axios";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import Swal from "sweetalert2";
 import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
 
-const PriceInput = ({ item, onPriceChange, onPriceSave }) => {
-
+const PriceInput = ({ item, onPriceSave }) => {
     const [value, setValue] = useState(item.unit_price ?? item.product.discounted_price ?? "");
 
     useEffect(() => {
         setValue(item.unit_price ?? item.product.discounted_price ?? "");
-    }, [item.id]);
-
-
-    const handleChange = (e) => {
-
-        const newValue = e.target.value;
-
-        setValue(newValue);
-
-        const price = parseFloat(newValue);
-
-        if (!isNaN(price) && price >= 0) {
-            onPriceChange(item.id, price);
-        }
-
-    };
+    }, [item.id, item.unit_price]);
 
     const handleBlur = () => {
-
         const price = parseFloat(value);
-
         if (!isNaN(price) && price >= 0) {
             onPriceSave(item.id, price);
         }
-
     };
 
     return (
-
         <input
             type="number"
             className="border text-right"
@@ -48,136 +28,99 @@ const PriceInput = ({ item, onPriceChange, onPriceSave }) => {
             value={value}
             step="any"
             min="0"
-            onChange={handleChange}
+            onChange={(e) => setValue(e.target.value)}
             onBlur={handleBlur}
         />
-
     );
-
 };
 
 export default function Cart1({
     carts,
     setCartUpdated,
-    cartUpdated,
-    isRegistered,
-    onPriceChange,
     onPriceSave,
+    onQuantityChange,
     onTotalsChange,
-    quantityValidation
+    quantityValidation,
 }) {
     const [editingQuantity, setEditingQuantity] = useState({});
-    const [cartItems, setCartItems] = useState([]);
-    const [subTotal, setSubTotal] = useState(0);
-    const [furtherTaxTotal, setFurtherTaxTotal] = useState(0);
-    const [grandTotal, setGrandTotal] = useState(0);
-
-    const [localCarts, setLocalCarts] = useState(carts);
     const pendingUpdates = useRef({});
     const debounceTimers = useRef({});
-    const toastIdRef = useRef({}); // per-item toast id
+    const toastIdRef = useRef({});
 
-
-    useEffect(() => {
-        setLocalCarts((prev) => {
-            if (Object.keys(pendingUpdates.current).length === 0) return carts;
-            return carts.map((serverItem) => {
-                const pendingQty = pendingUpdates.current[serverItem.id];
-                return pendingQty !== undefined ? { ...serverItem, quantity: pendingQty } : serverItem;
-            });
-        });
-    }, [carts]);
-
-    const registrationStatus = isRegistered || "Registered";
-
-    useEffect(() => {
+    // Single source of truth: Pos `carts`
+    const computed = useMemo(() => {
         let subTotalCalc = 0;
-        let furtherTaxCalc = 0;
         let saleTaxCalc = 0;
+        const furtherTaxCalc = 0; // not used in this component
 
-        const updatedCarts = localCarts.map((item) => {
+        const items = carts.map((raw) => {
+            // keep the user's newer quantity if a refetch lands during a pending save
+            const pendingQty = pendingUpdates.current[raw.id];
+            const item = pendingQty !== undefined ? { ...raw, quantity: pendingQty } : raw;
+
             const price = Number(item.unit_price ?? item.product.discounted_price);
-            const baseTotal = price * item.quantity;
+            const qty = Number(item.quantity);
+            const baseTotal = price * qty;
+            const rateText = String(item.product.pos_sale_tax ?? "0").trim();
 
-            const rateText = String(item.product.pos_sale_tax).trim();
+            const saleTax = rateText.endsWith("%") ? baseTotal * (parseFloat(rateText) / 100) : (parseFloat(rateText) || 0) * qty;
 
-            let saleTax = 0;
-            let exTaxAmount = baseTotal;
-
-            if (rateText.endsWith("%")) {
-                const rate = parseFloat(rateText.replace("%", ""));
-                saleTax = exTaxAmount * (rate / 100);
-            } else {
-                const ratePerUnit = parseFloat(rateText) || 0;
-                saleTax = ratePerUnit * item.quantity;
-            }
-
-            let furtherTax = 0;
-
-            // Only parent items contribute to totals
             if (!item.parent_cart_id && !item.is_accessory) {
                 subTotalCalc += baseTotal;
                 saleTaxCalc += saleTax;
-                furtherTaxCalc += furtherTax;
             }
 
             return {
                 ...item,
                 base_total: baseTotal.toFixed(2),
                 sale_tax: saleTax.toFixed(2),
-                further_tax: furtherTax.toFixed(2),
-                total_with_tax: (baseTotal + saleTax + furtherTax).toFixed(2),
+                further_tax: "0.00",
+                total_with_tax: (baseTotal + saleTax).toFixed(2),
             };
         });
 
-        setCartItems(updatedCarts);
-        setSubTotal(subTotalCalc.toFixed(2));
-        setFurtherTaxTotal(furtherTaxCalc.toFixed(2));
-        setGrandTotal((subTotalCalc + furtherTaxCalc + saleTaxCalc).toFixed(2));
+        return { items, subTotalCalc, saleTaxCalc, furtherTaxCalc };
+    }, [carts]);
 
-        if (onTotalsChange) {
-            onTotalsChange(
-                subTotalCalc,
-                saleTaxCalc,
-                furtherTaxCalc,
-                // customerTaxCalc,
-                subTotalCalc + furtherTaxCalc + saleTaxCalc,
-            );
-        }
-    }, [localCarts, registrationStatus]);
+    const cartItems = computed.items;
+
+    useEffect(() => {
+        onTotalsChange?.(
+            computed.subTotalCalc,
+            computed.saleTaxCalc,
+            computed.furtherTaxCalc,
+            computed.subTotalCalc + computed.saleTaxCalc + computed.furtherTaxCalc
+        );
+    }, [computed]);
 
     const stockOf = (item) => {
         if (!item || item._optimistic) return Infinity;
         return Number(item.available_stock ?? item.product?.quantity ?? Infinity);
     };
 
-    function updateQuantity(id, newQuantity, { optimistic = true } = {}) {
-        // 1. INSTANT local UI update (optimistic)
-        if (optimistic) {
-            setLocalCarts((prev) => prev.map((c) => c.id === id ? { ...c, quantity: newQuantity } : c));
-        }
+    function updateQuantity(id, newQuantity) {
+        // 1. Instant UI + totals (updates Pos `carts`)
+        onQuantityChange?.(id, newQuantity);
 
-        // 2. Debounce DB call (300ms) — rapid clicks ko merge kar dega
+        // 2. Debounced save
         if (debounceTimers.current[id]) {
             clearTimeout(debounceTimers.current[id]);
         }
-
         pendingUpdates.current[id] = newQuantity;
 
         debounceTimers.current[id] = setTimeout(() => {
             const finalQty = pendingUpdates.current[id];
-            delete pendingUpdates.current[id];
 
             toastIdRef.current[id] = toast.loading("Updating quantity...", {
-                id: toastIdRef.current[id], // reuse same toast
+                id: toastIdRef.current[id],
             });
 
             axios
-                .put("/admin/cart/update-quantity", { id: id, quantity: finalQty })
+                .put("/admin/cart/update-quantity", { id, quantity: finalQty })
                 .then((res) => {
                     playSound(SuccessSound);
                     toast.success(res?.data?.message || "Quantity updated", {
-                        id: toastIdRef.current[id], // replace loading toast
+                        id: toastIdRef.current[id],
                         duration: 1500,
                     });
                     delete toastIdRef.current[id];
@@ -189,23 +132,26 @@ export default function Cart1({
                         duration: 2500,
                     });
                     delete toastIdRef.current[id];
-                    // Rollback: server se fresh carts le lo
-                    setCartUpdated((prev) => !prev);
+                    delete pendingUpdates.current[id];
+                    setCartUpdated((prev) => !prev); // refetch to correct the UI
                 })
                 .finally(() => {
+                    if (pendingUpdates.current[id] === finalQty) {
+                        delete pendingUpdates.current[id];
+                    }
                     setEditingQuantity((prev) => ({ ...prev, [id]: false }));
                 });
         }, 300);
     }
 
     function handleQuantityBlur(id, value) {
-        const item = localCarts.find((cart) => cart.id === id);
+        const item = cartItems.find((cart) => cart.id === id);
         if (!item || item._optimistic) {
             setEditingQuantity((prev) => ({ ...prev, [id]: false }));
             return;
         }
-        const isAccessory = !!item?.parent_cart_id || !!item?.is_accessory;
-        const stockEnforced = quantityValidation == "disabled"; // disabled = enforce stock
+        const isAccessory = !!item.parent_cart_id || !!item.is_accessory;
+        const stockEnforced = quantityValidation == "disabled";
         const newQuantity = parseFloat(value);
 
         if (isNaN(newQuantity) || newQuantity < 0) {
@@ -213,7 +159,6 @@ export default function Cart1({
             return;
         }
 
-        // Block only when: main product AND stock is being enforced AND exceeds stock
         if (!isAccessory && stockEnforced && newQuantity > stockOf(item)) {
             playSound(WarningSound);
             toast.error(`Only ${stockOf(item)} items available in stock`);
@@ -225,12 +170,11 @@ export default function Cart1({
     }
 
     function increment(id) {
-        const item = localCarts.find((cart) => cart.id === id);
+        const item = cartItems.find((cart) => cart.id === id);
         if (!item || item._optimistic) return;
 
         const isAccessory = !!item.parent_cart_id || !!item.is_accessory;
         const stockEnforced = quantityValidation == "disabled";
-
         const currentQty = Number(item.quantity);
 
         if (isAccessory || !stockEnforced || currentQty < stockOf(item)) {
@@ -239,13 +183,13 @@ export default function Cart1({
     }
 
     function decrement(id) {
-        const item = localCarts.find((cart) => cart.id === id);
+        const item = cartItems.find((cart) => cart.id === id);
         if (!item || item._optimistic || item.quantity <= 1) return;
-        updateQuantity(id, item.quantity - 1);
+        updateQuantity(id, parseFloat((Number(item.quantity) - 1).toFixed(2)));
     }
 
     function destroy(id) {
-        const item = localCarts.find((cart) => cart.id === id);
+        const item = cartItems.find((cart) => cart.id === id);
         if (!item || item._optimistic) return;
         Swal.fire({
             title: "Are you sure you want to delete this item?",
@@ -261,16 +205,14 @@ export default function Cart1({
         }).then((result) => {
             if (result.isConfirmed) {
                 axios
-                    .put("/admin/cart/delete", {
-                        id: id,
-                    })
+                    .put("/admin/cart/delete", { id })
                     .then((res) => {
                         setCartUpdated((prev) => !prev);
                         playSound(SuccessSound);
                         toast.success(res?.data?.message);
                     })
                     .catch((err) => {
-                        toast.error(err.response.data.message);
+                        toast.error(err.response?.data?.message || "Failed to delete");
                     });
             }
         });

@@ -10,13 +10,65 @@ use Illuminate\Support\Facades\Request;
 class ProductLogService
 {
     /**
-     * Log a product action.
-     *
-     * @param  string       $action   created|updated|deleted
-     * @param  Product      $product
-     * @param  array|null   $oldValues  Snapshot before change (for update/delete)
-     * @param  array|null   $newValues  Snapshot after change (for create/update)
+     * Fields captured in old_values / new_values.
+     * If you add a business-meaningful column to `products`,
+     * add it here once and every store/update path picks it up.
      */
+    public const TRACKED_FIELDS = [
+        // Identity
+        'name',
+        'sku',
+        'slug',
+        'description',
+
+        // Pricing
+        'price',
+        'purchase_price',
+        'discount',
+        'discount_type',
+        'fixed_notified_value_or_retail_price',
+
+        // Stock
+        'quantity',
+        'has_variations',
+        'expire_date',
+
+        // Relations / classification
+        'category_id',
+        'brand_id',
+        'unit_id',
+
+        // FBR / tax fields
+        'hsCode',
+        'hs_description',
+        'rate_of_tax',
+        'salesTaxWithheldAtSource',
+        'sale_type',
+        'sro_item',
+        'sro_schedule',
+        'uom',
+        'PCTCode',
+        'pos_sale_tax',
+
+        // Status
+        'status',
+    ];
+
+    /**
+     * Snapshot of a product's tracked fields, safe to store as JSON.
+     */
+    public static function snapshot(Product $product): array
+    {
+        return collect(self::TRACKED_FIELDS)->mapWithKeys(function ($field) use ($product) {
+            $value = $product->getAttribute($field);
+            // Normalize empty strings to null for stable comparison
+            if (is_string($value) && trim($value) === '') {
+                $value = null;
+            }
+            return [$field => $value];
+        })->all();
+    }
+
     public static function log(string $action, Product $product, ?array $oldValues = null, ?array $newValues = null): ProductLog
     {
         $changedFields = null;
@@ -40,9 +92,6 @@ class ProductLogService
         ]);
     }
 
-    /**
-     * Extract only the fields that actually changed.
-     */
     private static function diffFields(array $old, array $new): array
     {
         $changed = [];

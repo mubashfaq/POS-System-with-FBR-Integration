@@ -1,5 +1,5 @@
 import axios from "axios";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import Swal from "sweetalert2";
 import SuccessSound from "../sounds/beep-07a.mp3";
@@ -11,10 +11,9 @@ const PriceInput = ({ item, onPriceSave }) => {
         item.unit_price ?? item.product.discounted_price ?? ""
     );
 
-    // Only reset if the item identity changes (new product row)
     useEffect(() => {
         setValue(item.unit_price ?? item.product.discounted_price ?? "");
-    }, [item.id]);
+    }, [item.id, item.unit_price]);
 
     const handleBlur = () => {
         const price = parseFloat(value);
@@ -40,86 +39,45 @@ const PriceInput = ({ item, onPriceSave }) => {
 export default function Cart({
     carts,
     setCartUpdated,
-    cartUpdated,
     isRegistered,
-    // customerTaxType,
-    onPriceChange,
     onPriceSave,
+    onQuantityChange,
     onTotalsChange,
-    quantityValidation
+    quantityValidation,
 }) {
     const [editingQuantity, setEditingQuantity] = useState({});
-    const [cartItems, setCartItems] = useState([]);
-    const [subTotal, setSubTotal] = useState(0);
-    const [furtherTaxTotal, setFurtherTaxTotal] = useState(0);
-    // const [customerTaxTotal, setCustomerTaxTotal] = useState(0);
-    const [grandTotal, setGrandTotal] = useState(0);
-    const [localCarts, setLocalCarts] = useState(carts);
     const pendingUpdates = useRef({});
     const debounceTimers = useRef({});
-    const toastIdRef = useRef({}); // per-item toast id
-
-
-    useEffect(() => {
-        setLocalCarts((prev) => {
-            // If no pending updates, just take server data
-            if (Object.keys(pendingUpdates.current).length === 0) {
-                return carts;
-            }
-            // Otherwise, keep local quantities for items with pending updates
-            return carts.map((serverItem) => {
-                const pendingQty = pendingUpdates.current[serverItem.id];
-                return pendingQty !== undefined ? { ...serverItem, quantity: pendingQty } : serverItem;
-            });
-        });
-    }, [carts]);
+    const toastIdRef = useRef({});
 
     const registrationStatus = isRegistered || "Registered";
 
-    useEffect(() => {
+    // Single source of truth: Pos `carts`.
+    // If a refetch lands while a quantity save is still pending,
+    // keep the user's newer quantity on top of the server data.
+    const computed = useMemo(() => {
         let subTotalExTax = 0;
         let furtherTaxCalc = 0;
         let saleTaxCalc = 0;
-        // let customerTaxCalc = 0;
 
-        const updatedCarts = localCarts.map((item) => {
+        const items = carts.map((raw) => {
+            const pendingQty = pendingUpdates.current[raw.id];
+            const item = pendingQty !== undefined ? { ...raw, quantity: pendingQty } : raw;
+
             const price = Number(item.unit_price ?? item.product.discounted_price);
-            const baseTotal = price * item.quantity;
+            const qty = Number(item.quantity);
+            const exTaxAmount = price * qty;
             const rateText = String(item.product.rate_of_tax).trim();
 
-            let saleTax = 0;
-            let exTaxAmount = baseTotal;
+            const saleTax = rateText.endsWith("%") ? exTaxAmount * (parseFloat(rateText) / 100) : (parseFloat(rateText) || 0) * qty;
 
-            if (rateText.endsWith("%")) {
-                const rate = parseFloat(rateText.replace("%", ""));
-                saleTax = exTaxAmount * (rate / 100);
-            } else {
-                const ratePerUnit = parseFloat(rateText) || 0;
-                saleTax = ratePerUnit * item.quantity;
-            }
+            const furtherTax = item.product.sale_type?.trim().toLowerCase() !== "3rd schedule goods" &&
+                registrationStatus.trim().toLowerCase() === "unregistered" ? exTaxAmount * 0.04 : 0;
 
-            let furtherTax = 0;
-            if (
-                item.product.sale_type?.trim().toLowerCase() !== "3rd schedule goods" &&
-                registrationStatus?.trim().toLowerCase() === "unregistered"
-            ) {
-                furtherTax = exTaxAmount * (4 / 100);
-            }
-
-            // let customerTax = 0;
-
-            // if (customerTaxType === "retailer") {
-            //     customerTax = exTaxAmount * 0.005; // 0.5%
-            // } else if (customerTaxType === "distributor") {
-            //     customerTax = exTaxAmount * 0.01; // 1%
-            // }
-
-            // Only accumulate from parent items
             if (!item.parent_cart_id && !item.is_accessory) {
                 subTotalExTax += exTaxAmount;
                 saleTaxCalc += saleTax;
                 furtherTaxCalc += furtherTax;
-                // customerTaxCalc += customerTax;
             }
 
             return {
@@ -127,48 +85,45 @@ export default function Cart({
                 base_total: exTaxAmount.toFixed(2),
                 sale_tax: saleTax.toFixed(2),
                 further_tax: furtherTax.toFixed(2),
-                // customer_tax: customerTax.toFixed(2),
                 total_with_tax: (exTaxAmount + furtherTax + saleTax).toFixed(2),
             };
         });
 
-        const grandTotal = subTotalExTax + saleTaxCalc + furtherTaxCalc;
+        return { items, subTotalExTax, saleTaxCalc, furtherTaxCalc };
+    }, [carts, registrationStatus]);
 
-        setCartItems(updatedCarts);
-        setSubTotal(subTotalExTax.toFixed(2));
-        setFurtherTaxTotal(furtherTaxCalc.toFixed(2));
-        setGrandTotal(grandTotal.toFixed(2));
-        // setCustomerTaxTotal(customerTaxCalc.toFixed(2));
+    const cartItems = computed.items;
 
-        if (onTotalsChange) {
-            onTotalsChange(subTotalExTax, saleTaxCalc, furtherTaxCalc, grandTotal);
-        }
-    }, [localCarts, registrationStatus]);
+    // Tell Pos the totals whenever they change
+    useEffect(() => {
+        onTotalsChange?.(
+            computed.subTotalExTax,
+            computed.saleTaxCalc,
+            computed.furtherTaxCalc,
+            computed.subTotalExTax + computed.saleTaxCalc + computed.furtherTaxCalc
+        );
+    }, [computed]);
 
     const stockOf = (item) => {
         if (!item || item._optimistic) return Infinity;
         return Number(item.available_stock ?? item.product?.quantity ?? Infinity);
     };
 
-    function updateQuantity(id, newQuantity, { optimistic = true } = {}) {
-        // 1. INSTANT local UI update (optimistic)
-        if (optimistic) {
-            setLocalCarts((prev) => prev.map((c) => c.id === id ? { ...c, quantity: newQuantity } : c));
-        }
+    function updateQuantity(id, newQuantity) {
+        // 1. Instant UI + totals (updates Pos `carts`)
+        onQuantityChange?.(id, newQuantity);
 
-        // 2. Debounce DB call (300ms) — rapid clicks ko merge kar dega
+        // 2. Debounced save
         if (debounceTimers.current[id]) {
             clearTimeout(debounceTimers.current[id]);
         }
-
         pendingUpdates.current[id] = newQuantity;
 
         debounceTimers.current[id] = setTimeout(() => {
             const finalQty = pendingUpdates.current[id];
-            delete pendingUpdates.current[id];
 
             toastIdRef.current[id] = toast.loading("Updating quantity...", {
-                id: toastIdRef.current[id], // reuse same toast
+                id: toastIdRef.current[id],
             });
 
             axios
@@ -176,7 +131,7 @@ export default function Cart({
                 .then((res) => {
                     playSound(SuccessSound);
                     toast.success(res?.data?.message || "Quantity updated", {
-                        id: toastIdRef.current[id], // replace loading toast
+                        id: toastIdRef.current[id],
                         duration: 1500,
                     });
                     delete toastIdRef.current[id];
@@ -188,22 +143,27 @@ export default function Cart({
                         duration: 2500,
                     });
                     delete toastIdRef.current[id];
-                    setCartUpdated((prev) => !prev);
+                    delete pendingUpdates.current[id];
+                    setCartUpdated((prev) => !prev); // refetch to correct the UI
                 })
                 .finally(() => {
+                    // only clear if the user didn't change it again during the request
+                    if (pendingUpdates.current[id] === finalQty) {
+                        delete pendingUpdates.current[id];
+                    }
                     setEditingQuantity((prev) => ({ ...prev, [id]: false }));
                 });
         }, 300);
     }
 
     function handleQuantityBlur(id, value) {
-        const item = localCarts.find((cart) => cart.id === id);
+        const item = cartItems.find((cart) => cart.id === id);
         if (!item || item._optimistic) {
             setEditingQuantity((prev) => ({ ...prev, [id]: false }));
             return;
         }
-        const isAccessory = !!item?.parent_cart_id || !!item?.is_accessory;
-        const stockEnforced = quantityValidation == "disabled"; // disabled = enforce stock
+        const isAccessory = !!item.parent_cart_id || !!item.is_accessory;
+        const stockEnforced = quantityValidation == "disabled";
         const newQuantity = parseFloat(value);
 
         if (isNaN(newQuantity) || newQuantity < 0) {
@@ -211,7 +171,6 @@ export default function Cart({
             return;
         }
 
-        // Block only when: main product AND stock is being enforced AND exceeds stock
         if (!isAccessory && stockEnforced && newQuantity > stockOf(item)) {
             playSound(WarningSound);
             toast.error(`Only ${stockOf(item)} items available in stock`);
@@ -223,12 +182,11 @@ export default function Cart({
     }
 
     function increment(id) {
-        const item = localCarts.find((cart) => cart.id === id);
+        const item = cartItems.find((cart) => cart.id === id);
         if (!item || item._optimistic) return;
 
         const isAccessory = !!item.parent_cart_id || !!item.is_accessory;
         const stockEnforced = quantityValidation == "disabled";
-
         const currentQty = Number(item.quantity);
 
         if (isAccessory || !stockEnforced || currentQty < stockOf(item)) {
@@ -237,15 +195,13 @@ export default function Cart({
     }
 
     function decrement(id) {
-        const item = localCarts.find((cart) => cart.id === id);
+        const item = cartItems.find((cart) => cart.id === id);
         if (!item || item._optimistic || item.quantity <= 1) return;
-        const newQty = (Number(item.quantity) - 1).toFixed(2);
-        updateQuantity(id, parseFloat(newQty));
-
+        updateQuantity(id, parseFloat((Number(item.quantity) - 1).toFixed(2)));
     }
 
     function destroy(id) {
-        const item = localCarts.find((cart) => cart.id === id);
+        const item = cartItems.find((cart) => cart.id === id);
         if (!item || item._optimistic) return;
         Swal.fire({
             title: "Are you sure you want to delete this item?",
@@ -262,7 +218,7 @@ export default function Cart({
                         toast.success(res?.data?.message);
                     })
                     .catch((err) => {
-                        toast.error(err.response.data.message);
+                        toast.error(err.response?.data?.message || "Failed to delete");
                     });
             }
         });
@@ -271,7 +227,8 @@ export default function Cart({
     const shouldApplyFurtherTax = (item) => {
         if (!item || !item.product || !registrationStatus) return false;
         return (
-            item.product.sale_type?.trim().toLowerCase() !== "3rd schedule goods" && registrationStatus.toLowerCase() === "unregistered"
+            item.product.sale_type?.trim().toLowerCase() !== "3rd schedule goods" &&
+            registrationStatus.toLowerCase() === "unregistered"
         );
     };
 

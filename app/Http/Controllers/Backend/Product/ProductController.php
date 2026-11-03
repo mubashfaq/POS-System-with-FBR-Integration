@@ -248,12 +248,7 @@ class ProductController extends Controller
 
             DB::commit();
 
-            ProductLogService::log(
-                ProductLog::ACTION_CREATED,
-                $product,
-                null,
-                $product->fresh()->only(['name', 'sku', 'price', 'purchase_price', 'quantity', 'status', 'category_id', 'brand_id', 'unit_id'])
-            );
+            ProductLogService::log(ProductLog::ACTION_CREATED, $product, null, ProductLogService::snapshot($product->fresh()));
 
             return redirect()->route('backend.admin.products.index')->with('success', 'Product created successfully!');
 
@@ -331,38 +326,21 @@ class ProductController extends Controller
      */
     public function update(UpdateProductRequest $request, $id, ProductVariationService $variations)
     {
-
         $currentBusiness = currentUserBusiness();
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_update'), 403);
 
         $businessId = session('business_id');
         $validated = $request->validated();
 
-        // Scope by business so one business can't edit another's product
         $product = Product::where('business_id', $businessId)->findOrFail($id);
         $oldImage = $product->image;
 
-        // Stock and variation mode are never changed from the edit form.
-        // Stock moves through purchases/sales/adjustments only.
         unset($validated['quantity'], $validated['has_variations'], $validated['variations']);
 
         $imageReplaced = false;
+        $oldSnapshot = ProductLogService::snapshot($product);   // ← before changes
 
         DB::beginTransaction();
-
-        $oldSnapshot = $product->only([
-            'name',
-            'sku',
-            'price',
-            'purchase_price',
-            'quantity',
-            'status',
-            'category_id',
-            'brand_id',
-            'unit_id',
-            'description',
-            'image',
-        ]);
 
         try {
             $product->update($validated);
@@ -402,11 +380,9 @@ class ProductController extends Controller
             return redirect()->back()->withInput()->with('error', 'Product update failed: ' . $e->getMessage());
         }
 
-        $newSnapshot = $product->fresh()->only(array_keys($oldSnapshot));
+        // Log after commit — snapshot fresh state
+        ProductLogService::log(ProductLog::ACTION_UPDATED, $product, $oldSnapshot, ProductLogService::snapshot($product->fresh()));
 
-        ProductLogService::log(ProductLog::ACTION_UPDATED, $product, $oldSnapshot, $newSnapshot);
-
-        // Delete the old file only after the database commit succeeded
         if ($imageReplaced) {
             $this->fileHandler->secureUnlink($oldImage);
         }
@@ -423,21 +399,9 @@ class ProductController extends Controller
         abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_delete'), 403);
 
         $product = Product::findOrFail($id);
+        $snapshot = ProductLogService::snapshot($product);
 
-        $oldSnapshot = $product->only([
-            'name',
-            'sku',
-            'price',
-            'purchase_price',
-            'quantity',
-            'status',
-            'category_id',
-            'brand_id',
-            'unit_id',
-            'description'
-        ]);
-
-        ProductLogService::log(ProductLog::ACTION_DELETED, $product, $oldSnapshot, null);
+        ProductLogService::log(ProductLog::ACTION_DELETED, $product, $snapshot, null);
 
         if ($product->image != '') {
             $this->fileHandler->secureUnlink($product->image);
@@ -447,6 +411,7 @@ class ProductController extends Controller
         $product->variations()->delete();
 
         $product->delete();
+
         return redirect()->back()->with('success', 'Product Deleted Successfully');
     }
 
@@ -1057,9 +1022,7 @@ class ProductController extends Controller
         }
 
         $openingQty = (float) ($validated['quantity'] ?? 0);
-
         $validated['quantity'] = 0;
-
 
         DB::beginTransaction();
 
@@ -1105,12 +1068,7 @@ class ProductController extends Controller
 
             DB::commit();
 
-            ProductLogService::log(
-                ProductLog::ACTION_CREATED,
-                $product,
-                null,
-                $product->fresh()->only(['name', 'sku', 'price', 'purchase_price', 'quantity', 'status'])
-            );
+            ProductLogService::log(ProductLog::ACTION_CREATED, $product, null, ProductLogService::snapshot($product->fresh()));
 
             return response()->json([
                 'status' => true,
