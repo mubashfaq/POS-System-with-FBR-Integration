@@ -11,7 +11,11 @@
     "css": [
       "assets/app-f0deb2b4.css"
     ],
+<<<<<<< HEAD
     "file": "assets/app-b61b6b31.js",
+=======
+    "file": "assets/app-3aa03056.js",
+>>>>>>> c67bffcd9cb9898910c08ad4953c477f9ba4db98
     "isEntry": true,
     "src": "resources/js/app.jsx"
   },

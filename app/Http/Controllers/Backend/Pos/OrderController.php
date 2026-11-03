@@ -41,7 +41,7 @@ class OrderController extends Controller
      * Display a listing of the resource.
      */
 
-   
+
     public function index(Request $request)
     {
         if ($request->ajax()) {
@@ -589,11 +589,8 @@ class OrderController extends Controller
             return response()->json(['error' => 'No business selected'], 422);
         }
 
-        $order = Order::with('products.product', 'products.purchaseItem')
-            ->where('id', $orderId)
-            ->where('business_id', $businessId)
-            ->lockForUpdate()
-            ->firstOrFail();
+        $order = Order::with('products.product', 'products.purchaseItem')->where('id', $orderId)->where('business_id', $businessId)
+            ->lockForUpdate()->firstOrFail();
 
         if ($order->is_cancelled) {
             return response()->json(['error' => 'Order is cancelled'], 422);
@@ -682,7 +679,10 @@ class OrderController extends Controller
 
         $tokens = FbrTokenService::getToken();
         $token = is_array($tokens) ? $tokens['pos_token'] : $tokens;
-        $getURLEnvironment = FbrTokenService::getURLEnvironment();
+        $invoiceEnvironment = FbrTokenService::getURLEnvironment();
+
+        $url = $invoiceEnvironment === 'production' ? "https://gw.fbr.gov.pk/imsp/v1/api/Live/PostData"
+            : "https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData";
 
 
         $post_api_response = null;
@@ -698,7 +698,7 @@ class OrderController extends Controller
                         'Accept-Encoding' => 'gzip, deflate, br',
                         'Accept' => '*/*'
                     ])->withBody(json_encode($fbrPayload), 'application/json')
-                ->post("https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData");
+                ->post($url);
         } catch (\Throwable $e) {
             DB::rollBack();
 
@@ -745,6 +745,7 @@ class OrderController extends Controller
                 'api_message' => 1,
                 'order_stage' => 'submitted',
                 'POSID' => $POSID,
+                'invoice_environment' => $invoiceEnvironment,
             ]);
 
             DB::commit();
@@ -968,7 +969,8 @@ class OrderController extends Controller
                 'api_status' => $post_api_response->status(),
                 'api_message' => 1,
                 'order_stage' => 'submitted',
-                'POSID' => $POSID
+                'POSID' => $POSID,
+                'invoice_environment' => $getURLEnvironment,
             ]);
 
             DB::commit();
@@ -1357,11 +1359,8 @@ class OrderController extends Controller
             return response()->json(['error' => 'No business selected'], 422);
         }
 
-        $order = Order::with('products.product', 'products.purchaseItem', 'customer')
-            ->where('id', $orderId)
-            ->where('business_id', $businessId)
-            ->lockForUpdate()
-            ->firstOrFail();
+        $order = Order::with('products.product', 'products.purchaseItem', 'customer')->where('id', $orderId)
+            ->where('business_id', $businessId)->lockForUpdate()->firstOrFail();
 
         if ($order->is_cancelled) {
             return response()->json(['error' => 'Order is cancelled'], 422);
@@ -1584,6 +1583,7 @@ class OrderController extends Controller
             'api_status' => $response->status(),
             'error_code' => null,
             'error_message' => null,
+            'invoice_environment' => $invoiceEnvironment,
             'api_message' => 1,
             'fbr_invoice_no' => $fbr_invoice_number,
             'order_stage' => 'submitted',
@@ -2057,7 +2057,7 @@ class OrderController extends Controller
         $order = Order::findOrFail($id);
         if ($request->isMethod('post')) {
             $data = $request->validate([
-                'amount' => 'required|numeric|min:1',
+                'amount' => ['required', 'numeric', 'min:0.01', 'max:' . $order->due],
             ]);
 
 
@@ -2091,7 +2091,8 @@ class OrderController extends Controller
         $order = Order::findOrFail($id);
         if ($request->isMethod('post')) {
             $data = $request->validate([
-                'amount' => 'required|numeric|min:1',
+                'amount' => ['required', 'numeric', 'min:0.01', 'max:' . $order->due_with_advance_tax],
+
             ]);
             if ($data['amount'] > $order->due) {
                 $due = 0;

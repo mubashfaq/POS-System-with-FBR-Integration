@@ -103,22 +103,37 @@ export default function Pos({
     };
 
     const savePriceChange = (cartId, newPrice) => {
-
         const price = parseFloat(newPrice);
-        if (isNaN(price) || price < 0) {
-            return;
-        }
+        if (isNaN(price) || price < 0) return;
 
-        axios.put("/admin/cart/update-price", { id: cartId, price: price, })
+        // 1. Instant UI update (this makes totals recalc)
+        setCarts((prev) =>
+            prev.map((item) =>
+                item.id === cartId ? { ...item, unit_price: price } : item
+            )
+        );
+
+        // 2. Save to the server
+        axios
+            .put("/admin/cart/update-price", { id: cartId, price })
             .then(() => {
                 playSound(SuccessSound);
                 setCartUpdated(prev => !prev);
             })
-            .catch(err => {
+            .catch((err) => {
                 console.error("Price update failed", err);
-                setCartUpdated(prev => !prev);
+                playSound(WarningSound);
+                toast.error(err?.response?.data?.message || "Failed to update price");
+                setCartUpdated((prev) => !prev); // rollback by refetching
             });
+    };
 
+    const handleQuantityChange = (cartId, newQty) => {
+        setCarts((prev) =>
+            prev.map((item) =>
+                item.id === cartId ? { ...item, quantity: newQty } : item
+            )
+        );
     };
 
 
@@ -708,6 +723,7 @@ export default function Pos({
                                 // customerTaxType={customerTaxType}
                                 onPriceChange={handlePriceChange}
                                 onPriceSave={savePriceChange}
+                                onQuantityChange={handleQuantityChange}
                                 onTotalsChange={handleCartTotals}
                                 quantityValidation={quantityValidation}
                             />

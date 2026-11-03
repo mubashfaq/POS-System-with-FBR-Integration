@@ -76,50 +76,38 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
             .catch(() => setQuantityValidation("enabled")); // safe fallback — no stock enforcement
     }, []); // empty array = runs once on mount
 
-    const handlePriceChange = (cartId, newPrice) => {
-
+    const savePriceChange = (cartId, newPrice) => {
         const price = parseFloat(newPrice);
+        if (isNaN(price) || price < 0) return;
 
-        // Don't update if invalid
-        if (isNaN(price) || price < 0) {
-            return;
-        }
-
-        // Update React cart state immediately
-        setCarts(prev =>
-            prev.map(item =>
-                item.id === cartId
-                    ? {
-                        ...item,
-                        unit_price: price
-                    }
-                    : item
+        // 1. Instant UI update (this makes totals recalc)
+        setCarts((prev) =>
+            prev.map((item) =>
+                item.id === cartId ? { ...item, unit_price: price } : item
             )
         );
 
-    };
-
-    const savePriceChange = (cartId, newPrice) => {
-
-        const price = parseFloat(newPrice);
-
-        if (isNaN(price) || price < 0) {
-            return;
-        }
-
-        axios.put("/admin/cart/update-price", {
-            id: cartId,
-            price: price,
-        })
+        // 2. Save to the server
+        axios
+            .put("/admin/cart/update-price", { id: cartId, price })
             .then(() => {
                 playSound(SuccessSound);
                 setCartUpdated(prev => !prev);
             })
-            .catch(err => {
+            .catch((err) => {
                 console.error("Price update failed", err);
-                setCartUpdated(prev => !prev);
+                playSound(WarningSound);
+                toast.error(err?.response?.data?.message || "Failed to update price");
+                setCartUpdated((prev) => !prev); // rollback by refetching
             });
+    };
 
+    const handleQuantityChange = (cartId, newQty) => {
+        setCarts((prev) =>
+            prev.map((item) =>
+                item.id === cartId ? { ...item, quantity: newQty } : item
+            )
+        );
     };
 
     const api = (path) => {
@@ -325,7 +313,7 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
 
                     if (batches.length === 0) {
                         toast.error("Insufficient stock or no batches found.");
-                        setAddingProducts(prev => { const s = new Set(prev); s.delete(id); return s; });
+                        setAddingProducts(prev => { const s = new Set(prev); s.delete(key); return s; });
                         return;
                     }
 
@@ -336,14 +324,14 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
                     } else if (batches.length === 1) {
                         submitToCart(id, batches[0].id, variationId);
                     } else {
-                        setAddingProducts(prev => { const s = new Set(prev); s.delete(id); return s; });
+                        setAddingProducts(prev => { const s = new Set(prev); s.delete(key); return s; });
                         setTargetProduct(targetInfo);
                         setAvailableBatches(batches);
                         setShowBatchModal(true);
                     }
                 })
                 .catch((err) => {
-                    setAddingProducts(prev => { const s = new Set(prev); s.delete(id); return s; });
+                    setAddingProducts(prev => { const s = new Set(prev); s.delete(key); return s; });
                     toast.error(err?.response?.data?.message || "Failed to fetch product batches.");
                 });
         } else {
@@ -615,7 +603,7 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
         <>
             <div className="card">
                 {businessType === 'pral' && (
-                    <div class="mt-n5 mb-3 d-flex justify-content-end">
+                    <div className="mt-n5 mb-3 d-flex justify-content-end">
                         <div className="col-md-4">
                             <Field label="Date" required>
                                 <input
@@ -665,8 +653,8 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
                                 cartUpdated={cartUpdated}
                                 isRegistered={isRegistered}
                                 // customerTaxType={customerTaxType}
-                                onPriceChange={handlePriceChange}
                                 onPriceSave={savePriceChange}
+                                onQuantityChange={handleQuantityChange}
                                 onTotalsChange={handleCartTotals}
                                 quantityValidation={quantityValidation}
                             />
@@ -916,13 +904,18 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
                 product={targetProduct}
                 batches={availableBatches}
                 quantityValidation={quantityValidation}
-                onClose={() => setShowBatchModal(false)}
+                onClose={() => {
+                    setShowBatchModal(false);
+                    if (targetProduct) {
+                        setAddingProducts((prev) => {
+                            const s = new Set(prev);
+                            s.delete(guardKey(targetProduct.id, targetProduct.variationId));
+                            return s;
+                        });
+                    }
+                }}
                 onSelect={(batch) =>
-                    submitToCart(
-                        targetProduct.id,
-                        batch.id,
-                        targetProduct.variationId
-                    )
+                    submitToCart(targetProduct.id, batch.id, targetProduct.variationId)
                 }
             />
             <Toaster position="top-right" reverseOrder={false} />
