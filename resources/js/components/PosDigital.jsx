@@ -112,6 +112,7 @@ export default function Pos({
         axios.put("/admin/cart/update-price", { id: cartId, price: price, })
             .then(() => {
                 playSound(SuccessSound);
+                setCartUpdated(prev => !prev);
             })
             .catch(err => {
                 console.error("Price update failed", err);

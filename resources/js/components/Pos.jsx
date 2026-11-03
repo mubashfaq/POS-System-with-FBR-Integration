@@ -113,6 +113,7 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
         })
             .then(() => {
                 playSound(SuccessSound);
+                setCartUpdated(prev => !prev);
             })
             .catch(err => {
                 console.error("Price update failed", err);
