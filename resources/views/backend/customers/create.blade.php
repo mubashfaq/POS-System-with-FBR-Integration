@@ -76,7 +76,7 @@
                         <div class="mb-3 col-md-6">
                             <label for="sale_tax_number" class="form-label"> Sale Tax Number </label>
                             <input type="text" class="form-control" placeholder="Enter Sale Tax Number"
-                                name="sale_tax_number" value="{{ old('sale_tax_number') }}" required>
+                                name="sale_tax_number" value="{{ old('sale_tax_number') }}">
                         </div>
 
                         <div class="mb-3 col-md-6">

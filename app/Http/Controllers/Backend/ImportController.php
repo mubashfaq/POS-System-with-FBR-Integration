@@ -249,7 +249,7 @@ class ImportController extends Controller
         $subTotal = collect($desired)->sum(fn($l) => $l['quantity'] * $l['cost_price']);
 
         $header = [
-            'supplier_id' => $supplierId,
+            'supplier_id' => $supplierId ? $supplierId : 0,
             'user_id' => auth()->id(),
             'business_id' => $businessId,
             'sub_total' => $subTotal,

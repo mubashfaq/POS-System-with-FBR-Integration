@@ -150,7 +150,7 @@ class ProductVariationService
         );
 
         $purchase = Purchase::create([
-            'supplier_id' => $supplierId,
+            'supplier_id' => $supplierId ? $supplierId : 0,
             'user_id' => auth()->id(),
             'business_id' => $businessId,
             'sub_total' => $total,
