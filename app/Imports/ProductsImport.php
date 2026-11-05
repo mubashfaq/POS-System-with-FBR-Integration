@@ -30,8 +30,11 @@ class ProductsImport implements ToCollection, WithCalculatedFormulas
     protected int $skipped = 0;
 
     // stats returned to controller
+    protected int $duplicates = 0;
+
     public array $result = [
         'imported' => 0,
+        'duplicates' => 0,
         'skipped' => 0,
         'gds' => [],
     ];
@@ -54,7 +57,8 @@ class ProductsImport implements ToCollection, WithCalculatedFormulas
         $this->currentGd = null;
         $this->imported = 0;
         $this->skipped = 0;
-        $this->result = ['imported' => 0, 'skipped' => 0, 'gds' => []];
+        $this->duplicates = 0;
+        $this->result = ['imported' => 0, 'duplicates' => 0, 'skipped' => 0, 'gds' => []];
 
         foreach ($rows as $rowIndex => $row) {
             $rowNum = $rowIndex + 1; // Excel row number (1-based)
@@ -66,8 +70,7 @@ class ProductsImport implements ToCollection, WithCalculatedFormulas
             // -------- 1. Detect GD title row (e.g. "LAPR-HC-4659-01-01-2025") -----------
             // Pattern: contains "-HC-" or starts with KAPE-/PAKI-/LAPR-
             if (
-                $colA !== '' && preg_match('/^[A-Z]{2,5}-HC-\d+/i', $colA)
-                && strpos(strtolower($colA), 'pruchases') === false
+                $colA !== '' && preg_match('/^[A-Z]{2,5}-HC-\d+/i', $colA) && strpos(strtolower($colA), 'pruchases') === false
                 && strpos(strtolower($colA), 'imports') === false
             ) {
                 $this->currentGd = $colA;
@@ -76,10 +79,7 @@ class ProductsImport implements ToCollection, WithCalculatedFormulas
             }
 
             // -------- 2. Detect header row: A=="Items" && B=="HS CODE" ---------------
-            if (
-                strcasecmp($colA, self::EXPECTED_HEADER_A) === 0
-                && stripos($colB, self::EXPECTED_HEADER_B) === 0
-            ) {
+            if (strcasecmp($colA, self::EXPECTED_HEADER_A) === 0 && stripos($colB, self::EXPECTED_HEADER_B) === 0) {
                 $this->inDataBlock = true;
                 continue;
             }
@@ -106,11 +106,13 @@ class ProductsImport implements ToCollection, WithCalculatedFormulas
 
             // -------- 5. We're in a data row — validate & import ---------------------
             try {
-                $created = $this->importRow($rowArr, $rowNum);
-                if ($created) {
+                $outcome = $this->importRow($rowArr, $rowNum);
+
+                if ($outcome === 'duplicate') {
+                    $this->duplicates++;
+                } elseif ($outcome instanceof Product) {
                     $this->imported++;
-                    $this->result['gds'][$this->currentGd] =
-                        ($this->result['gds'][$this->currentGd] ?? 0) + 1;
+                    $this->result['gds'][$this->currentGd] = ($this->result['gds'][$this->currentGd] ?? 0) + 1;
                 } else {
                     $this->skipped++;
                 }
@@ -121,29 +123,29 @@ class ProductsImport implements ToCollection, WithCalculatedFormulas
         }
 
         $this->result['imported'] = $this->imported;
+        $this->result['duplicates'] = $this->duplicates;
         $this->result['skipped'] = $this->skipped;
     }
 
     /**
      * Import one item row. Returns the Product or null if the row must be skipped.
      */
-    protected function importRow(array $row, int $rowNum): ?Product
+    protected function importRow(array $row, int $rowNum): Product|string|null
     {
         // ---- map columns ----
         $itemName = trim((string) ($row[0] ?? '')); // A
         $hsCode = trim((string) ($row[1] ?? '')); // B
         $weight = $row[3] ?? 0;                   // D
-        $units = $row[4] ?? 0;                   // E (qty)
+        $units = $row[4] ?? 0;                   // E
         $costOfGoods = $row[16] ?? 0;                   // Q
         $ratePerUnit = $row[17] ?? 0;                   // R
-        $taxRate = $row[19] ?? 0;                   // T (e.g. 0.18 or "18%")
+        $taxRate = $row[19] ?? 0;                   // T
         $salesTaxAmt = $row[20] ?? 0;                   // U
 
-        // ---- skip conditions ----
+        // ---- skip conditions (unchanged) ----
         if ($itemName === '')
             return null;
 
-        // Header-like or footer-like content
         $lower = strtolower($itemName);
         if (
             strpos($lower, 'total') !== false
@@ -155,18 +157,15 @@ class ProductsImport implements ToCollection, WithCalculatedFormulas
             return null;
         }
 
-        // Require HS code
         if ($hsCode === '')
             return null;
 
-        // Reject rows whose "value" cells are still formulas (means user opened
-        // in Excel and imported without recalculating)
         foreach ([$costOfGoods, $ratePerUnit, $salesTaxAmt] as $v) {
             if (is_string($v) && strpos($v, '=') === 0)
                 return null;
         }
 
-        // ---- normalise numbers ----
+        // ---- normalise ----
         $units = $this->num($units);
         $weight = $this->num($weight);
         $costOfGoods = $this->num($costOfGoods);
@@ -174,15 +173,27 @@ class ProductsImport implements ToCollection, WithCalculatedFormulas
         $salesTaxAmt = $this->num($salesTaxAmt);
         $taxRate = $this->parsePercent($taxRate);
 
-        // Determine quantity: prefer "No. of U" (E); if 0, use weight (D) as KGs
         $quantity = $units > 0 ? $units : 0;
         $uom = $units > 0 ? 'PCS' : ($weight > 0 ? 'KGS' : 'PCS');
 
-        // Determine per-unit cost
         $costPerUnit = $ratePerUnit > 0 ? $ratePerUnit
             : ($quantity > 0 && $costOfGoods > 0 ? $costOfGoods / $quantity : $costOfGoods);
 
-        // ---- build product attributes ----
+        // =========================================================
+        //  DUPLICATE CHECK  ← this is what was missing
+        // =========================================================
+        $existing = $this->findExistingProduct($itemName, $hsCode);
+
+        if ($existing) {
+            Log::info("Row {$rowNum} (GD {$this->currentGd}): duplicate product skipped", [
+                'product_id' => $existing->id,
+                'name' => $existing->name,
+                'hsCode' => $existing->hsCode,
+            ]);
+            return 'duplicate';
+        }
+
+        // ---- build product attributes (unchanged) ----
         $attributes = [
             'name' => $itemName,
             'business_id' => $this->businessId,
@@ -191,7 +202,7 @@ class ProductsImport implements ToCollection, WithCalculatedFormulas
             'purchase_price' => $costPerUnit,
             'quantity' => $quantity,
             'hsCode' => $hsCode,
-            'rate_of_tax' => $taxRate,          // e.g. 0.18
+            'rate_of_tax' => $taxRate,
             'uom' => $uom,
             'status' => 1,
             'slug' => Str::slug($itemName) . '-' . Str::random(6),
@@ -231,6 +242,59 @@ class ProductsImport implements ToCollection, WithCalculatedFormulas
 
             return $product;
         });
+    }
+
+    /**
+     * Find an existing product for this business using (name + hsCode).
+     * HS codes are normalized so "8544.4290" matches "85444290" / "8544.429".
+     */
+    protected function findExistingProduct(string $name, string $hsCode): ?Product
+    {
+        $businessId = $this->businessId;
+        $name = trim($name);
+        $hsNormal = $this->normalizeHsCode($hsCode);
+
+        // 1) exact name + exact hsCode (fast path, uses any index on hsCode)
+        $p = Product::where('business_id', $businessId)->where('hsCode', $hsCode)->where(function ($q) use ($name) {
+            $q->where('name', $name)->orWhere('sku', $name);
+        })->first();
+        if ($p)
+            return $p;
+
+        // 2) exact name, then compare normalized hsCode in PHP (handles "8544.4290" vs "85444290")
+        $candidates = Product::where('business_id', $businessId)->where(function ($q) use ($name) {
+            $q->where('name', $name)->orWhere('sku', $name);
+        })->get();
+
+        foreach ($candidates as $c) {
+            if ($this->normalizeHsCode((string) $c->hsCode) === $hsNormal) {
+                return $c;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * "8544.4290" → "8544429" (strip dots, spaces, trailing zeros).
+     * "3304.9190" → "3304919" ... etc.
+     * Keeps the leading segment intact — only strips separators + trailing zeros
+     * after the decimal point, so ".4290" and ".429" both become ".429".
+     */
+    protected function normalizeHsCode(string $hs): string
+    {
+        $hs = trim($hs);
+        // remove thousands separators / spaces
+        $hs = str_replace([',', ' ', "\t", "\xC2\xA0"], '', $hs);
+
+        // if it has a decimal point, strip trailing zeros after it
+        if (strpos($hs, '.') !== false) {
+            [$int, $dec] = explode('.', $hs, 2);
+            $dec = rtrim($dec, '0');
+            $hs = $int . ($dec === '' ? '' : '.' . $dec);
+        }
+
+        return $hs;
     }
 
     // ---------------------------------------------------------------------

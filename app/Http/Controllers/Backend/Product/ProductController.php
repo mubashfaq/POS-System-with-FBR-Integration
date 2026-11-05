@@ -462,9 +462,17 @@ class ProductController extends Controller
                     $readerType = \Maatwebsite\Excel\Excel::CSV;
                 }
 
-                Excel::import(new ProductsImport($businessId), $processedPath, null, $readerType);
+                $import = new ProductsImport($businessId);
+                Excel::import($import, $processedPath, null, $readerType);
+                $result = $import->result;
+                $message = sprintf(
+                    'Products imported. New: %d, Duplicates skipped: %d, Ignored rows: %d',
+                    $result['imported'],
+                    $result['duplicates'],
+                    $result['skipped'],
+                );
 
-                return redirect()->route('backend.admin.products.index')->with('success', 'Products imported successfully.');
+                return redirect()->route('backend.admin.products.index')->with('success', $message);
 
             } catch (\Throwable $e) {
                 Log::error('❌ Import failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
