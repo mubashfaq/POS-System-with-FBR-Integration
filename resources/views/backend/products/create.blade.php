@@ -57,7 +57,7 @@
                             Price
                             <span class="text-danger">*</span>
                         </label>
-                        <input type="number" step="1" min="1" class="form-control" placeholder="Enter price"
+                        <input type="number" step="0.01" min="0" class="form-control" placeholder="Enter price"
                             name="price" value="{{ old('price') }}" required>
                     </div>
                     @if ($business_type === 'pos' || $business_type === 'pral')
