@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Backend\Product;
 
-use App\Exports\DemoProductsExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
@@ -28,6 +27,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\DataTables;
 use App\Services\FbrTokenService;
@@ -417,31 +417,63 @@ class ProductController extends Controller
 
     public function import(Request $request)
     {
-        if ($request->query('download-demo')) {
-            return Excel::download(new DemoProductsExport, 'demo_products.xlsx');
+        if ($request->boolean('download-demo')) {
+            $currentBusiness = currentUserBusiness();
+            abort_if(!$currentBusiness || !$currentBusiness->hasPermission('product_view'), 403);
+
+            $path = 'samples/stock_import_sample.xlsx';
+
+            if (!Storage::disk('local')->exists($path)) {
+                abort(404, 'Sample file not found.');
+            }
+
+            return Storage::disk('local')->download(
+                $path,
+                'demo_products.xlsx',
+                ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+            );
         }
+
         if ($request->isMethod('post') && $request->hasFile('file')) {
 
             $file = $request->file('file');
             $businessId = session('business_id');
 
+            if (!$businessId) {
+                return redirect()->route('backend.admin.products.index')->with('error', 'No active business selected.');
+            }
+
+            $processedPath = null;
+            $isTemp = false;
+
             try {
-                // Convert formulas to values before importing
-                $processedFile = $this->convertExcelFormulasToValues($file);
+                [$processedPath, $isTemp] = $this->convertExcelFormulasToValues($file);
 
-                // Import using the processed file
-                Excel::import(new ProductsImport($businessId), $processedFile);
-
-                // Clean up temporary file if it's different from original
-                if ($processedFile !== $file->getRealPath() && file_exists($processedFile)) {
-                    unlink($processedFile);
+                // Sanity: file must be readable and non-empty
+                if (!is_string($processedPath) || !is_file($processedPath) || filesize($processedPath) === 0) {
+                    throw new \RuntimeException('Processed import file is empty or missing.');
                 }
 
-                return redirect()->back()->with('success', 'Products imported successfully.');
+                // Force XLSX reader regardless of filename extension
+                $readerType = \Maatwebsite\Excel\Excel::XLSX;
+                if (strtolower(pathinfo($processedPath, PATHINFO_EXTENSION)) === 'xls') {
+                    $readerType = \Maatwebsite\Excel\Excel::XLS;
+                } elseif (strtolower(pathinfo($processedPath, PATHINFO_EXTENSION)) === 'csv') {
+                    $readerType = \Maatwebsite\Excel\Excel::CSV;
+                }
 
-            } catch (\Exception $e) {
-                Log::error('❌ Import failed: ' . $e->getMessage());
-                return redirect()->back()->with('error', 'Import failed: ' . $e->getMessage());
+                Excel::import(new ProductsImport($businessId), $processedPath, null, $readerType);
+
+                return redirect()->route('backend.admin.products.index')->with('success', 'Products imported successfully.');
+
+            } catch (\Throwable $e) {
+                Log::error('❌ Import failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+                return redirect()->route('backend.admin.products.index')->with('error', 'Import failed: ' . $e->getMessage());
+
+            } finally {
+                if ($isTemp && $processedPath && file_exists($processedPath)) {
+                    @unlink($processedPath);
+                }
             }
         }
 
@@ -449,93 +481,100 @@ class ProductController extends Controller
     }
 
     /**
-     * Convert Excel formulas to their calculated values
-     * This handles system-generated Excel files with formulas automatically
+     * @return array{0:string,1:bool} [path, isTemporary]
      */
-    private function convertExcelFormulasToValues($uploadedFile)
+    private function convertExcelFormulasToValues($uploadedFile): array
     {
-        try {
-            // Load the Excel file
-            $inputFileName = $uploadedFile->getRealPath();
+        $originalPath = $uploadedFile->getRealPath();
 
-            // Try to load with PhpSpreadsheet
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($inputFileName);
+        // Always create a .xlsx temp path, even when no formulas
+        $tempFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'import_' . time() . '_' . uniqid() . '.xlsx';
+
+        try {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($originalPath);
             $worksheet = $spreadsheet->getActiveSheet();
 
-            // Check if file has formulas
-            $hasFormulas = false;
-            $cellE9 = $worksheet->getCell('E9')->getValue();
+            $highestRow = (int) $worksheet->getHighestRow();
+            $dataStart = 9; // rows before this are headers
 
-            if (is_string($cellE9) && strpos($cellE9, '=') === 0) {
-                $hasFormulas = true;
+            // Detect formulas only if there is data
+            $hasFormulas = false;
+            if ($highestRow >= $dataStart) {
+                foreach ($worksheet->getRowIterator($dataStart) as $row) {
+                    foreach ($row->getCellIterator() as $cell) {
+                        $v = $cell->getValue();
+                        if (is_string($v) && strpos($v, '=') === 0) {
+                            $hasFormulas = true;
+                            break 2;
+                        }
+                    }
+                }
             }
 
             if (!$hasFormulas) {
-                return $inputFileName;
+                // Copy as-is; extension now .xlsx so reader detection works
+                if (!@copy($originalPath, $tempFile)) {
+                    throw new \RuntimeException('Could not copy upload to temp file.');
+                }
+                return [$tempFile, true];
             }
 
-            // Create a new spreadsheet for output
+            // --- Rebuild spreadsheet with calculated values ---
             $newSpreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
             $newWorksheet = $newSpreadsheet->getActiveSheet();
 
-            // Copy all cell values (formulas will be evaluated)
-            $highestRow = $worksheet->getHighestRow();
             $highestColumn = $worksheet->getHighestColumn();
             $highestColumnIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestColumn);
 
             for ($row = 1; $row <= $highestRow; $row++) {
                 for ($col = 1; $col <= $highestColumnIndex; $col++) {
-                    $cellCoordinate = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col) . $row;
-                    $cell = $worksheet->getCell($cellCoordinate);
+                    $coord = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col) . $row;
+                    $cell = $worksheet->getCell($coord);
 
-                    // Get calculated value (this will evaluate formulas)
                     try {
                         $value = $cell->getCalculatedValue();
-                    } catch (\Exception $e) {
-                        // If formula can't be calculated, use the raw value
+                    } catch (\Throwable $e) {
                         $value = $cell->getValue();
                     }
 
-                    // Special handling for column B (HS CODE) to preserve trailing zeros
-                    if ($col === 2 && $row >= 9) { // Column B, data rows
-                        // Force as string to preserve trailing zeros like 8544.4290
-                        $value = strval($value);
+                    // Preserve HS CODE (column B) trailing zeros
+                    if ($col === 2 && $row >= $dataStart) {
                         $newWorksheet->setCellValueExplicit(
-                            $cellCoordinate,
-                            $value,
+                            $coord,
+                            (string) $value,
                             \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING
                         );
                     } else {
-                        // Set the value in new worksheet
-                        $newWorksheet->setCellValue($cellCoordinate, $value);
+                        $newWorksheet->setCellValue($coord, $value);
                     }
 
-                    // Copy formatting
-                    $newWorksheet->getCell($cellCoordinate)->getStyle()
-                        ->applyFromArray($cell->getStyle()->exportArray());
+                    try {
+                        $newWorksheet->getCell($coord)->getStyle()->applyFromArray($cell->getStyle()->exportArray());
+                    } catch (\Throwable $e) {
+                        // style copy failure is non-fatal
+                    }
                 }
             }
 
-            // Copy column widths
-            foreach ($worksheet->getColumnDimensions() as $col => $dimension) {
-                $newWorksheet->getColumnDimension($col)->setWidth($dimension->getWidth());
+            foreach ($worksheet->getColumnDimensions() as $c => $dim) {
+                $newWorksheet->getColumnDimension($c)->setWidth($dim->getWidth());
+            }
+            foreach ($worksheet->getRowDimensions() as $r => $dim) {
+                $newWorksheet->getRowDimension($r)->setRowHeight($dim->getRowHeight());
             }
 
-            // Copy row heights
-            foreach ($worksheet->getRowDimensions() as $row => $dimension) {
-                $newWorksheet->getRowDimension($row)->setRowHeight($dimension->getRowHeight());
-            }
+            (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($newSpreadsheet))->save($tempFile);
 
-            // Save to temporary file
-            $tempFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'import_' . time() . '_' . uniqid() . '.xlsx';
-            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($newSpreadsheet);
-            $writer->save($tempFile);
+            return [$tempFile, true];
 
-            return $tempFile;
-
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::warning('⚠️ Could not convert formulas: ' . $e->getMessage());
-            return $uploadedFile->getRealPath();
+
+            // Guarantee a .xlsx-extension fallback so Maatwebsite can still read it
+            if (!is_file($tempFile)) {
+                @copy($originalPath, $tempFile);
+            }
+            return [$tempFile, true]; // treat as temp so it gets cleaned up
         }
     }
 
@@ -1039,7 +1078,7 @@ class ProductController extends Controller
             $price = (float) ($validated['price'] ?? 0);
 
             $purchase = Purchase::create([
-                'supplier_id' => $validated['supplier_id'] ?? null,
+                'supplier_id' => $validated['supplier_id'] ?? 0,
                 'user_id' => auth()->id(),
                 'business_id' => $businessId,
                 'sub_total' => $purchasePrice * $openingQty,

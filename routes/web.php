@@ -152,7 +152,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::resource('customers', CustomerController::class);
     Route::resource('products', ProductController::class);
     Route::get('import/purchase', [PurchaseController::class, 'importForm'])->name('purchase.import');
-    Route::post('import/purchase', [PurchaseController::class, 'import'])->name('purchase.import.process');
+    Route::match(['get', 'post'], 'import/purchases', [PurchaseController::class, 'import'])->name('purchase.import.process');
     Route::get('products/hsCode-desc/{hs_code}', [ProductController::class, 'getDescription'])->name('products.hsCode-desc');
     Route::get('products/sale-type/{sale_type}', [ProductController::class, 'getSaleTypeId'])->name('products.sale-type');
     Route::get('products/sro-schedule/{rate_tax_id}', [ProductController::class, 'getSroSchedule'])->name('products.sro-schedule');

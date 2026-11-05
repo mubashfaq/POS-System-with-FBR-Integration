@@ -132,6 +132,7 @@ class OrderController extends Controller
 
                 } elseif ($saleStatus === 'failed') {
                     $ordersQuery->where('order_stage', 'submitted')
+                        ->where('fbr_integration_enabled', 1)
                         ->where(function ($q) {
                             $q->where('api_status', '!=', 200)
                                 ->orWhere(function ($sub) {
@@ -199,8 +200,7 @@ class OrderController extends Controller
                         return '<span class="badge bg-warning">PRA</span>';
                     }
 
-                    return $data->type == 'pos_invoice'
-                        ? '<span class="badge bg-info">POS</span>'
+                    return $data->type == 'pos_invoice' ? '<span class="badge bg-info">POS</span>'
                         : '<span class="badge bg-secondary">Digital</span>';
                 })
 
@@ -219,8 +219,7 @@ class OrderController extends Controller
 
                 ->addColumn(
                     'status',
-                    fn($data) => $data->status
-                        ? '<span class="badge bg-primary">Paid</span>'
+                    fn($data) => $data->status ? '<span class="badge bg-primary">Paid</span>'
                         : '<span class="badge bg-danger">Due</span>'
                 )
 
@@ -231,7 +230,7 @@ class OrderController extends Controller
 
             $datatable->addColumn('fbr_status', function ($d) {
 
-                if (!$d->fbr_integration_enabled && $d->order_stage !== 'draft') {
+                if (!$d->fbr_integration_enabled) {
                     return "
                             <button data-id='{$d->id}' class='fbr-status-disabled btn btn-md bg-white' title='FBR Disabled'>
                                 <i class='fas fa-times-circle text-muted'></i>
@@ -270,23 +269,21 @@ class OrderController extends Controller
             });
 
             /* Action Buttons */
-            $datatable->addColumn('action', function ($data) use ($business, $fbr) {
+            $datatable->addColumn('action', function ($data) use ($business) {
 
-                $isDraft = $data->order_stage === 'draft' && !$data->is_cancelled;
+                $isDraft = $data->order_stage === 'draft' && !$data->is_cancelled && $data->fbr_integration_enabled;
 
                 $buttons = [];
 
                 /*
-                |--------------------------------------------------------------------------
                 | Send to FBR
                 |
                 | Only show when:
                 | 1. FBR integration is enabled
                 | 2. Order is draft
                 | 3. Order is not cancelled
-                |--------------------------------------------------------------------------
                 */
-                if ($fbr && $isDraft) {
+                if ($isDraft) {
 
                     $submitRoute = $this->resolveSubmitRoute($business, $data);
 
