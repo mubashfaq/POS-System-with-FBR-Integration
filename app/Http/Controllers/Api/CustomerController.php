@@ -29,10 +29,10 @@ class CustomerController extends Controller
 
         if ($request->has('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'LIKE', "%{$search}%")
-                  ->orWhere('phone', 'LIKE', "%{$search}%")
-                  ->orWhere('address', 'LIKE', "%{$search}%");
+                    ->orWhere('phone', 'LIKE', "%{$search}%")
+                    ->orWhere('address', 'LIKE', "%{$search}%");
             });
         }
 
@@ -43,8 +43,8 @@ class CustomerController extends Controller
             'data' => $customers
         ]);
     }
-    
-    
+
+
     public function businessCustomers(Request $request)
     {
         $business_id = $request->query('business_id');
@@ -60,10 +60,10 @@ class CustomerController extends Controller
 
         if ($request->has('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'LIKE', "%{$search}%")
-                  ->orWhere('phone', 'LIKE', "%{$search}%")
-                  ->orWhere('address', 'LIKE', "%{$search}%");
+                    ->orWhere('phone', 'LIKE', "%{$search}%")
+                    ->orWhere('address', 'LIKE', "%{$search}%");
             });
         }
 
@@ -102,6 +102,8 @@ class CustomerController extends Controller
             'ntn_cnic' => [
                 'required',
                 'string',
+                'min:7',
+                'max:13',
                 Rule::unique('customers')->where(function ($query) use ($business) {
                     return $query->where('business_id', $business->id);
                 }),
