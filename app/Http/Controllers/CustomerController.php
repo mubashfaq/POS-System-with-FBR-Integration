@@ -116,6 +116,8 @@ class CustomerController extends Controller
                 'ntn_cnic' => [
                     'required',
                     'string',
+                    'min:7',
+                    'max:13',
                     Rule::unique('customers')->where(function ($query) use ($businessId) {
                         return $query->where('business_id', $businessId);
                     }),
@@ -154,6 +156,8 @@ class CustomerController extends Controller
             'ntn_cnic' => [
                 'required',
                 'string',
+                'min:7',
+                'max:13',
                 Rule::unique('customers')->where(function ($query) use ($businessId) {
                     return $query->where('business_id', $businessId);
                 }),
@@ -233,9 +237,9 @@ class CustomerController extends Controller
             'ntn_cnic' => [
                 'required',
                 'string',
-                Rule::unique('customers')
-                    ->where(fn($query) => $query->where('business_id', $businessId))
-                    ->ignore($customer->id),
+                'min:7',
+                'max:13',
+                Rule::unique('customers')->where(fn($query) => $query->where('business_id', $businessId))->ignore($customer->id),
             ],
             'province' => 'required|string|max:255',
             'address' => 'required|string|max:255',
