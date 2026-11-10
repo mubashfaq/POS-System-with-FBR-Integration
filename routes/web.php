@@ -101,6 +101,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::resource('brands', BrandController::class);
     Route::resource('business', BusinessController::class)->middleware('current.business');
     Route::get('/imports/{id}/details', [ImportController::class, 'details'])->name('imports.details');
+    Route::post('/settings/website/business',[BusinessController::class, 'showImport'])->name('settings.website.business.update');
     Route::get('imports/search-products', [ImportController::class, 'searchProducts'])->name('imports.search-products');
     Route::get('/api/exchange-rate', [ImportController::class, 'getExchangeRate'])->name('api.exchange-rate');
     Route::resource('imports', ImportController::class);

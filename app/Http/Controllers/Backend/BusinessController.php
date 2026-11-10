@@ -212,6 +212,28 @@ class BusinessController extends Controller
         return redirect()->route('backend.admin.business.edit', $id)->with('success', 'Business updated successfully!');
     }
 
+
+     public function showImport(Request $request)
+    {
+       $businessId = session('business_id');
+
+        
+
+        $validated = $request->validate([
+            'is_show_import' => 'nullable|boolean',
+        ]);
+
+        $business = Business::findOrFail($businessId);
+        
+        $business->update($validated);
+
+
+           
+
+         return to_route('backend.admin.settings.website.general', ['active-tab' => 'import-status'])
+            ->with('success', 'Invoice settings updated successfully');
+    }
+
     /**
      * Remove the specified resource from storage.
      */

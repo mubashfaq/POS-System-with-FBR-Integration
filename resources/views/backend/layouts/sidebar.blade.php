@@ -8,6 +8,7 @@ $hasCustomerPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermiss
 $hasSupplierPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(['supplier_view', 'supplier_create']);
 $hasProductPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(['product_view', 'product_create']);
 $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(['user_view', 'user_create']);
+$businesses = currentBusiness();
 @endphp
 
 <div class="sidebar">
@@ -332,14 +333,8 @@ $hasUserPermissions = $hasCurrentBusiness && $currentBusiness->hasAnyPermission(
             </li>
             @endif
 
-            @if (
-                $currentBusiness->hasAnyPermission([
-                    'import_create',
-                    'import_view',
-                    'import_update',
-                    'import_delete',
-                    'import_godown',
-                ]))
+
+            @if ($currentBusiness  && $currentBusiness->hasAnyPermission(['import_create','import_view','import_update','import_delete','import_godown',]) && $businesses && $businesses->is_show_import == 1)
                 <li
                     class="nav-item {{ request()->routeIs([
                         'backend.admin.imports.index',

@@ -29,6 +29,7 @@ class WebsiteSettingController extends Controller
         $businessId = session('business_id');
         $invoiceSetting = null;
         $fbrToken = null;
+       
         $invoiceTemplates = InvoiceTemplate::selectable();
 
         if ($businessId) {
@@ -43,6 +44,8 @@ class WebsiteSettingController extends Controller
 
             $businessType = Business::where('id', $businessId)->value('business_type');
 
+            $businesses = Business::where('id', $businessId)->first();
+
 
         }
         return view('backend.settings.website-settings.general', compact(
@@ -51,7 +54,8 @@ class WebsiteSettingController extends Controller
             'quantityValidationStatus',
             'cartSetting',
             'businessType',
-            'invoiceTemplates'
+            'invoiceTemplates',
+            'businesses'
         ));
     }
 

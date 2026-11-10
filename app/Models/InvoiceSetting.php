@@ -26,6 +26,6 @@ class InvoiceSetting extends Model
         'thanks_for_shopping',
         'note_to_customer',
         'note_msg',
-        'post_invoice_width'
+        'post_invoice_width',
     ];
 }

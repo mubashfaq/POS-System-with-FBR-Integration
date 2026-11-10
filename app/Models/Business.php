@@ -22,6 +22,7 @@ class Business extends Model
         'country',
         'city','address',
         'enable_batch',
+        'is_show_import'
     ];
 
     public function users()
