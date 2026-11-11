@@ -83,6 +83,12 @@
                     &nbsp;Cart Settings
                 </a>
 
+                <a class="nav-link {{ @$_GET['active-tab'] == 'import-settings' ? 'active' : '' }}" id="vert-tabs-12"
+                    data-toggle="pill" href="#tabs-12" role="tab" aria-controls="tabs-12" aria-selected="false">
+                    <i class="fas fa-file-import"></i>
+                    &nbsp;Import Settings
+                </a>
+
             </div>
         </div>
         <div class="col-8 col-sm-10">
@@ -1077,6 +1083,167 @@
                     </form>
 
                 </div>
+
+
+                 
+                    <div class="tab-pane fade {{ @$_GET['active-tab'] == 'import-settings' ? 'active show' : '' }}"
+                        id="tabs-12" role="tabpanel" aria-labelledby="vert-tabs-12">
+
+                        <form action="{{ route('backend.admin.settings.website.business.update') }}" method="post">
+                            @csrf
+
+                            <div class="col-md-12 d-flex justify-content-between">
+                                <h5>
+                                    <i class="fas fa-file-invoice"></i>
+                                    &nbsp;&nbsp;Import Settings
+                                </h5>
+                                <button type="submit" class="btn action-button">
+                                    <i class="fas fa-reply"></i>
+                                    &nbsp;Save Changes
+                                </button>
+                            </div>
+
+                            <div class="col-md-12 mt-3">
+
+                               
+                                <hr class="my-4">
+
+                               
+
+                                {{-- ================ DISPLAY TOGGLES ================ --}}
+                               
+                                <div class="form-group d-flex align-items-center">
+                                    <label class="switch">
+                                        <input type="hidden" name="is_show_import" value="0">
+                                        <input type="checkbox" name="is_show_import" value="1"
+                                            {{ isset($businesses) && $businesses->is_show_import == 1 ? 'checked' : '' }}>
+                                        <span class="slider round"></span>
+                                    </label>
+                                    <span class="ml-3">Show Import</span>
+                                </div>
+
+                                
+
+                                
+                            </div>
+                        </form>
+                    </div>
+
+                    {{-- ================ TEMPLATE PICKER STYLES ================ --}}
+                    <style>
+                        .template-option {
+                            display: flex;
+                            flex-direction: column;
+                            height: 100%;
+                            cursor: pointer;
+                            border: 2px solid #e5e7eb;
+                            border-radius: 10px;
+                            padding: 10px;
+                            background: #fff;
+                            transition: all .2s ease;
+                            position: relative;
+                            margin: 0;
+                        }
+
+                        .template-option:hover {
+                            border-color: #93c5fd;
+                            box-shadow: 0 4px 12px rgba(26, 115, 232, .08);
+                            transform: translateY(-2px);
+                        }
+
+                        .template-option.active {
+                            border-color: #1a73e8;
+                            box-shadow: 0 4px 14px rgba(26, 115, 232, .18);
+                        }
+
+                        .template-option.active::after {
+                            content: '✓';
+                            position: absolute;
+                            top: 8px;
+                            right: 8px;
+                            width: 24px;
+                            height: 24px;
+                            background: #1a73e8;
+                            color: #fff;
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 14px;
+                            font-weight: bold;
+                            box-shadow: 0 2px 6px rgba(26, 115, 232, .4);
+                        }
+
+                        .template-thumb {
+                            width: 100%;
+                            height: 150px;
+                            border-radius: 6px;
+                            overflow: hidden;
+                            background: #f8fafc;
+                            border: 1px solid #eef2f7;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            margin-bottom: 10px;
+                        }
+
+                        .template-thumb img {
+                            width: 100%;
+                            height: 100%;
+                            object-fit: cover;
+                            object-position: top;
+                            display: block;
+                        }
+
+                        .template-meta {
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                            padding: 0 2px;
+                        }
+
+                        .template-name {
+                            font-size: 14px;
+                            font-weight: 600;
+                            color: #1f2937;
+                        }
+
+                        .template-badge {
+                            font-size: 10px;
+                            letter-spacing: .04em;
+                            padding: 3px 6px;
+                        }
+
+                        .template-option input[type="radio"] {
+                            display: none;
+                        }
+
+                        @media (max-width: 576px) {
+                            .template-thumb {
+                                height: 120px;
+                            }
+                        }
+                    </style>
+
+                    {{-- ================ INSTANT HIGHLIGHT ON CLICK ================ --}}
+                    @push('script')
+                        <script>
+                            (function() {
+                                document.querySelectorAll('.template-option').forEach(function(label) {
+                                    label.addEventListener('click', function(e) {
+                                        // avoid re-trigger when clicking the already-active card
+                                        document.querySelectorAll('.template-option').forEach(function(l) {
+                                            l.classList.remove('active');
+                                        });
+                                        this.classList.add('active');
+                                        var radio = this.querySelector('input[type="radio"]');
+                                        if (radio) radio.checked = true;
+                                    });
+                                });
+                            })();
+                        </script>
+                    @endpush
+                
 
             </div>
         </div>

@@ -230,7 +230,7 @@ class BusinessController extends Controller
 
            
 
-         return to_route('backend.admin.settings.website.general', ['active-tab' => 'import-status'])
+         return to_route('backend.admin.settings.website.general', ['active-tab' => 'import-settings'])
             ->with('success', 'Invoice settings updated successfully');
     }
 
