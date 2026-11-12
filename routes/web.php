@@ -28,6 +28,7 @@ use App\Http\Controllers\Backend\Product\BrandController;
 use App\Http\Controllers\Backend\Product\PurchaseController;
 use App\Http\Controllers\Backend\RolePermission\RoleController;
 use App\Http\Controllers\Backend\Product\UnitController;
+use App\Http\Controllers\Backend\Product\PackingController;
 use App\Http\Controllers\Backend\UserManagementController;
 use App\Http\Controllers\Backend\WebsiteSettingController;
 use App\Http\Controllers\BulkFilerCheckController;
@@ -167,6 +168,8 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::get('product/logs', [ProductLogController::class, 'index'])->name('product-logs.index');
 
     Route::resource('units', UnitController::class);
+    Route::get('packings/{packing}/levels', [PackingController::class, 'levels'])->name('packings.levels');
+    Route::resource('packings', PackingController::class)->middleware('role:super_admin');
     Route::resource('currencies', CurrencyController::class)->middleware('role:super_admin');
     Route::match(['get', 'post'], 'import/products', [ProductController::class,'import'])->name('products.import');
     Route::get('currencies/default/{id}', [CurrencyController::class, 'setDefault'])->name('currencies.setDefault');
@@ -221,6 +224,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
 
         Route::put('/cart/update-quantity', 'updateQuantity');
         Route::put('/cart/update-price', 'updatePrice');
+        Route::put('/cart/set-unit', 'setUnit')->name('cart.setUnit');
         Route::put('/cart/update-custom-fields', 'updateCustomFields');
 
         Route::put('/cart/increment', 'increment');

@@ -19,6 +19,9 @@ use App\Models\PurchaseItem;
 use App\Models\SaleType;
 use App\Models\SroItemCode;
 use App\Models\Uom;
+use App\Models\Unit;
+use App\Models\Packing;
+use App\Models\ProductUnitPrice;
 use App\Services\ProductLogService;
 use App\Services\ProductVariationService;
 use App\Services\StockReconciliationService;
@@ -114,6 +117,9 @@ class ProductController extends Controller
             $term = $request->search;
 
             $products = Product::with([
+                'unit',
+                'defaultPacking.levels.unit',
+                'unitPrices',
                 'variations' => fn($q) => $q
                     ->withSum('purchaseItems as stock_sum', 'remaining_qty')->with('values')
             ])
@@ -158,10 +164,23 @@ class ProductController extends Controller
 
         $fbrIntegration = FbrTokenService::isIntegrationEnabled();
 
+        $baseUnits = Unit::where('is_active', true)->orderBy('title')->get();
+        $packings = Packing::where('is_active', true)
+            ->with(['baseUnit', 'levels.unit'])
+            ->where(function ($query) use ($businessId) {
+                $query->where('business_id', $businessId);
+                if (!$businessId) {
+                    $query->orWhereNull('business_id');
+                }
+            })
+            ->get();
+
         return view('backend.products.create', compact(
             'brands',
             'categories',
             'units',
+            'baseUnits',
+            'packings',
             'hsCodes',
             'saleTypes',
             'sroItems',
@@ -215,6 +234,20 @@ class ProductController extends Controller
 
             } else {
                 $product->accessories()->detach();
+            }
+
+            if ($request->has('unit_prices')) {
+                $product->unitPrices()->delete();
+                if (is_array($request->unit_prices)) {
+                    foreach ($request->unit_prices as $up) {
+                        if (!empty($up['unit_id']) && isset($up['sale_price']) && $up['sale_price'] !== '') {
+                            $product->unitPrices()->create([
+                                'unit_id' => $up['unit_id'],
+                                'sale_price' => (float) $up['sale_price'],
+                            ]);
+                        }
+                    }
+                }
             }
 
             $hasVariations = $request->boolean('has_variations');
@@ -281,6 +314,8 @@ class ProductController extends Controller
 
         $product = Product::with([
             'accessories',
+            'unitPrices',
+            'defaultPacking.levels.unit',
             'variations' => fn($q) => $q
                 ->withSum('purchaseItems as stock_sum', 'remaining_qty')
                 ->with('values.attribute'),
@@ -306,10 +341,23 @@ class ProductController extends Controller
 
         $fbrIntegration = FbrTokenService::isIntegrationEnabled();
 
+        $baseUnits = Unit::where('is_active', true)->orderBy('title')->get();
+        $packings = Packing::where('is_active', true)
+            ->with(['baseUnit', 'levels.unit'])
+            ->where(function ($query) use ($businessId) {
+                $query->where('business_id', $businessId);
+                if (!$businessId) {
+                    $query->orWhereNull('business_id');
+                }
+            })
+            ->get();
+
         return view('backend.products.edit', compact(
             'brands',
             'categories',
             'units',
+            'baseUnits',
+            'packings',
             'product',
             'hsCodes',
             'saleTypes',
@@ -362,6 +410,21 @@ class ProductController extends Controller
                 $product->accessories()->sync($accessoryData);
             } else {
                 $product->accessories()->detach();
+            }
+
+            if ($request->has('unit_prices')) {
+        // dd('unit_price');
+                $product->unitPrices()->delete();
+                if (is_array($request->unit_prices)) {
+                    foreach ($request->unit_prices as $up) {
+                        if (!empty($up['unit_id']) && isset($up['sale_price']) && $up['sale_price'] !== '') {
+                            $product->unitPrices()->create([
+                                'unit_id' => $up['unit_id'],
+                                'sale_price' => (float) $up['sale_price'],
+                            ]);
+                        }
+                    }
+                }
             }
 
             // Variations

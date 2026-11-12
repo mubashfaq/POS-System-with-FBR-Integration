@@ -490,3 +490,124 @@
         padding: 10px;
     }
 }
+
+
+/* ================================
+   Packing Selection Modal
+================================ */
+
+.packing-modal {
+    width: 480px;
+}
+
+.packing-description {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 15px;
+    padding: 10px 12px;
+    border-radius: 7px;
+    background: #fff8f2;
+    color: #777;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.packing-description i {
+    color: #fd6802;
+    font-size: 14px;
+}
+
+.packing-item {
+    padding: 14px 15px;
+}
+
+.packing-item-selected {
+    border-color: #fd6802;
+    background: #fff8f2;
+}
+
+.packing-item-selected:hover:not(:disabled) {
+    background: #fff4eb;
+}
+
+.packing-selected-badge {
+    margin-left: 9px;
+    color: #fd6802;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.packing-price-label {
+    display: block;
+    margin-top: 3px;
+    color: #888;
+    font-size: 11px;
+}
+
+.packing-check {
+    color: #fd6802 !important;
+}
+
+.packing-empty {
+    padding: 30px 15px;
+    text-align: center;
+    border: 1px dashed #ddd;
+    border-radius: 9px;
+    color: #888;
+}
+
+.packing-empty i {
+    margin-bottom: 10px;
+    color: #fd6802;
+    font-size: 26px;
+}
+
+.packing-empty p {
+    margin: 0;
+    font-size: 13px;
+}
+
+@media (max-width: 576px) {
+    .packing-modal {
+        width: 100%;
+    }
+
+    .packing-item {
+        padding: 12px;
+    }
+
+    .packing-selected-badge {
+        margin-left: 6px;
+    }
+}
+
+
+/* Compact packaging selector in cart */
+
+.packing-unit-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border: 1px solid #fd6802;
+    border-radius: 4px;
+    background: #fff4eb;
+    color: #fd6802;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.packing-unit-btn:hover {
+    background: #fd6802;
+    color: #fff;
+}
+
+.packing-unit-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(253, 104, 2, 0.15);
+}

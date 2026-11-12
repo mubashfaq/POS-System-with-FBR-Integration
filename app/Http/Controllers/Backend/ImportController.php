@@ -15,6 +15,8 @@ use App\Models\PurchaseItem;
 use App\Models\Supplier;
 use App\Models\Product;
 use App\Models\Unit;
+use App\Models\Packing;
+use App\Services\UomConverter;
 use App\Services\StockReconciliationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -140,9 +142,7 @@ class ImportController extends Controller
                 $variation = null;
             }
 
-            $packing = (int) ($row['pcs_per_carton'] ?? 0);
-            $cartons = (int) ($row['ctn_qty'] ?? 0);
-            $qty = $packing * $cartons;
+            $qty = round((float) ($row['total_pcs'] ?? 0), 4);
 
             if ($qty <= 0)
                 continue;
@@ -168,28 +168,27 @@ class ImportController extends Controller
             return;
         }
 
-        // ---- Landed cost per piece ----
+        // ---- Landed cost per piece (Decision A) ----
         $categoryPool = $import->expenses()->get()
             ->groupBy('category_id')
             ->map(fn($g) => $g->sum(fn($e) => (float) $e->amount));
 
-        $globalExpense = collect(['freight_expense', 'fta_expense', 'fitting_expense', 'co_expense', 'other_expense'])
+        $globalExpense = (float) collect(['freight_expense', 'fta_expense', 'fitting_expense', 'co_expense', 'other_expense'])
             ->sum(fn($f) => (float) $import->{$f});
 
-        $totalQty = collect($desired)->sum('quantity');
+        $costItems = [];
+        foreach ($desired as $k => $l) {
+            $costItems[$k] = [
+                'category_id' => $l['product']->category_id,
+                'base_qty' => (float) $l['quantity'],
+                'purchase_price' => (float) $l['purchase_price'],
+            ];
+        }
 
-        $qtyByCategory = collect($desired)
-            ->groupBy(fn($l) => $l['product']->category_id)
-            ->map(fn($g) => $g->sum('quantity'));
+        $calculatedCosts = $this->calculateLandedCosts($globalExpense, $categoryPool, $costItems);
 
         foreach ($desired as $key => &$line) {
-            $catId = $line['product']->category_id;
-            $catQty = (float) ($qtyByCategory[$catId] ?? 0);
-
-            $catPerPc = $catQty > 0 ? ((float) ($categoryPool[$catId] ?? 0)) / $catQty : 0;
-            $globalPerPc = $totalQty > 0 ? $globalExpense / $totalQty : 0;
-
-            $line['cost_price'] = round($line['purchase_price'] + $catPerPc + $globalPerPc, 2);
+            $line['cost_price'] = $calculatedCosts[$key]['cost_price'];
         }
         unset($line);
 
@@ -210,10 +209,10 @@ class ImportController extends Controller
             if (!$existing)
                 continue;
 
-            $oldQty = (float) $existing->quantity;
-            $remaining = (float) $existing->remaining_qty;
-            $consumed = $oldQty - $remaining;
-            $newQty = (float) $line['quantity'];
+            $oldQty = round((float) $existing->quantity, 4);
+            $remaining = round((float) $existing->remaining_qty, 4);
+            $consumed = round($oldQty - $remaining, 4);
+            $newQty = round((float) $line['quantity'], 4);
 
             if ($newQty < $consumed) {
                 $label = $line['product']->name . ($line['variation'] ? ' – ' . $line['variation']->label : '');
@@ -228,7 +227,7 @@ class ImportController extends Controller
             if (isset($desired[$key]))
                 continue;
 
-            $consumed = (float) $existing->quantity - (float) $existing->remaining_qty;
+            $consumed = round((float) $existing->quantity - (float) $existing->remaining_qty, 4);
             if ($consumed > 0) {
                 $label = $existing->product->name . ($existing->variation ? ' – ' . $existing->variation->label : '');
 
@@ -246,7 +245,7 @@ class ImportController extends Controller
         }
 
         // --- Create or update the purchase header ---
-        $subTotal = collect($desired)->sum(fn($l) => $l['quantity'] * $l['cost_price']);
+        $subTotal = round(collect($desired)->sum(fn($l) => $l['quantity'] * $l['cost_price']), 2);
 
         $header = [
             'supplier_id' => $supplierId ? $supplierId : 0,
@@ -276,21 +275,16 @@ class ImportController extends Controller
             $existing = $existingItems->get($key);
 
             if ($existing) {
-                $oldQty = (float) $existing->quantity;
-                $newQty = (float) $line['quantity'];
-                $delta = $newQty - $oldQty;
+                $oldQty = round((float) $existing->quantity, 4);
+                $newQty = round((float) $line['quantity'], 4);
+                $delta = round($newQty - $oldQty, 4);
 
                 $existing->update([
                     'purchase_price' => $line['cost_price'],
                     'price' => $line['price'],
                     'quantity' => $newQty,
-                    'remaining_qty' => $existing->remaining_qty + $delta,
+                    'remaining_qty' => round((float) $existing->remaining_qty + $delta, 4),
                 ]);
-
-                // Keep stock consistent with the batch adjustment.
-                // (Only if your StockReconciliationService supports an "adjust" call —
-                //  otherwise just call reconcileNewBatch on the delta as a new batch.)
-                StockReconciliationService::reconcileNewBatch($existing);
             } else {
                 $item = PurchaseItem::create([
                     'purchase_id' => $purchase->id,
@@ -326,7 +320,7 @@ class ImportController extends Controller
         }
 
         foreach ($purchase->items as $item) {
-            $consumed = (float) $item->quantity - (float) $item->remaining_qty;
+            $consumed = round((float) $item->quantity - (float) $item->remaining_qty, 4);
             if ($consumed > 0) {
                 throw ValidationException::withMessages([
                     'import_products' => "Cannot remove the linked purchase — some items have already been sold.",
@@ -429,66 +423,67 @@ class ImportController extends Controller
     {
         $businessId = $this->getBusinessId();
 
-        $import = Import::with(['products.product', 'products.unit', 'expenses.category'])
+        $import = Import::with(['products.product', 'products.unit', 'products.qtyUnit', 'expenses.category'])
             ->where('business_id', $businessId)->findOrFail($id);
 
-        // ---- Same landed-cost formula as createPurchaseFromImport ----
         $categoryPool = $import->expenses->groupBy('category_id')
             ->map(fn($g) => $g->sum(fn($e) => (float) $e->amount));
 
         $fixedExpenses = collect(['freight_expense', 'fta_expense', 'fitting_expense', 'co_expense', 'other_expense'])
             ->mapWithKeys(fn($f) => [$f => (float) $import->{$f}]);
 
-        $globalExpense = $fixedExpenses->sum();
+        $globalExpense = (float) $fixedExpenses->sum();
 
-        $pcsOf = fn($item) => (float) $item->pcs_per_carton * (float) $item->ctn_qty;
+        $costItems = [];
+        foreach ($import->products as $item) {
+            $costItems[$item->id] = [
+                'category_id' => $item->product?->category_id,
+                'base_qty' => (float) $item->total_pcs,
+                'purchase_price' => (float) $item->price_pc,
+            ];
+        }
 
-        $totalPcs = $import->products->sum($pcsOf);
-
-        $pcsByCategory = $import->products
-            ->groupBy(fn($item) => $item->product?->category_id ?? '')
-            ->map(fn($g) => $g->sum($pcsOf));
-
-        $globalPerPc = $totalPcs > 0 ? $globalExpense / $totalPcs : 0;
+        $calculatedCosts = $this->calculateLandedCosts($globalExpense, $categoryPool, $costItems);
 
         return response()->json([
             'import_no' => $import->import_no,
 
-            'products' => $import->products->map(function ($item) use ($categoryPool, $pcsByCategory, $globalPerPc, $globalExpense, $totalPcs) {
-                $pcs = (float) $item->pcs_per_carton;
-                $cartons = (float) $item->ctn_qty;
+            'products' => $import->products->map(function ($item) use ($calculatedCosts) {
+                $costInfo = $calculatedCosts[$item->id] ?? [
+                    'cost_price' => round((float) $item->price_pc, 4),
+                    'cat_per_pc' => 0,
+                    'global_per_pc' => 0,
+                    'cat_total' => 0,
+                    'cat_qty' => 0,
+                    'global_expense' => 0,
+                    'total_base_qty' => 0,
+                ];
+
+                $totalPieces = (float) $item->total_pcs;
                 $price = (float) $item->price_pc;
-
-                $catId = $item->product?->category_id ?? '';
-                $catPcs = (float) ($pcsByCategory[$catId] ?? 0);
-                $catTotal = (float) ($categoryPool[$catId] ?? 0);
-                $catPerPc = $catPcs > 0 ? $catTotal / $catPcs : 0;
-
-                $totalPieces = $pcs * $cartons;
-                $costPerPc = round($price + $catPerPc + $globalPerPc, 2);
 
                 return [
                     'name' => $item->product?->name ?? '-',
                     'sku' => $item->product?->sku ?? '-',
                     'unit' => $item->unit?->title ?? '-',
-                    'pcs_per_carton' => $pcs,
-                    'ctn_qty' => $cartons,
+                    'qty_unit' => $item->qtyUnit?->title ?? ($item->unit?->title ?? '-'),
+                    'pcs_per_carton' => (float) $item->pcs_per_carton,
+                    'ctn_qty' => (float) $item->ctn_qty,
                     'total_pcs' => $totalPieces,
                     'price_pc' => $price,
-                    'cost_pc' => $costPerPc,
+                    'cost_pc' => $costInfo['cost_price'],
                     'sale_price' => $item->sale_price,
                     'sale_percent' => $item->sale_percent,
-                    'amount' => $totalPieces * $price,
+                    'amount' => round($totalPieces * $price, 2),
 
-                    // NEW: parts that make up cost_pc — used for the hover tooltip
                     'cost_breakdown' => [
-                        'price_pc' => round($price, 2),
-                        'category_per_pc' => round($catPerPc, 2),
-                        'global_per_pc' => round($globalPerPc, 2),
-                        'category_total' => round($catTotal, 2),
-                        'category_pcs' => $catPcs,
-                        'global_total' => round($globalExpense, 2),
-                        'total_pcs' => $totalPcs,
+                        'price_pc' => round($price, 4),
+                        'category_per_pc' => $costInfo['cat_per_pc'],
+                        'global_per_pc' => $costInfo['global_per_pc'],
+                        'category_total' => $costInfo['cat_total'],
+                        'category_pcs' => $costInfo['cat_qty'],
+                        'global_total' => $costInfo['global_expense'],
+                        'total_pcs' => $costInfo['total_base_qty'],
                     ],
                 ];
             })->values(),
@@ -520,10 +515,16 @@ class ImportController extends Controller
         $godowns = Godown::where('business_id', $businessId)->where('status', true)->get();
 
         $units = Unit::get(['id', 'title']);
+        $packings = Packing::where('is_active', true)
+            ->with(['baseUnit', 'levels.unit'])
+            ->where(function ($q) use ($businessId) {
+                $q->where('business_id', $businessId);
+                if (!$businessId) $q->orWhereNull('business_id');
+            })->get();
         $currencies = Currency::get(['id', 'code', 'name', 'symbol']);
         $nextImportNo = $this->peekNextImportNumber($businessId);
 
-        return view('backend.imports.create', compact('categories', 'suppliers', 'godowns', 'units', 'currencies', 'nextImportNo'));
+        return view('backend.imports.create', compact('categories', 'suppliers', 'godowns', 'units', 'packings', 'currencies', 'nextImportNo'));
     }
 
     public function store(Request $request)
@@ -542,7 +543,7 @@ class ImportController extends Controller
             $import = Import::create($data);
             $this->syncExpenses($import, $request->input('expenses', []), $businessId);
 
-            $productRows = $request->input('import_products', []);
+            $productRows = $this->normalizeImportRows($request->input('import_products', []), $businessId);
             $this->syncImportProducts($import, $productRows, $businessId);
             $this->createPurchaseFromImport($import, $productRows, $businessId);
         });
@@ -565,12 +566,18 @@ class ImportController extends Controller
         $categories = Category::where('business_id', $businessId)->where('status', true)->get();
         $godowns = Godown::where('business_id', $businessId)->where('status', true)->get();
         $units = Unit::get(['id', 'title']);
+        $packings = Packing::where('is_active', true)
+            ->with(['baseUnit', 'levels.unit'])
+            ->where(function ($q) use ($businessId) {
+                $q->where('business_id', $businessId);
+                if (!$businessId) $q->orWhereNull('business_id');
+            })->get();
 
-        $import->load('expenses.category', 'products.product', 'products.unit', 'products.variation');
+        $import->load('expenses.category', 'products.product', 'products.unit', 'products.qtyUnit', 'products.packing.levels.unit', 'products.variation');
 
         $currencies = Currency::get(['id', 'code', 'name', 'symbol']);
 
-        return view('backend.imports.edit', compact('import', 'categories', 'suppliers', 'godowns', 'units', 'currencies'));
+        return view('backend.imports.edit', compact('import', 'categories', 'suppliers', 'godowns', 'units', 'packings', 'currencies'));
     }
 
     public function update(Request $request, $id)
@@ -587,7 +594,7 @@ class ImportController extends Controller
             $import->update($data);
             $this->syncExpenses($import, $request->input('expenses', []), $businessId);
 
-            $productRows = $request->input('import_products', []);
+            $productRows = $this->normalizeImportRows($request->input('import_products', []), $businessId);
             $this->syncImportProducts($import, $productRows, $businessId);
             $this->createPurchaseFromImport($import, $productRows, $businessId);
         });
@@ -619,8 +626,10 @@ class ImportController extends Controller
             'import_products' => ['nullable', 'array'],
             'import_products.*.product_id' => ['nullable', 'integer'],
             'import_products.*.product_variation_id' => ['nullable', 'integer'],
+            'import_products.*.packing_id' => ['nullable', 'exists:packings,id'],
+            'import_products.*.qty_unit_id' => ['nullable', 'exists:units,id', 'required_with:import_products.*.packing_id'],
             'import_products.*.unit_id' => ['nullable', 'integer'],
-            'import_products.*.pcs_per_carton' => ['nullable', 'numeric', 'min:1'],
+            'import_products.*.pcs_per_carton' => ['nullable', 'numeric', 'min:0.0001', 'required_without:import_products.*.packing_id'],
             'import_products.*.ctn_qty' => ['nullable', 'numeric', 'min:0'],
             'import_products.*.price_pc' => 'nullable|numeric|min:0',
             'import_products.*.sale_price' => 'nullable|numeric|min:0',
@@ -656,6 +665,61 @@ class ImportController extends Controller
         if (!empty($errors)) {
             throw ValidationException::withMessages(['import_products' => $errors,]);
         }
+    }
+
+    protected function normalizeImportRows(array $rows, int $businessId): array
+    {
+        foreach ($rows as $i => $row) {
+            if (empty($row['product_id'])) continue;
+            $product = Product::where('business_id', $businessId)->findOrFail($row['product_id']);
+            $entered = (float) ($row['ctn_qty'] ?? 0);
+
+            if (!empty($row['packing_id'])) {
+                UomConverter::assertPackingMatchesProduct((int) $row['packing_id'], $product);
+                $c = UomConverter::toBase((int) $row['packing_id'], (int) $row['qty_unit_id'], $entered);
+                $rows[$i]['pcs_per_carton'] = $c['factor'];
+                $rows[$i]['total_pcs']      = $c['total_base'];
+                $rows[$i]['unit_id']        = $product->unit_id;
+            } else { // legacy payload
+                $rows[$i]['total_pcs'] = round((float) ($row['pcs_per_carton'] ?? 0) * $entered, 4);
+            }
+            $rows[$i]['amount'] = round($rows[$i]['total_pcs'] * (float) ($row['price_pc'] ?? 0), 2);
+        }
+        return $rows;
+    }
+
+    /**
+     * Compute landed cost per base unit for given items and expenses (Decision A).
+     */
+    private function calculateLandedCosts(float $globalExpense, $categoryPool, array $items): array
+    {
+        $totalBaseQty = (float) collect($items)->sum('base_qty');
+        $qtyByCategory = collect($items)
+            ->groupBy(fn($i) => (string) ($i['category_id'] ?? ''))
+            ->map(fn($g) => $g->sum('base_qty'));
+
+        $globalPerPc = $totalBaseQty > 0 ? ($globalExpense / $totalBaseQty) : 0;
+
+        $results = [];
+        foreach ($items as $k => $item) {
+            $catId = (string) ($item['category_id'] ?? '');
+            $catQty = (float) ($qtyByCategory[$catId] ?? 0);
+            $catTotal = (float) ($categoryPool[$catId] ?? 0);
+            $catPerPc = $catQty > 0 ? ($catTotal / $catQty) : 0;
+            $purchasePrice = (float) ($item['purchase_price'] ?? 0);
+
+            $results[$k] = [
+                'cost_price' => round($purchasePrice + $catPerPc + $globalPerPc, 4),
+                'cat_per_pc' => round($catPerPc, 4),
+                'global_per_pc' => round($globalPerPc, 4),
+                'cat_total' => round($catTotal, 2),
+                'cat_qty' => round($catQty, 4),
+                'global_expense' => round($globalExpense, 2),
+                'total_base_qty' => round($totalBaseQty, 4),
+            ];
+        }
+
+        return $results;
     }
 
     private function computeTotals(array &$data): void
@@ -697,12 +761,12 @@ class ImportController extends Controller
                 ]);
             }
 
-            $packing = (int) ($row['pcs_per_carton'] ?? 0);
-            $cartons = (int) ($row['ctn_qty'] ?? 0);
+            $packing = (float) ($row['pcs_per_carton'] ?? 0);
+            $cartons = (float) ($row['ctn_qty'] ?? 0);
             $pricePerPiece = (float) ($row['price_pc'] ?? 0);
 
-            $totalPieces = $packing * $cartons;
-            $amount = round($totalPieces * $pricePerPiece, 2);
+            $totalPieces = (float) ($row['total_pcs'] ?? round($packing * $cartons, 4));
+            $amount = (float) ($row['amount'] ?? round($totalPieces * $pricePerPiece, 2));
 
             // Ignore completely empty product rows.
             if ($productId <= 0) {
@@ -712,6 +776,8 @@ class ImportController extends Controller
             $import->products()->create([
                 'product_id' => $product->id,
                 'product_variation_id' => $row['product_variation_id'] ?? null,
+                'packing_id' => !empty($row['packing_id']) ? (int) $row['packing_id'] : null,
+                'qty_unit_id' => !empty($row['qty_unit_id']) ? (int) $row['qty_unit_id'] : null,
                 'unit_id' => (int) $row['unit_id'],
                 'pcs_per_carton' => $packing,
                 'ctn_qty' => $cartons,
@@ -758,12 +824,18 @@ class ImportController extends Controller
 
     public function destroy($id)
     {
-        $import = Import::forCurrentBusiness()->findOrFail($id);
+        return DB::transaction(function () use ($id) {
+            $import = Import::forCurrentBusiness()->findOrFail($id);
 
-        $import->expenses()->delete();
-        $import->delete();
+            if ($import->purchase_id) {
+                $this->deleteImportPurchase($import);
+            }
 
-        return redirect()->route('backend.admin.imports.index')->with('success', 'Import record deleted successfully.');
+            $import->expenses()->delete();
+            $import->delete();
+
+            return redirect()->route('backend.admin.imports.index')->with('success', 'Import record deleted successfully.');
+        });
     }
 
     public function searchProducts(Request $request)
@@ -773,7 +845,7 @@ class ImportController extends Controller
 
         $query = Product::where('business_id', $businessId)
             ->where('status', 1)
-            ->select('id', 'name', 'sku', 'has_variations', 'category_id');
+            ->select('id', 'name', 'sku', 'has_variations', 'category_id', 'unit_id', 'default_packing_id');
 
         if ($term !== '') {
             $query->where(function ($q) use ($term) {
@@ -798,6 +870,8 @@ class ImportController extends Controller
                 'name' => $p->name,
                 'sku' => $p->sku ?? '',
                 'category_id' => $p->category_id ?? null,
+                'unit_id' => $p->unit_id,
+                'default_packing_id' => $p->default_packing_id,
                 'has_variations' => (bool) $p->has_variations,
                 'variations' => $p->has_variations
                     ? ($variations[$p->id] ?? collect())->map(fn($v) => [

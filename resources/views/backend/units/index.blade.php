@@ -22,6 +22,7 @@
                 <th data-orderable="false">#</th>
                 <th>Title</th>
                 <th>Short Name</th>
+                <th>Status</th>
                 <th data-orderable="false">Action</th>
               </tr>
             </thead>
@@ -60,6 +61,10 @@
         {
           data: 'short_name',
           name: 'short_name'
+        },
+        {
+          data: 'status',
+          name: 'status'
         },
         {
           data: 'action',

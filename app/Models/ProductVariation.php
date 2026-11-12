@@ -20,8 +20,8 @@ class ProductVariation extends Model
     ];
 
     protected $casts = [
-        'purchase_price' => 'decimal:2',
-        'price' => 'decimal:2',
+        'purchase_price' => 'decimal:4',
+        'price' => 'decimal:4',
         'status' => 'boolean',
     ];
 
@@ -44,10 +44,10 @@ class ProductVariation extends Model
     public function getQuantityAttribute($value): float
     {
         if (array_key_exists('stock_sum', $this->attributes)) {
-            return (float) $this->attributes['stock_sum'];
+            return round((float) $this->attributes['stock_sum'], 4);
         }
 
-        return (float) $this->purchaseItems()->sum('remaining_qty');
+        return round((float) $this->purchaseItems()->sum('remaining_qty'), 4);
     }
 
     public function getLabelAttribute(): string

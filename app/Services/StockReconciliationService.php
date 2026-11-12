@@ -31,21 +31,21 @@ class StockReconciliationService
             }
         }
 
-        $purchaseQty = $purchaseItem->quantity;
+        $purchaseQty = round((float) $purchaseItem->quantity, 4);
 
         // Oversold amount for this exact unit (product + variation), from the
         // batches, not from a product-level column.
-        $unitStock = PurchaseItem::where('product_id', $purchaseItem->product_id)
+        $unitStock = (float) PurchaseItem::where('product_id', $purchaseItem->product_id)
             ->where('product_variation_id', $purchaseItem->product_variation_id) // null === null
             ->where('id', '!=', $purchaseItem->id)
             ->sum('remaining_qty');
 
-        if ($unitStock < 0) {
+        if ($unitStock < -0.00005) {
             $remaining = $purchaseQty;
 
             $negativeBatches = PurchaseItem::where('product_id', $purchaseItem->product_id)
                 ->where('product_variation_id', $purchaseItem->product_variation_id)
-                ->where('remaining_qty', '<', 0)
+                ->where('remaining_qty', '<', -0.00005)
                 ->orderBy('created_at', 'asc')
                 ->lockForUpdate()
                 ->get();
@@ -54,13 +54,13 @@ class StockReconciliationService
                 if ($remaining <= 0)
                     break;
 
-                $offset = min($remaining, abs($batch->remaining_qty));
-                $batch->remaining_qty += $offset;
+                $offset = round(min($remaining, abs((float) $batch->remaining_qty)), 4);
+                $batch->remaining_qty = round((float) $batch->remaining_qty + $offset, 4);
                 $batch->save();
-                $remaining -= $offset;
+                $remaining = round($remaining - $offset, 4);
             }
 
-            $purchaseItem->remaining_qty = $remaining;
+            $purchaseItem->remaining_qty = round($remaining, 4);
             $purchaseItem->save();
         } else {
             if (is_null($purchaseItem->remaining_qty)) {

@@ -28,13 +28,18 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Illuminate\Http\JsonResponse;
 use App\Exceptions\{FbrRejectedException, InsufficientStockException};
 use App\Services\Pos\PosOrderService;
+use App\Services\Pos\FifoStockService;
+use App\Services\UomConverter;
 
 class OrderController extends Controller
 {
     protected $duplicateOrderService;
 
-    public function __construct(DuplicateOrderService $duplicateOrderService, private PosOrderService $orders)
-    {
+    public function __construct(
+        DuplicateOrderService $duplicateOrderService,
+        private PosOrderService $orders,
+        private FifoStockService $stockService
+    ) {
         $this->duplicateOrderService = $duplicateOrderService;
     }
     /**
@@ -508,10 +513,13 @@ class OrderController extends Controller
         /* ===== MAP CART -> ITEMS ===== */
         $items = $carts->whereNull('parent_cart_id')->map(fn($c) => [
             'product_id' => $c->product_id,
-            'qty' => $c->quantity,
-            'price' => $c->price_override,      // null -> service uses discounted_price
+            'qty' => $c->packing_id ? ($c->entered_qty ?? $c->quantity) : $c->quantity,
+            'price' => $c->entered_unit_price ?? $c->price_override,
+            'packing_id' => $c->packing_id,
+            'qty_unit_id' => $c->qty_unit_id,
             'purchase_item_id' => $c->purchase_item_id,
             'product_variation_id' => $c->product_variation_id,
+            'custom_fields' => $c->custom_fields,
             'accessories' => $carts->where('parent_cart_id', $c->id)->map(fn($a) => [
                 'product_id' => $a->product_id,
                 'qty' => $a->quantity,
@@ -632,7 +640,8 @@ class OrderController extends Controller
                 $rate = floatval(str_replace('%', '', $rateText));
                 $salesTax = round($valueExTax * ($rate / 100), 2);
             } else {
-                $ratePerUnit = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+                preg_match('/\d+(?:\.\d+)?/', $rateText, $m);
+                $ratePerUnit = (float) ($m[0] ?? 0);
                 $salesTax = round($ratePerUnit * $qty, 2);
             }
 
@@ -860,7 +869,8 @@ class OrderController extends Controller
                 $rate = floatval(str_replace('%', '', $rateText));
                 $salesTax = round($valueExTax * ($rate / 100), 2);
             } else {
-                $ratePerUnit = floatval(preg_replace('/[^0-9.]/', '', $rateText));
+                preg_match('/\d+(?:\.\d+)?/', $rateText, $m);
+                $ratePerUnit = (float) ($m[0] ?? 0);
                 $salesTax = round($ratePerUnit * $qty, 2);
             }
 
@@ -1054,12 +1064,16 @@ class OrderController extends Controller
         $customer = Customer::find($request->customer_id);
         $order_stage = $request->order_stage;
 
+        /* ================= ORDER TRANSACTION ================= */
+        DB::beginTransaction();
+
         $carts = PosCart::with(['product', 'purchaseItem', 'variation.values'])
             ->where('user_id', auth()->id())
             ->lockForUpdate()
             ->get();
 
         if ($carts->isEmpty()) {
+            DB::rollBack();
             return response()->json(['error' => 'Cart is empty'], 422);
         }
 
@@ -1071,6 +1085,8 @@ class OrderController extends Controller
                 $businessId,
                 $carts
             );
+
+            DB::rollBack();
 
             if ($duplicateOrder) {
                 return response()->json([
@@ -1084,9 +1100,6 @@ class OrderController extends Controller
             ]);
         }
 
-        /* ================= ORDER TRANSACTION ================= */
-        DB::beginTransaction();
-
         $counter = BusinessCounter::lockForUpdate()
             ->firstOrCreate(
                 ['business_id' => $businessId],
@@ -1098,7 +1111,6 @@ class OrderController extends Controller
 
         $invoiceEnvironment = FbrTokenService::getURLEnvironment();
         $isFbrIntegrationEnabled = FbrTokenService::isIntegrationEnabled();
-
 
         $order = Order::create([
             'customer_id' => $request->customer_id,
@@ -1130,19 +1142,36 @@ class OrderController extends Controller
         // ----- PARENT ITEMS -----
         foreach ($parentCarts as $cart) {
             $product = $cart->product;
+            if (!$product) {
+                continue;
+            }
 
-            $unitPrice = $cart->price_override ?? $cart->variation?->price ?? $product->discounted_price;
-            $qty = $cart->quantity;
+            $factor = 1.0;
+            $packingId = $qtyUnitId = null;
+            if ($cart->packing_id) {
+                UomConverter::assertPackingMatchesProduct((int) $cart->packing_id, $product);
+                $entered = (float) $cart->entered_qty;
+                $c = UomConverter::toBase((int) $cart->packing_id, (int) $cart->qty_unit_id, $entered);
+                $factor = $c['factor'];
+                $qty = $c['total_base'];
+                $packingId = (int) $cart->packing_id;
+                $qtyUnitId = (int) $cart->qty_unit_id;
+                $unitPrice = $cart->entered_unit_price
+                    ?? (($cart->price_override ?? $cart->variation?->price ?? $product->discounted_price) * $factor);
+            } else {
+                $entered = $qty = (float) $cart->quantity;
+                $unitPrice = $cart->price_override ?? $cart->variation?->price ?? $product->discounted_price;
+            }
 
-            $tax = $this->calculateItemTax($product, $customer, $unitPrice, $qty);
+            $tax = $this->calculateItemTax($product, $customer, $unitPrice, $entered, $qty);
             $lineTotal = $tax['lineTotal'];
             $rateText = $tax['rateText'];
             $valueExTax = $tax['valueExTax'];
             $salesTax = $tax['salesTax'];
             $furtherTax = $tax['furtherTax'];
 
-            $subTotal = round($unitPrice * $qty, 2);
-            $discount = round(($product->price - $unitPrice) * $qty, 2);
+            $subTotal = round($unitPrice * $entered, 2);
+            $discount = round(($product->price * $factor - $unitPrice) * $entered, 2);
 
             $finalTotal = round($lineTotal + $salesTax + $furtherTax, 2);
 
@@ -1158,12 +1187,44 @@ class OrderController extends Controller
             $totalFurtherTax += $furtherTax;
             $totalCustomerTaxOrder += $customerTax;
 
+            try {
+                $allocations = $this->stockService->consume(
+                    $product,
+                    $qty,
+                    $isStockEnforced,
+                    $cart->purchase_item_id,
+                    $cart->product_variation_id
+                );
+            } catch (InsufficientStockException $e) {
+                DB::rollBack();
+                return response()->json([
+                    'error' => "Insufficient stock for product: {$product->name}"
+                ], 422);
+            }
+
+            $firstPurchaseItemId = $allocations[0]['purchase_item_id'] ?? $cart->purchase_item_id;
+            $weightedCost = $this->calculateWeightedCost(
+                $allocations,
+                $cart->purchaseItem ? (float) $cart->purchaseItem->purchase_price : (float) $product->purchase_price
+            );
+
+            $customFields = $cart->custom_fields ?? [];
+            if (!is_array($customFields)) {
+                $customFields = [];
+            }
+            $customFields['batch_allocations'] = $allocations;
+
             $orderProduct = $order->products()->create([
-                'quantity' => $cart->quantity,
+                'quantity' => $qty,
+                'entered_qty' => $entered,
+                'unit_price' => $unitPrice,
+                'packing_id' => $packingId,
+                'qty_unit_id' => $qtyUnitId,
+                'base_qty_factor' => $factor,
                 'hsCode' => $product->hsCode ?? null,
                 'uom' => $product->uom ?? null,
-                'price' => $unitPrice,
-                'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
+                'price' => UomConverter::priceToBase($unitPrice, $factor),
+                'purchase_price' => $weightedCost,
                 'sub_total' => $subTotal,
                 'discount' => $discount,
                 'tax_rate' => $rateText,
@@ -1171,33 +1232,59 @@ class OrderController extends Controller
                 'customer_tax' => $customerTax,
                 'further_tax' => $furtherTax,
                 'total' => $finalTotal,
-                'custom_fields' => $cart->custom_fields,
+                'custom_fields' => $customFields,
                 'product_id' => $product->id,
                 'product_variation_id' => $cart->product_variation_id ?? null,
-                'purchase_item_id' => $cart->purchase_item_id,
+                'purchase_item_id' => $firstPurchaseItemId,
                 'is_accessory' => false,
             ]);
 
             $parentCartToOrderProduct[$cart->id] = $orderProduct->id;
-            $parentCartToQty[$cart->id] = $cart->quantity;
-
-            if ($error = $this->consumeStock($product, $cart, $cart->quantity, $isStockEnforced, 'product')) {
-                return $error;
-            }
+            $parentCartToQty[$cart->id] = $qty;
         }
 
         // ----- ACCESSORY ITEMS -----
         foreach ($accessoryCarts as $cart) {
             $product = $cart->product;
+            if (!$product) {
+                continue;
+            }
 
             $parentOrderProductId = $parentCartToOrderProduct[$cart->parent_cart_id] ?? null;
-            $parentQty = $parentCartToQty[$cart->parent_cart_id] ?? 1;
-            $scaledQty = $cart->quantity * $parentQty;
+            $parentBaseQty = $parentCartToQty[$cart->parent_cart_id] ?? 1.0;
+            $scaledQty = (float) $cart->quantity * $parentBaseQty;
+
+            try {
+                $allocations = $this->stockService->consume(
+                    $product,
+                    $scaledQty,
+                    $isStockEnforced,
+                    $cart->purchase_item_id,
+                    null
+                );
+            } catch (InsufficientStockException $e) {
+                DB::rollBack();
+                return response()->json([
+                    'error' => "Insufficient stock for accessory: {$product->name}"
+                ], 422);
+            }
+
+            $firstPurchaseItemId = $allocations[0]['purchase_item_id'] ?? $cart->purchase_item_id;
+            $weightedCost = $this->calculateWeightedCost(
+                $allocations,
+                $cart->purchaseItem ? (float) $cart->purchaseItem->purchase_price : (float) $product->purchase_price
+            );
+
+            $customFields = $cart->custom_fields ?? [];
+            if (!is_array($customFields)) {
+                $customFields = [];
+            }
+            $customFields['batch_allocations'] = $allocations;
 
             $order->products()->create([
                 'quantity' => $scaledQty,
                 'price' => 0,
-                'purchase_price' => $cart->purchaseItem ? $cart->purchaseItem->purchase_price : $product->purchase_price,
+                'purchase_price' => $weightedCost,
                 'sub_total' => 0,
                 'discount' => 0,
                 'tax_rate' => 0,
@@ -1205,23 +1292,18 @@ class OrderController extends Controller
                 'customer_tax' => 0,
                 'further_tax' => 0,
                 'total' => 0,
+                'custom_fields' => $customFields,
                 'product_id' => $product->id,
-                'purchase_item_id' => $cart->purchase_item_id,
+                'purchase_item_id' => $firstPurchaseItemId,
                 'product_variation_id' => null,
                 'is_accessory' => true,
                 'parent_order_product_id' => $parentOrderProductId,
             ]);
-
-            $product->quantity -= $scaledQty;
-            $product->save();
-
-            if ($error = $this->consumeStock($product, $cart, $scaledQty, $isStockEnforced, 'accessory')) {
-                return $error;
-            }
         }
 
         $total = $totalAmountOrder - $orderDiscount;
         if ($request->paid > $total) {
+            DB::rollBack();
             return response()->json(['error' => 'Paid amount cannot be greater than total amount'], 422);
         }
         $due = $total - ($request->paid ?? 0);
@@ -1652,29 +1734,50 @@ class OrderController extends Controller
         try {
             foreach ($order->products as $op) {
                 $product = $op->product;
-
-                if ($product) {
-                    $product->quantity += $op->quantity;
-                    $product->save();
+                if (!$product) {
+                    continue;
                 }
 
-                if ($op->purchase_item_id && $op->purchaseItem) {
-                    $op->purchaseItem->increment('remaining_qty', $op->quantity);
+                $customFields = $op->custom_fields ?? [];
+                $batchAllocations = $customFields['batch_allocations'] ?? null;
+
+                if (!empty($batchAllocations) && is_array($batchAllocations)) {
+                    // Exact restoration per allocation recorded at time of sale (Decision C)
+                    foreach ($batchAllocations as $alloc) {
+                        $bId = $alloc['purchase_item_id'] ?? null;
+                        $allocQty = round((float) ($alloc['qty'] ?? 0), 4);
+                        if ($bId && $allocQty > 0) {
+                            $batch = PurchaseItem::lockForUpdate()->find($bId);
+                            if ($batch) {
+                                $newRemaining = round(min((float) $batch->quantity, (float) $batch->remaining_qty + $allocQty), 4);
+                                $batch->update(['remaining_qty' => $newRemaining]);
+                            }
+                        }
+                    }
+                } elseif ($op->purchase_item_id && $op->purchaseItem) {
+                    $batch = $op->purchaseItem;
+                    $qtyToRestore = round((float) $op->quantity, 4);
+                    $newRemaining = round(min((float) $batch->quantity, (float) $batch->remaining_qty + $qtyToRestore), 4);
+                    $batch->update(['remaining_qty' => $newRemaining]);
                 } else {
-                    // FIFO cancel: restore quantity to batches, latest first
-                    $qtyToRestore = $op->quantity;
+                    // FIFO cancel fallback: restore quantity to batches, latest first
+                    $qtyToRestore = round((float) $op->quantity, 4);
                     $batches = PurchaseItem::where('product_id', $product->id)
+                        ->where('product_variation_id', $op->product_variation_id)
                         ->orderBy('created_at', 'desc')
+                        ->orderBy('id', 'desc')
+                        ->lockForUpdate()
                         ->get();
 
                     foreach ($batches as $batch) {
-                        if ($qtyToRestore <= 0)
+                        if ($qtyToRestore <= 0) {
                             break;
-                        $availableSpace = $batch->quantity - $batch->remaining_qty;
+                        }
+                        $availableSpace = round((float) $batch->quantity - (float) $batch->remaining_qty, 4);
                         if ($availableSpace > 0) {
                             $restore = min($qtyToRestore, $availableSpace);
-                            $batch->increment('remaining_qty', $restore);
-                            $qtyToRestore -= $restore;
+                            $batch->update(['remaining_qty' => round((float) $batch->remaining_qty + $restore, 4)]);
+                            $qtyToRestore = round($qtyToRestore - $restore, 4);
                         }
                     }
 
@@ -1739,7 +1842,7 @@ class OrderController extends Controller
     {
         $businessId = session('business_id');
 
-        $order = Order::with(['customer', 'products.product', 'products.variation', 'business.invoiceSetting',])->findOrFail($id);
+        $order = Order::with(['customer', 'products.product.unit', 'products.variation', 'products.qtyUnit', 'products.packing', 'business.invoiceSetting',])->findOrFail($id);
         $business = Business::findOrFail($businessId);
         $fbrIntegration = FbrTokenService::isIntegrationEnabled();
         $invoiceSettings = InvoiceSetting::where('business_id', $businessId)->first();
@@ -2021,31 +2124,19 @@ class OrderController extends Controller
     {
         $businessId = session('business_id');
 
-        $order = Order::with(['customer', 'products.product', 'business.invoiceSetting',])->findOrFail($id);
+        $order = Order::with([
+            'customer',
+            'products.product.unit',
+            'products.variation',
+            'products.qtyUnit',
+            'products.packing',
+            'business.invoiceSetting'
+        ])->findOrFail($id);
         $business = Business::findOrFail($businessId);
         $fbrIntegration = FbrTokenService::isIntegrationEnabled();
         $invoiceSettings = InvoiceSetting::where('business_id', $businessId)->first();
 
         return view('backend.orders.customer-tax-invoice.print-invoice', compact('order', 'business', 'fbrIntegration', 'invoiceSettings'));
-    }
-
-    public function customerTaxReceiptDigital($id)
-    {
-        $businessId = session('business_id');
-
-        $order = Order::with(['customer', 'products.product'])
-            ->where('business_id', $businessId)
-            ->findOrFail($id);
-
-        $invoiceSettings = InvoiceSetting::where('business_id', $businessId)->first();
-
-        $business = Business::findOrFail($businessId);
-
-        $maxWidth = $invoiceSettings->post_invoice_width ?? '300px';
-
-        $fbrIntegration = FbrTokenService::isIntegrationEnabled();
-
-        return view('backend.orders.customer-tax-invoice.pos-invoice-digital', compact('order', 'maxWidth', 'invoiceSettings', 'business', 'fbrIntegration'));
     }
 
     public function collection(Request $request, $id)
@@ -2141,7 +2232,7 @@ class OrderController extends Controller
     {
         $businessId = session('business_id');
 
-        $order = Order::with(['customer', 'products.product', 'products.variation',])->where('business_id', $businessId)
+        $order = Order::with(['customer', 'products.product.unit', 'products.variation', 'products.qtyUnit', 'products.packing'])->where('business_id', $businessId)
             ->findOrFail($id);
 
         $invoiceSettings = InvoiceSetting::where('business_id', $businessId)->first();
@@ -2160,7 +2251,7 @@ class OrderController extends Controller
     {
         $businessId = session('business_id');
 
-        $order = Order::with(['customer', 'products.product', 'products.variation',])->where('business_id', $businessId)
+        $order = Order::with(['customer', 'products.product.unit', 'products.variation', 'products.qtyUnit', 'products.packing'])->where('business_id', $businessId)
             ->findOrFail($id);
 
         $invoiceSettings = InvoiceSetting::where('business_id', $businessId)->first();
@@ -2251,11 +2342,11 @@ class OrderController extends Controller
      * single order line. Shared by DB order-item creation and FBR item building
      * so both stay in sync.
      */
-    private function calculateItemTax($product, $customer, float $unitPrice, float $qty): array
+    private function calculateItemTax($product, $customer, float $unitPrice, float $enteredQty, float $baseQty): array
     {
-        $lineTotal = round($unitPrice * $qty, 2);
+        $lineTotal = round($unitPrice * $enteredQty, 2);
 
-        $rateText = trim($product->rate_of_tax);
+        $rateText = trim($product->rate_of_tax ?? '');
         $furtherTax = 0;
 
         if (str_ends_with($rateText, '%')) {
@@ -2263,8 +2354,9 @@ class OrderController extends Controller
             $valueExTax = round($lineTotal, 2);
             $salesTax = round($valueExTax * ($rate / 100), 2);
         } else {
-            $ratePerUnit = floatval(preg_replace('/[^0-9.]/', '', $rateText));
-            $salesTax = round($ratePerUnit * $qty, 2);
+            preg_match('/\d+(?:\.\d+)?/', $rateText, $m);
+            $ratePerUnit = (float) ($m[0] ?? 0);
+            $salesTax = round($ratePerUnit * $baseQty, 2);
             $valueExTax = round($lineTotal, 2);
         }
 
@@ -2284,60 +2376,20 @@ class OrderController extends Controller
         ];
     }
 
-    /**
-     * Consumes `$qty` units of stock for a product, either from the cart's
-     * specific purchase-item batch, or FIFO across the oldest available
-     * batches. Returns a JsonResponse (with rollback already done) if stock
-     * enforcement fails, or null on success.
-     */
-    private function consumeStock($product, PosCart $cart, float $qty, bool $isStockEnforced, string $errorLabel): ?JsonResponse
+    private function calculateWeightedCost(array $allocations, float $defaultCost): float
     {
-        if ($cart->purchase_item_id && $cart->purchaseItem) {
-            $cart->purchaseItem->decrement('remaining_qty', $qty);
-            return null;
+        $totalQty = 0.0;
+        $totalCost = 0.0;
+        foreach ($allocations as $alloc) {
+            $q = (float) ($alloc['qty'] ?? 0);
+            $p = (float) ($alloc['cost'] ?? 0);
+            $totalQty += $q;
+            $totalCost += ($q * $p);
         }
-
-        // FIFO: consume from oldest batches
-        $qtyToConsume = $qty;
-        $purchaseItems = PurchaseItem::where('product_id', $product->id)
-            ->where('product_variation_id', $cart->product_variation_id)
-            ->where('remaining_qty', '>', 0)
-            ->orderBy('created_at', 'asc')
-            ->lockForUpdate()
-            ->get();
-
-        $lastProcessedPi = null;
-        foreach ($purchaseItems as $pi) {
-            if ($qtyToConsume <= 0)
-                break;
-            $consume = min($pi->remaining_qty, $qtyToConsume);
-            $pi->decrement('remaining_qty', $consume);
-            $qtyToConsume -= $consume;
-            $lastProcessedPi = $pi;
+        if ($totalQty > 0) {
+            return round($totalCost / $totalQty, 4);
         }
-
-        if ($qtyToConsume > 0) {
-            if ($isStockEnforced) {
-                DB::rollBack();
-                return response()->json([
-                    'error' => "Insufficient stock for {$errorLabel}: {$product->name}"
-                ], 422);
-            } else {
-                if ($lastProcessedPi) {
-                    $lastProcessedPi->decrement('remaining_qty', $qtyToConsume);
-                } else {
-                    $latestBatch = PurchaseItem::where('product_id', $product->id)
-                        ->where('product_variation_id', $cart->product_variation_id)
-                        ->orderBy('created_at', 'desc')
-                        ->first();
-                    if ($latestBatch) {
-                        $latestBatch->decrement('remaining_qty', $qtyToConsume);
-                    }
-                }
-            }
-        }
-
-        return null;
+        return round($defaultCost, 4);
     }
 
     /**
@@ -2350,11 +2402,24 @@ class OrderController extends Controller
 
         foreach ($parentCarts as $cart) {
             $product = $cart->product;
+            if (!$product) {
+                continue;
+            }
 
-            $qty = round($cart->quantity, 2);
-            $unitPrice = $cart->price_override ?? $cart->variation?->price ?? $product->discounted_price;
+            $factor = 1.0;
+            if ($cart->packing_id) {
+                $entered = (float) $cart->entered_qty;
+                $c = UomConverter::toBase((int) $cart->packing_id, (int) $cart->qty_unit_id, $entered);
+                $factor = $c['factor'];
+                $qty = $c['total_base'];
+                $unitPrice = $cart->entered_unit_price
+                    ?? (($cart->price_override ?? $cart->variation?->price ?? $product->discounted_price) * $factor);
+            } else {
+                $entered = $qty = (float) $cart->quantity;
+                $unitPrice = $cart->price_override ?? $cart->variation?->price ?? $product->discounted_price;
+            }
 
-            $tax = $this->calculateItemTax($product, $customer, $unitPrice, $qty);
+            $tax = $this->calculateItemTax($product, $customer, $unitPrice, $entered, $qty);
             $lineTotal = $tax['lineTotal'];
             $rateText = $tax['rateText'];
             $valueExTax = $tax['valueExTax'];
@@ -2369,7 +2434,7 @@ class OrderController extends Controller
                 "rate" => $rateText,
                 "uoM" => $product->uom,
 
-                // FLOAT banane ke liye (1.0, 50.0)
+                // FLOAT banane ke liye (1.0, 50.0) - sends base quantity
                 "quantity" => number_format((float) $qty, 2, '.', ''),
                 "totalValues" => number_format(($lineTotal + $salesTax + $furtherTax), 2, '.', ''),
                 "valueSalesExcludingST" => number_format((float) $valueExTax, 2, '.', ''),
@@ -2385,7 +2450,8 @@ class OrderController extends Controller
                 "fedPayable" => 0,
                 "discount" => 0,
                 "saleType" => $product->sale_type,
-                "sroItemSerialNo" => $product->sro_item ?: null
+                "sroItemSerialNo" => $product->sro_item ?: null,
+                "invoiceType" => 1,
             ];
         }
 

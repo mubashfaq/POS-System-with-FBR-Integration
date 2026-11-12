@@ -21,6 +21,13 @@ class PurchaseItem extends Model
         'remaining_qty',
     ];
 
+    protected $casts = [
+        'quantity' => 'decimal:4',
+        'remaining_qty' => 'decimal:4',
+        'purchase_price' => 'decimal:4',
+        'price' => 'decimal:4',
+    ];
+
     /**
      * Scope: only batches that still have unsold stock
      */

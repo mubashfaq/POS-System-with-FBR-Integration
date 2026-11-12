@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 import Cart from "./Cart";
@@ -12,6 +12,7 @@ import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
 import VariationModal from "./modals/VariationModal";
 import BatchModal from "./modals/BatchModal";
+import PackingModal from "./modals/PackingModal";
 
 const Field = ({ label, required, children, alignStart }) => (
     <div
@@ -76,6 +77,11 @@ export default function Pos({
 
     const [showProductModal, setShowProductModal] = useState(false);
 
+    const [packingProduct, setPackingProduct] = useState(null);
+    const pendingUnitRef = useRef(null); // chosen packing unit, carried through variation/batch modals
+    const cartsRef = useRef([]);
+    cartsRef.current = carts;
+
     const handleCreateProduct = () => setShowProductModal(true);
     const handleProductCreated = (newProductId) => {
         getUpdatedProducts();
@@ -131,7 +137,7 @@ export default function Pos({
     const handleQuantityChange = (cartId, newQty) => {
         setCarts((prev) =>
             prev.map((item) =>
-                item.id === cartId ? { ...item, quantity: newQty } : item
+                item.id === cartId ? { ...item, entered_qty: newQty, quantity: newQty } : item
             )
         );
     };
@@ -293,6 +299,54 @@ export default function Pos({
         };
     }, [currentPage, totalPages]);
 
+    const handleProductClick = (product) => {
+        if (!customerIdRef.current) {
+            toast.error("Please Select Customer");
+            return;
+        }
+        const levels = product.packing_levels || [];
+        if (levels.length > 0) {
+            setPackingProduct(product);      // show packing modal first
+        } else {
+            addProductToCart(product);       // no packing -> old behaviour
+        }
+    };
+
+    const handlePackingSelect = (_itemId, unitId) => {
+        const product = packingProduct;
+        if (!product) return;
+        pendingUnitRef.current = unitId;
+        setPackingProduct(null);
+        addProductToCart(product);           // continues variation -> batch -> cart flow
+    };
+
+    // Build the "item" shape PackingModal expects
+    const packingModalItem = useMemo(() => {
+        if (!packingProduct) return null;
+        const existingCartItem = carts.find(
+            (c) =>
+                !c._optimistic &&
+                !c.parent_cart_id &&
+                !c.is_accessory &&
+                Number(c.product_id ?? c.product?.id) === Number(packingProduct.id)
+        );
+
+        const activeUnitId = existingCartItem
+            ? existingCartItem.qty_unit_id
+            : (packingProduct.unit_id ??
+               packingProduct.base_unit_id ??
+               packingProduct.packing_levels?.find((l) => Number(l.base_qty) === 1)?.unit_id ??
+               packingProduct.packing_levels?.[0]?.unit_id);
+
+        return {
+            id: packingProduct.id,
+            product: packingProduct,
+            packing_levels: packingProduct.packing_levels,
+            qty_unit_id: activeUnitId,
+            base_unit_name: packingProduct.base_unit_name || packingProduct.unit?.title || "Piece",
+        };
+    }, [packingProduct, carts]);
+
     function addProductToCart(product, customerId, purchaseItemId = null, variationId = null) {
         // Use ref as fallback so this works immediately after customer selection
         const resolvedCustomerId = customerId || customerIdRef.current;
@@ -365,6 +419,8 @@ export default function Pos({
     function submitToCart(productId, purchaseItemId, variationId = null) {
         // Optimistic update: find an existing cart item for this product
         // and temporarily increment its quantity so the UI updates instantly
+        const qtyUnitId = pendingUnitRef.current;   // read
+        pendingUnitRef.current = null;              // reset
         setCarts((prev) => {
             const same = (c) =>
                 c.product?.id === productId &&
@@ -393,6 +449,7 @@ export default function Pos({
                 id: productId,
                 product_variation_id: variationId,
                 purchase_item_id: purchaseItemId,
+                qty_unit_id: qtyUnitId,
             })
             .then((res) => {
                 // Replace optimistic state with real server data
@@ -929,7 +986,7 @@ export default function Pos({
                                 </div>
                                 {products.length > 0 &&
                                     products.map((product, index) => (
-                                        <div onClick={() => addProductToCart(product)} style={{ cursor: "pointer" }}
+                                        <div onClick={() => handleProductClick(product)} style={{ cursor: "pointer" }}
                                             className="col-6 col-md-4 col-lg-3 mb-3" key={index}>
                                             <div className="text-center">
                                                 <img
@@ -977,15 +1034,25 @@ export default function Pos({
                 onClose={() => {
                     setShowVariationModal(false);
                     setPendingProduct(null);
+                    pendingUnitRef.current = null;
                 }}
                 onSelect={handleVariationSelect}
+            />
+            <PackingModal
+                isOpen={!!packingProduct}
+                item={packingModalItem}
+                onClose={() => setPackingProduct(null)}
+                onSelectUnit={handlePackingSelect}
             />
             <BatchModal
                 show={showBatchModal}
                 product={targetProduct}
                 batches={availableBatches}
                 quantityValidation={quantityValidation}
-                onClose={() => setShowBatchModal(false)}
+                onClose={() => {
+                    setShowBatchModal(false);
+                    pendingUnitRef.current = null;
+                }}
                 onSelect={(batch) =>
                     submitToCart(
                         targetProduct.id,

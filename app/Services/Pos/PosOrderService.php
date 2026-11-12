@@ -5,6 +5,7 @@ namespace App\Services\Pos;
 use App\Models\{Business, BusinessCounter, Customer, Order, Product, quantity_validation, OrderLog, ProductVariation};
 use App\Services\Fbr\FbrInvoiceService;
 use App\Services\FbrTokenService;
+use App\Services\UomConverter;
 use Illuminate\Support\Facades\DB;
 use Log;
 
@@ -78,26 +79,47 @@ class PosOrderService
                 $variation = !empty($item['product_variation_id'])
                     ? ProductVariation::where('product_id', $product->id)->findOrFail($item['product_variation_id'])
                     : null;
+
                 $qty = (float) $item['qty'];
+                $factor = 1.0;
+                $baseQty = $qty;
+                $packingId = null;
+                $qtyUnitId = null;
+
+                if (!empty($item['packing_id'])) {
+                    UomConverter::assertPackingMatchesProduct((int) $item['packing_id'], $product);
+                    $c = UomConverter::toBase((int) $item['packing_id'], (int) $item['qty_unit_id'], $qty);
+                    $factor = $c['factor'];
+                    $baseQty = $c['total_base'];
+                    $packingId = (int) $item['packing_id'];
+                    $qtyUnitId = (int) $item['qty_unit_id'];
+                }
+
                 $calc = $this->calculator->calculate(
                     $product,
                     $qty,
                     isset($item['price']) ? (float) $item['price'] : null,
                     $customer->customer_tax_type,
-                    $variation
+                    $variation,
+                    $factor
                 );
 
-                $allocations = $this->fifo->consume($product, $qty, $enforce, $item['purchase_item_id'] ?? null, $item['product_variation_id'] ?? null);
+                $allocations = $this->fifo->consume($product, $baseQty, $enforce, $item['purchase_item_id'] ?? null, $item['product_variation_id'] ?? null);
 
-                // weighted average cost of the batches used
-                $cost = collect($allocations)->sum(fn($a) => $a['qty'] * $a['cost']) / max($qty, 0.0001);
+                // weighted average cost of the batches used per base unit
+                $cost = collect($allocations)->sum(fn($a) => $a['qty'] * $a['cost']) / max($baseQty, 0.0001);
 
                 $orderProduct = $order->products()->create([
-                    'quantity' => $qty,
+                    'quantity' => $baseQty,
+                    'entered_qty' => $packingId ? $qty : null,
+                    'unit_price' => $packingId ? $calc['unit_price'] : null,
+                    'packing_id' => $packingId,
+                    'qty_unit_id' => $qtyUnitId,
+                    'base_qty_factor' => $factor,
                     'hsCode' => $product->hsCode ?? null,
                     'uom' => $product->uom ?? null,
-                    'price' => $calc['unit_price'],
-                    'purchase_price' => round($cost, 2),
+                    'price' => UomConverter::priceToBase($calc['unit_price'], $factor),
+                    'purchase_price' => round($cost, 4),
                     'sub_total' => $calc['sub_total'],
                     'discount' => 0,
                     'tax_rate' => $calc['rate_text'],
@@ -109,18 +131,19 @@ class PosOrderService
                     'product_variation_id' => $item['product_variation_id'] ?? null,
                     'purchase_item_id' => $item['purchase_item_id'] ?? ($allocations[0]['purchase_item_id'] ?? null),
                     'is_accessory' => false,
+                    'custom_fields' => array_merge($item['custom_fields'] ?? [], ['batch_allocations' => $allocations]),
                 ]);
 
                 foreach ($item['accessories'] ?? [] as $acc) {
                     $accProduct = $products[$acc['product_id']];
-                    $accQty = (float) $acc['qty'] * $qty;   // scaled by parent qty, same as web
+                    $accQty = (float) $acc['qty'] * $baseQty;   // scaled by parent base qty
                     $accAlloc = $this->fifo->consume($accProduct, $accQty, $enforce, $acc['purchase_item_id'] ?? null);
                     $accCost = collect($accAlloc)->sum(fn($a) => $a['qty'] * $a['cost']) / max($accQty, 0.0001);
 
                     $order->products()->create([
                         'quantity' => $accQty,
                         'price' => 0,
-                        'purchase_price' => round($accCost, 2),
+                        'purchase_price' => round($accCost, 4),
                         'sub_total' => 0,
                         'discount' => 0,
                         'tax_rate' => 0,
@@ -132,6 +155,7 @@ class PosOrderService
                         'purchase_item_id' => $acc['purchase_item_id'] ?? ($accAlloc[0]['purchase_item_id'] ?? null),
                         'is_accessory' => true,
                         'parent_order_product_id' => $orderProduct->id,
+                        'custom_fields' => ['batch_allocations' => $accAlloc],
                     ]);
                 }
 
@@ -139,7 +163,7 @@ class PosOrderService
                 $totals['sale_tax'] += $calc['sale_tax'];
                 $totals['customer_tax'] += $calc['customer_tax'];
 
-                $lines[] = ['product' => $product, 'variation' => $variation ?? null, 'qty' => $qty, 'calc' => $calc];
+                $lines[] = ['product' => $product, 'variation' => $variation ?? null, 'qty' => $baseQty, 'calc' => $calc];
             }
 
             $total = $totals['amount'] - $discount;

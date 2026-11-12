@@ -20,9 +20,12 @@
                     fn($item) => [
                         'product_id' => $item->product_id,
                         'product_variation_id' => $item->product_variation_id,
+                        'packing_id' => $item->packing_id,
+                        'qty_unit_id' => $item->qty_unit_id,
                         'unit_id' => $item->unit_id,
                         'pcs_per_carton' => $item->pcs_per_carton,
                         'ctn_qty' => $item->ctn_qty,
+                        'total_pcs' => $item->total_pcs,
                         'price_pc' => $item->price_pc,
                         'sale_price' => $item->sale_price,
                         'sale_percent' => $item->sale_percent,
@@ -398,19 +401,20 @@
                                     <th>Code</th>
                                     <th style="min-width:200px;">Name</th>
                                     <th>Category</th>
-                                    <th style="min-width:150px;">Variation</th>
-                                    <th style="min-width:130px;">Packing</th>
-                                    <th style="min-width:100px;">Pcs / Ctn</th>
-                                    <th style="min-width:100px;">Ctn Qty</th>
-                                    <th>Total Pcs</th>
-                                    <th style="min-width:110px;">Price / Pc</th>
+                                    <th style="min-width:140px;">Variation</th>
+                                    <th style="min-width:140px;">Packing</th>
+                                    <th style="min-width:160px;">Packing Summary</th>
+                                    <th style="min-width:100px;">Qty</th>
+                                    <th style="min-width:120px;">Unit</th>
+                                    <th>Total Base</th>
+                                    <th style="min-width:110px;">Price / Base</th>
                                     <th style="min-width:110px;"
-                                        title="Price / Pc + category expense share + total expense share">
-                                        Cost / Pc <i class="fas fa-info-circle text-muted"
+                                        title="Price / Base + category expense share + total expense share">
+                                        Cost / Base <i class="fas fa-info-circle text-muted"
                                             style="font-size:11px;"></i>
                                     </th>
                                     <th style="min-width:110px;">Sale Price</th>
-                                    <th style="min-width:90px;">%</th>
+                                    <th style="min-width:80px;">%</th>
                                     <th>Amount</th>
                                     <th>Action</th>
                                 </tr>
@@ -418,7 +422,7 @@
                             <tbody id="importProductRows"></tbody>
                             <tfoot>
                                 <tr>
-                                    <th colspan="13" class="text-right">Total Amount</th>
+                                    <th colspan="14" class="text-right">Total Amount</th>
                                     <th id="importProductsTotal">0.00</th>
                                     <th></th>
                                 </tr>
@@ -640,6 +644,7 @@
         const rowsContainer = document.getElementById('importProductRows');
 
         const units = @json($units->map(fn($u) => ['id' => $u->id, 'name' => $u->title])->values());
+        const packings = @json($packings ?? []);
         const categoriesById = @json($categories->mapWithKeys(fn($c) => [$c->id => $c->name]));
 
         const existingRows = @json($existingRows);
@@ -940,10 +945,9 @@
             const row = document.createElement('tr');
             row.className = 'import-product-row';
 
-            // NEW: search picker instead of <select>
+            // Product search picker
             const picker = createProductPicker(index, {
                 product_id: data.product_id ?? '',
-                // For edit mode we need a display name before the API response arrives:
                 _name: data._product_name ?? data.product_name ?? '',
             });
 
@@ -958,18 +962,81 @@
             variationSelect.innerHTML = '<option value="">—</option>';
             variationSelect.disabled = true;
 
-            const unitSelect = addOptions(units, data.unit_id, 'Select packing');
-            unitSelect.classList.add('unit-select');
-            unitSelect.name = `import_products[${index}][unit_id]`;
+            // Packing dropdown
+            const packingSelect = document.createElement('select');
+            packingSelect.className = 'form-control form-control-sm packing-select';
+            packingSelect.name = `import_products[${index}][packing_id]`;
+            packingSelect.innerHTML = '<option value="">Select Packing</option>';
+            packings.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.name;
+                opt.dataset.baseUnit = p.base_unit_id;
+                opt.dataset.summary = p.summary || p.name;
+                if (String(p.id) === String(data.packing_id ?? '')) {
+                    opt.selected = true;
+                }
+                packingSelect.appendChild(opt);
+            });
 
-            const pcsInput = createInput(index, 'number', 'pcs_per_carton', data.pcs_per_carton ?? 1, '1');
-            const cartonInput = createInput(index, 'number', 'ctn_qty', data.ctn_qty ?? 0, '1');
-            const totalInput = createInput(index, 'number', 'total_pcs', 0, '1');
-            const pricePcInput = createInput(index, 'number', 'price_pc', data.price_pc ?? 0, '0.01');
-            const amountInput = createInput(index, 'number', 'amount', 0, '0.01');
+            // Summary display (read-only)
+            const summaryDisplay = document.createElement('input');
+            summaryDisplay.type = 'text';
+            summaryDisplay.className = 'form-control form-control-sm packing-summary';
+            summaryDisplay.readOnly = true;
+            summaryDisplay.placeholder = '—';
 
-            const costPcInput = createInput(index, 'number', 'cost_pc', 0, '0.01');
-            costPcInput.removeAttribute('name'); // display only, server recalculates
+            // Qty Unit dropdown (AJAX/dynamic from packing levels)
+            const qtyUnitSelect = document.createElement('select');
+            qtyUnitSelect.className = 'form-control form-control-sm qty-unit-select';
+            qtyUnitSelect.name = `import_products[${index}][qty_unit_id]`;
+            qtyUnitSelect.innerHTML = '<option value="">Select Unit</option>';
+
+            // Hidden factor snapshot (pcs_per_carton)
+            const pcsInput = createInput(index, 'hidden', 'pcs_per_carton', data.pcs_per_carton ?? 1, '0.0001');
+            pcsInput.classList.add('pcs-per-carton');
+
+            // Hidden base unit (unit_id)
+            const unitHidden = document.createElement('input');
+            unitHidden.type = 'hidden';
+            unitHidden.className = 'base-unit-id';
+            unitHidden.name = `import_products[${index}][unit_id]`;
+            unitHidden.value = data.unit_id ?? '';
+
+            // Qty input (ctn_qty)
+            const cartonInput = createInput(index, 'number', 'ctn_qty', data.ctn_qty ?? 0, '0.0001');
+            cartonInput.min = '0';
+            cartonInput.classList.add('carton-qty');
+
+            // Total Base input with unit in border
+            const totalWrapper = document.createElement('fieldset');
+            totalWrapper.className = 'total-base-fieldset';
+
+            const baseUnitLabel = document.createElement('legend');
+            baseUnitLabel.className = 'total-base-legend';
+            baseUnitLabel.textContent = '—';
+
+            function updateBaseUnitLabel(unitId) {
+                const unit = units.find(u => String(u.id) === String(unitId));
+
+                baseUnitLabel.textContent = unit ? unit.name : '—';
+            }
+
+            updateBaseUnitLabel(data.unit_id);
+
+            const totalInput = createInput(index, 'number', 'total_pcs', data.total_pcs ?? 0, '0.0001');
+            totalInput.readOnly = true;
+            totalInput.classList.add('total-pcs');
+
+            totalWrapper.append(baseUnitLabel, totalInput);
+
+            // Price per base unit (price_pc)
+            const pricePcInput = createInput(index, 'number', 'price_pc', data.price_pc ?? 0, '0.0001');
+            pricePcInput.min = '0';
+            pricePcInput.classList.add('price-pc');
+
+            const costPcInput = createInput(index, 'number', 'cost_pc', 0, '0.0001');
+            costPcInput.removeAttribute('name'); // display only
             costPcInput.readOnly = true;
             costPcInput.classList.add('cost-pc');
 
@@ -979,28 +1046,94 @@
             categoryDisplay.readOnly = true;
             categoryDisplay.placeholder = '—';
 
-            const salePriceInput = createInput(index, 'number', 'sale_price', data.sale_price ?? 0, '0.01');
+            const salePriceInput = createInput(index, 'number', 'sale_price', data.sale_price ?? 0, '0.0001');
             salePriceInput.min = '0';
             salePriceInput.classList.add('sale-price');
 
             const percentInput = createInput(index, 'number', 'sale_percent', data.sale_percent ?? 0, '0.01');
             percentInput.classList.add('sale-percent');
 
-            pcsInput.min = '1';
-            pcsInput.classList.add('pcs-per-carton');
-            cartonInput.min = '0';
-            cartonInput.classList.add('carton-qty');
-            totalInput.readOnly = true;
-            totalInput.classList.add('total-pcs');
-            pricePcInput.min = '0';
-            pricePcInput.classList.add('price-pc');
+            const amountInput = createInput(index, 'number', 'amount', 0, '0.01');
             amountInput.readOnly = true;
             amountInput.classList.add('product-amount');
 
+            function populateLevels(packingId, targetUnitId = null) {
+                if (!packingId) {
+                    summaryDisplay.value = '—';
+                    qtyUnitSelect.innerHTML = '<option value="">Select Unit</option>';
+                    pcsInput.value = 1;
+                    calculateRow(row);
+                    updateBaseUnitLabel(unitHidden.value);
+                    return;
+                }
+                const selOpt = packingSelect.options[packingSelect.selectedIndex];
+                summaryDisplay.value = selOpt?.dataset?.summary || '—';
+                if (selOpt?.dataset?.baseUnit) {
+                    unitHidden.value = selOpt.dataset.baseUnit;
+                    updateBaseUnitLabel(selOpt.dataset.baseUnit);
+                }
+
+                const pObj = packings.find(p => String(p.id) === String(packingId));
+                if (pObj && pObj.levels && pObj.levels.length) {
+                    qtyUnitSelect.innerHTML = '<option value="">Select Unit</option>';
+                    pObj.levels.forEach(lvl => {
+                        const opt = document.createElement('option');
+                        opt.value = lvl.unit_id;
+                        opt.textContent = (lvl.unit ? lvl.unit.title : 'Unit') + ' (' + lvl.base_qty +
+                            ')';
+                        opt.dataset.factor = lvl.base_qty;
+                        if (targetUnitId && String(lvl.unit_id) === String(targetUnitId)) {
+                            opt.selected = true;
+                        }
+                        qtyUnitSelect.appendChild(opt);
+                    });
+                    if (!targetUnitId && qtyUnitSelect.options.length > 1) {
+                        qtyUnitSelect.selectedIndex = 1;
+                    }
+                    const activeOpt = qtyUnitSelect.options[qtyUnitSelect.selectedIndex];
+                    pcsInput.value = activeOpt?.dataset?.factor || 1;
+                    calculateRow(row);
+                } else {
+                    fetch(`/admin/packings/${packingId}/levels`)
+                        .then(r => r.json())
+                        .then(res => {
+                            qtyUnitSelect.innerHTML = '<option value="">Select Unit</option>';
+                            (res.levels || []).forEach(lvl => {
+                                const opt = document.createElement('option');
+                                opt.value = lvl.unit_id;
+                                opt.textContent = lvl.name + ' (' + lvl.base_qty + ')';
+                                opt.dataset.factor = lvl.base_qty;
+                                if (targetUnitId && String(lvl.unit_id) === String(targetUnitId)) {
+                                    opt.selected = true;
+                                }
+                                qtyUnitSelect.appendChild(opt);
+                            });
+                            if (!targetUnitId && qtyUnitSelect.options.length > 1) {
+                                qtyUnitSelect.selectedIndex = 1;
+                            }
+                            const activeOpt = qtyUnitSelect.options[qtyUnitSelect.selectedIndex];
+                            pcsInput.value = activeOpt?.dataset?.factor || 1;
+                            calculateRow(row);
+                        })
+                        .catch(() => {});
+                }
+            }
+
+            packingSelect.addEventListener('change', () => {
+                populateLevels(packingSelect.value);
+            });
+
+            qtyUnitSelect.addEventListener('change', () => {
+                const activeOpt = qtyUnitSelect.options[qtyUnitSelect.selectedIndex];
+                pcsInput.value = activeOpt?.dataset?.factor || 1;
+                calculateRow(row);
+            });
+
+            // Table cells
             const cells = [
                 document.createTextNode(''), codeInput, picker, categoryDisplay, variationSelect,
-                unitSelect, pcsInput,
-                cartonInput, totalInput, pricePcInput, costPcInput, salePriceInput, percentInput,
+                packingSelect, summaryDisplay, cartonInput, qtyUnitSelect,
+                totalWrapper, pricePcInput, costPcInput, salePriceInput, percentInput,
                 amountInput,
             ];
 
@@ -1010,6 +1143,10 @@
                 else td.appendChild(content);
                 row.appendChild(td);
             });
+
+            // Append hidden inputs
+            row.appendChild(pcsInput);
+            row.appendChild(unitHidden);
 
             // Action cell
             const actionCell = document.createElement('td');
@@ -1022,7 +1159,7 @@
 
             rowsContainer.appendChild(row);
 
-            // Fill variation list when the picker emits a selection
+            // Fill variation and packing when product picker emits selection
             row.addEventListener('product:selected', (e) => {
                 const product = e.detail.product;
                 const variationSelect = row.querySelector('.variation-select');
@@ -1055,8 +1192,26 @@
                     variationSelect.disabled = true;
                 }
 
+                if (product) {
+                    if (product.unit_id) {
+                        unitHidden.value = product.unit_id;
+                        updateBaseUnitLabel(product.unit_id);
+                    }
+                    if (product.default_packing_id) {
+                        packingSelect.value = product.default_packing_id;
+                        populateLevels(product.default_packing_id, data.qty_unit_id || null);
+                    } else if (data.packing_id) {
+                        packingSelect.value = data.packing_id;
+                        populateLevels(data.packing_id, data.qty_unit_id || null);
+                    }
+                }
+
                 calculateRow(row);
             });
+
+            if (data.packing_id) {
+                populateLevels(data.packing_id, data.qty_unit_id);
+            }
 
             calculateRow(row);
             updateRowNumbers();
@@ -1073,15 +1228,17 @@
         }
 
         function calculateRow(row) {
-            const pcs = Number(row.querySelector('.pcs-per-carton').value) || 0;
-            const cartons = Number(row.querySelector('.carton-qty').value) || 0;
-            const price = Number(row.querySelector('.price-pc').value) || 0;
+            const factor = Number(row.querySelector('.pcs-per-carton')?.value) || 1;
+            const entered = Number(row.querySelector('.carton-qty')?.value) || 0;
+            const price = Number(row.querySelector('.price-pc')?.value) || 0;
 
-            const totalPieces = pcs * cartons;
-            const amount = totalPieces * price;
+            const totalPieces = Math.round(factor * entered * 10000) / 10000;
+            const amount = Math.round(totalPieces * price * 100) / 100;
 
-            row.querySelector('.total-pcs').value = totalPieces;
-            row.querySelector('.product-amount').value = amount.toFixed(2);
+            const totalEl = row.querySelector('.total-pcs');
+            if (totalEl) totalEl.value = totalPieces;
+            const amtEl = row.querySelector('.product-amount');
+            if (amtEl) amtEl.value = amount.toFixed(2);
 
             const saleEl = row.querySelector('.sale-price');
             const pctEl = row.querySelector('.sale-percent');
@@ -1170,6 +1327,7 @@
             updateRowNumbers();
             calculateTotal();
             recalcCosts();
+            reindexProductInputs();
         });
 
         if (existingRows.length) {
@@ -1184,7 +1342,9 @@
                 const fields = [
                     ['.product-id', 'product_id'],
                     ['.variation-select', 'product_variation_id'],
-                    ['.unit-select', 'unit_id'],
+                    ['.packing-select', 'packing_id'],
+                    ['.qty-unit-select', 'qty_unit_id'],
+                    ['.base-unit-id', 'unit_id'],
                     ['.pcs-per-carton', 'pcs_per_carton'],
                     ['.carton-qty', 'ctn_qty'],
                     ['.total-pcs', 'total_pcs'],
@@ -1195,8 +1355,10 @@
                 ];
 
                 fields.forEach(([selector, field]) => {
-                    row.querySelector(selector).name =
-                        `import_products[${i}][${field}]`;
+                    const el = row.querySelector(selector);
+                    if (el) {
+                        el.name = `import_products[${i}][${field}]`;
+                    }
                 });
             });
         }
@@ -1209,21 +1371,17 @@
             const raw = input.value;
             if (raw === '' || raw === null) return;
 
-            // Only normalize integer-ish fields (not price fields with decimals)
-            const integerFields = ['pcs-per-carton', 'carton-qty', 'total-pcs'];
-            const isIntegerField = integerFields.some(cls => input.classList.contains(cls));
+            const decimalFields = ['pcs-per-carton', 'carton-qty', 'total-pcs', 'price-pc',
+                'sale-price',
+                'sale-percent'
+            ];
+            const isDecimalField = decimalFields.some(cls => input.classList.contains(cls));
 
-            if (isIntegerField) {
-                const n = parseInt(raw, 10);
-                input.value = isNaN(n) ? '' : String(n); // "01" -> "1"
+            if (isDecimalField) {
+                const n = parseFloat(raw);
+                input.value = isNaN(n) ? '' : String(n);
             }
         }, true); // capture phase so it works for dynamically added inputs too
-
-        rowsContainer.addEventListener('click', function(event) {
-            if (event.target.closest('.remove-import-product')) {
-                setTimeout(reindexProductInputs, 0);
-            }
-        });
 
 
         function recalcCosts() {
@@ -1256,20 +1414,21 @@
                 const cost = price + catPerPc + globalPerPc;
 
                 const costInput = r.querySelector('.cost-pc');
-                costInput.value = cost.toFixed(2);
+                costInput.value = cost.toFixed(4);
 
                 // Hover text on the cost input and its cell
-                const tip = `Price: ${price.toFixed(2)}\n` +
-                    `Category expense: ${catPerPc.toFixed(2)}\n` +
-                    `Total expense: ${globalPerPc.toFixed(2)}\n` +
-                    `Cost: ${cost.toFixed(2)}`;
+                const tip = `Price: ${price.toFixed(4)}\n` +
+                    `Category expense: ${catPerPc.toFixed(4)}\n` +
+                    `Total expense: ${globalPerPc.toFixed(4)}\n` +
+                    `Cost: ${cost.toFixed(4)}`;
                 costInput.title = tip;
                 costInput.closest('td').title = tip;
             });
         }
 
         document.getElementById('expense-rows').addEventListener('input', recalcCosts);
-        document.getElementById('expense-rows').addEventListener('change', recalcCosts);
+        document.getElementById(
+            'expense-rows').addEventListener('change', recalcCosts);
 
         // ===== Auto-calculate Total Expense =====
         const expenseFields = ['freight_expense', 'fta_expense', 'fitting_expense', 'co_expense',

@@ -13,6 +13,8 @@ class ImportProduct extends Model
         'import_id',
         'product_id',
         'product_variation_id',
+        'packing_id',
+        'qty_unit_id',
         'unit_id',
         'pcs_per_carton',
         'ctn_qty',
@@ -21,6 +23,15 @@ class ImportProduct extends Model
         'sale_price',
         'sale_percent',
         'amount',
+    ];
+
+    protected $casts = [
+        'pcs_per_carton' => 'decimal:4',
+        'ctn_qty' => 'decimal:4',
+        'total_pcs' => 'decimal:4',
+        'price_pc' => 'decimal:4',
+        'sale_price' => 'decimal:4',
+        'amount' => 'decimal:4',
     ];
 
     public function import()
@@ -36,6 +47,16 @@ class ImportProduct extends Model
     public function unit()
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    public function packing()
+    {
+        return $this->belongsTo(Packing::class, 'packing_id');
+    }
+
+    public function qtyUnit()
+    {
+        return $this->belongsTo(Unit::class, 'qty_unit_id');
     }
 
     public function variation()

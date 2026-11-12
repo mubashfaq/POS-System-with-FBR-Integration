@@ -21,6 +21,7 @@ class Product extends Model
         'category_id',
         'brand_id',
         'unit_id',
+        'default_packing_id',
         'price',
         'discount',
         'discount_type',
@@ -48,6 +49,8 @@ class Product extends Model
 
     protected $casts = [
         'has_variations' => 'boolean',
+        'price' => 'decimal:4',
+        'purchase_price' => 'decimal:4',
     ];
 
     public function setNameAttribute($value)
@@ -109,6 +112,16 @@ class Product extends Model
         return $this->belongsTo(Unit::class);
     }
 
+    public function defaultPacking()
+    {
+        return $this->belongsTo(Packing::class, 'default_packing_id');
+    }
+
+    public function unitPrices()
+    {
+        return $this->hasMany(ProductUnitPrice::class, 'product_id');
+    }
+
     public function variations()
     {
         return $this->hasMany(ProductVariation::class);
@@ -125,10 +138,10 @@ class Product extends Model
     public function getQuantityAttribute($value): float
     {
         if (array_key_exists('stock_sum', $this->attributes)) {
-            return (float) $this->attributes['stock_sum'];
+            return round((float) $this->attributes['stock_sum'], 4);
         }
 
-        return (float) $this->purchaseItems()->sum('remaining_qty');
+        return round((float) $this->purchaseItems()->sum('remaining_qty'), 4);
     }
     public function scopeActive($query)
     {
@@ -137,7 +150,7 @@ class Product extends Model
     public function scopeStocked($query)
     {
         return $query->whereRaw(
-            '(select coalesce(sum(pi.remaining_qty), 0) from purchase_items pi where pi.product_id = products.id) >= 1'
+            '(select coalesce(sum(pi.remaining_qty), 0) from purchase_items pi where pi.product_id = products.id) > 0'
         );
     }
 
@@ -151,13 +164,13 @@ class Product extends Model
     public function getDiscountedPriceAttribute()
     {
         if ($this->discount_type == 'fixed') {
-            $discountedPrice = $this->price - $this->discount;
+            $discountedPrice = (float) $this->price - (float) $this->discount;
         } elseif ($this->discount_type == 'percentage') {
-            $discountedPrice = $this->price - ($this->price * $this->discount / 100);
+            $discountedPrice = (float) $this->price - ((float) $this->price * (float) $this->discount / 100);
         } else {
-            $discountedPrice = $this->price;
+            $discountedPrice = (float) $this->price;
         }
-        return round($discountedPrice, 2);
+        return round((float) $discountedPrice, 4);
     }
 
 }

@@ -26,6 +26,14 @@
             <input type="text" class="form-control" placeholder="Enter Short Name" name="short_name"
               value="{{ old('short_name') }}" required>
           </div>
+          <div class="mb-3 col-md-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="is_active" value="1" id="is_active" {{ old('is_active', '1') ? 'checked' : '' }}>
+              <label class="form-check-label" for="is_active">
+                Active
+              </label>
+            </div>
+          </div>
         </div>
         <div class="row">
           <div class="col-md-6">

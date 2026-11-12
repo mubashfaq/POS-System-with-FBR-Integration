@@ -46,6 +46,11 @@ class UpdateProductRequest extends FormRequest
             'description' => 'nullable|string',
             'category_id' => 'nullable|exists:categories,id',
             'brand_id' => 'nullable|exists:brands,id',
+            'unit_id' => 'nullable|exists:units,id',
+            'default_packing_id' => 'nullable|exists:packings,id',
+            'unit_prices' => 'nullable|array',
+            'unit_prices.*.unit_id' => 'required_with:unit_prices|exists:units,id',
+            'unit_prices.*.sale_price' => 'nullable|numeric|min:0',
             'price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0|required_with:discount_type',
             'discount_type' => 'nullable|required_with:discount',
@@ -84,5 +89,24 @@ class UpdateProductRequest extends FormRequest
         }
 
         return $rules;
+    }
+
+    public function withValidator($validator)
+    {
+        $validator->after(function ($v) {
+            $packingId = $this->input('default_packing_id');
+            $unitId = $this->input('unit_id');
+
+            if ($packingId) {
+                if (!$unitId) {
+                    $v->errors()->add('unit_id', 'Base Unit is required when selecting a Default Packing.');
+                    return;
+                }
+                $packing = \App\Models\Packing::find($packingId);
+                if ($packing && (int) $packing->base_unit_id !== (int) $unitId) {
+                    $v->errors()->add('default_packing_id', 'Default Packing base unit must match the selected product unit.');
+                }
+            }
+        });
     }
 }

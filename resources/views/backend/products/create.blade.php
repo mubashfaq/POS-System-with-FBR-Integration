@@ -53,6 +53,32 @@
                         </select>
                     </div>
                     <div class="mb-3 col-md-6">
+                        <label for="product_unit_id" class="form-label">
+                            Base Unit
+                        </label>
+                        <select class="form-control select2" style="width: 100%;" name="unit_id" id="product_unit_id">
+                            <option value="">Select Base Unit</option>
+                            @foreach ($baseUnits as $item)
+                            <option value="{{ $item->id }}" {{ old('unit_id') == $item->id ? 'selected' : '' }}>
+                                {{ $item->title }} ({{ $item->short_name }})
+                            </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3 col-md-6">
+                        <label for="default_packing_id" class="form-label">
+                            Default Packing
+                        </label>
+                        <select class="form-control select2" style="width: 100%;" name="default_packing_id" id="default_packing_id">
+                            <option value="">Select Default Packing</option>
+                            @foreach ($packings as $item)
+                            <option value="{{ $item->id }}" data-base-unit="{{ $item->base_unit_id }}" {{ old('default_packing_id') == $item->id ? 'selected' : '' }}>
+                                {{ $item->name }} ({{ $item->summary }})
+                            </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3 col-md-6">
                         <label for="price" class="form-label">
                             Price
                             <span class="text-danger">*</span>
@@ -306,6 +332,8 @@
                         </div>
                     </div>
                 </div>
+
+                @include('backend.products.partials.unit-prices')
 
                 @if (currentUserBusiness()->hasPermission('product_variation'))
                     @include('backend.products._variations', ['mode' => 'create'])

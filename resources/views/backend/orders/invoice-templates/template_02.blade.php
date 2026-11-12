@@ -109,8 +109,13 @@
                                         <td>{{ $item->product->hsCode }}</td>
                                         <td>{{ $item->product->uom }}</td>
                                     @endif
-                                    <td>{{ $item->quantity }} {{ optional($item->product->unit)->short_name }}</td>
-                                    <td class="text-right">{{ $item->price }}</td>
+                                    <td>
+                                        {{ $item->quantity_text ?: $item->quantity . ' ' . optional($item->product->unit)->short_name }}
+                                        @if ($item->packing_description)
+                                            <br><small>({{ $item->packing_description }})</small>
+                                        @endif
+                                    </td>
+                                    <td class="text-right">{{ number_format($item->invoice_unit_price, 2) }}</td>
 
                                     @php
                                         $inclTax = $item->total;

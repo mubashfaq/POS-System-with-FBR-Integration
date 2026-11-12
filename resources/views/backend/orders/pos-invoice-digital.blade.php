@@ -68,20 +68,23 @@
           </tr>
         </thead>
         <tbody>
-          @foreach ($order->products->where('is_accessory', 0) as $item)
-            <tr>
-              <td>
-                {{ $item->product->name }}
-                @if ($item->variation)
-                    <br>
-                    <small>{{ $item->variation->label }}</small>
-                @endif
-            </td>
-              <!-- <td class="text-right">{{ $item->quantity }}</td> -->
-              <td class="text-right">{{ $item->quantity }}*{{ $item->discounted_price}}</td>
-              <td class="text-right">{{ number_format($item->sub_total, 2)}}</td>
-            </tr>
-          @endforeach
+            @foreach ($order->products->where('is_accessory', 0) as $item)
+                <tr>
+                    <td>{{ $item->product->name }}
+                        @if ($item->variation)
+                            <br><small>{{ $item->variation->label }}</small>
+                        @endif
+                    </td>
+                    <!-- <td class="text-right">{{ $item->quantity }}</td> -->
+                    <td class="text-right">
+                        {{ $item->quantity_text }} * {{ number_format($item->invoice_unit_price, 2) }}
+                        @if ($item->packing_description)
+                            <br><small>({{ $item->packing_description }})</small>
+                        @endif
+                    </td>
+                    <td class="text-right">{{ number_format($item->sub_total, 2) }}</td>
+                </tr>
+            @endforeach
         </tbody>
       </table>
       <hr>

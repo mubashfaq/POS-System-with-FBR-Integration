@@ -19,11 +19,14 @@ class DuplicateOrderService
         // Current cart items
         $cartItems = $carts->map(function ($cart) {
             return [
-                'product_id' => $cart->product->id,
-                'qty' => (float) $cart->quantity,
+                'product_id' => (int) ($cart->product_id ?? $cart->product?->id),
+                'packing_id' => $cart->packing_id ? (int) $cart->packing_id : null,
+                'qty_unit_id' => $cart->qty_unit_id ? (int) $cart->qty_unit_id : null,
+                'entered_qty' => round((float) ($cart->entered_qty ?? $cart->quantity), 4),
+                'qty' => round((float) $cart->quantity, 4),
             ];
         })
-        ->sortBy('product_id')
+        ->sortBy(fn($item) => $item['product_id'] . '-' . ($item['packing_id'] ?? 0) . '-' . ($item['qty_unit_id'] ?? 0))
         ->values();
 
         // Orders from last 1 day
@@ -35,15 +38,17 @@ class DuplicateOrderService
             ->get();
 
         foreach ($orders as $order) {
-
             $orderItems = $order->products
                 ->map(function ($product) {
                     return [
-                        'product_id' => $product->product_id,
-                        'qty' => (float) $product->quantity,
+                        'product_id' => (int) $product->product_id,
+                        'packing_id' => $product->packing_id ? (int) $product->packing_id : null,
+                        'qty_unit_id' => $product->qty_unit_id ? (int) $product->qty_unit_id : null,
+                        'entered_qty' => round((float) ($product->entered_qty ?? $product->quantity), 4),
+                        'qty' => round((float) $product->quantity, 4),
                     ];
                 })
-                ->sortBy('product_id')
+                ->sortBy(fn($item) => $item['product_id'] . '-' . ($item['packing_id'] ?? 0) . '-' . ($item['qty_unit_id'] ?? 0))
                 ->values();
 
             if ($cartItems->toJson() === $orderItems->toJson()) {

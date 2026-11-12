@@ -17,6 +17,7 @@ import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
 import VariationModal from "./modals/VariationModal";
 import BatchModal from "./modals/BatchModal";
+import PackingModal from "./modals/PackingModal";
 
 const ORANGE = "#fd6802";
 
@@ -84,6 +85,11 @@ export default function PosDigital({
     const [availableBatches, setAvailableBatches] = useState([]);
     const [targetProduct, setTargetProduct] = useState(null);
     const [quantityValidation, setQuantityValidation] = useState(null);
+
+    const [packingProduct, setPackingProduct] = useState(null);
+    const pendingUnitRef = useRef(null); // chosen packing unit, carried through variation/batch modals
+    const cartsRef = useRef([]);
+cartsRef.current = carts;
 
     // ── Lovable header fields ──────────────────────────────────────────────
     const today = new Date().toISOString().split("T")[0];
@@ -325,7 +331,7 @@ export default function PosDigital({
     const handleQuantityChange = (cartId, newQty) => {
         setCarts((prev) =>
             prev.map((item) =>
-                item.id === cartId ? { ...item, quantity: newQty } : item,
+                item.id === cartId ? { ...item, entered_qty: newQty, quantity: newQty } : item,
             ),
         );
     };
@@ -346,6 +352,54 @@ export default function PosDigital({
         setDue((grandTotalCalc - orderDiscount - paid).toFixed(2));
         setFurtherTaxTotal(furtherTaxCalc.toFixed(2));
     };
+
+    const handleProductClick = (product) => {
+        if (!customerIdRef.current) {
+            toast.error("Please Select Customer");
+            return;
+        }
+        const levels = product.packing_levels || [];
+        if (levels.length > 0) {
+            setPackingProduct(product);      // show packing modal first
+        } else {
+            addProductToCart(product);       // no packing -> old behaviour
+        }
+    };
+
+    const handlePackingSelect = (_itemId, unitId) => {
+        const product = packingProduct;
+        if (!product) return;
+        pendingUnitRef.current = unitId;
+        setPackingProduct(null);
+        addProductToCart(product);           // continues variation -> batch -> cart flow
+    };
+
+    // Build the "item" shape PackingModal expects
+    const packingModalItem = useMemo(() => {
+        if (!packingProduct) return null;
+        const existingCartItem = carts.find(
+            (c) =>
+                !c._optimistic &&
+                !c.parent_cart_id &&
+                !c.is_accessory &&
+                Number(c.product_id ?? c.product?.id) === Number(packingProduct.id)
+        );
+
+        const activeUnitId = existingCartItem
+            ? existingCartItem.qty_unit_id
+            : (packingProduct.unit_id ??
+               packingProduct.base_unit_id ??
+               packingProduct.packing_levels?.find((l) => Number(l.base_qty) === 1)?.unit_id ??
+               packingProduct.packing_levels?.[0]?.unit_id);
+
+        return {
+            id: packingProduct.id,
+            product: packingProduct,
+            packing_levels: packingProduct.packing_levels,
+            qty_unit_id: activeUnitId,
+            base_unit_name: packingProduct.base_unit_name || packingProduct.unit?.title || "Piece",
+        };
+    }, [packingProduct, carts]);
 
     function addProductToCart(product, cId, purchaseItemId = null, variationId = null) {
         const resolvedCustomerId = cId || customerIdRef.current;
@@ -406,6 +460,8 @@ export default function PosDigital({
     };
 
     function submitToCart(productId, purchaseItemId, variationId = null) {
+        const qtyUnitId = pendingUnitRef.current;   // read
+        pendingUnitRef.current = null;              // reset
         setCarts((prev) => [
             ...prev,
             {
@@ -423,6 +479,7 @@ export default function PosDigital({
                 id: productId,
                 product_variation_id: variationId,
                 purchase_item_id: purchaseItemId,
+                qty_unit_id: qtyUnitId,
             })
             .then((res) => {
                 setCartUpdated((prev) => !prev);
@@ -733,7 +790,7 @@ export default function PosDigital({
                     onTotalsChange={handleCartTotals}
                     quantityValidation={quantityValidation}
                     products={products}
-                    onAddProduct={addProductToCart}
+                    onAddProduct={handleProductClick}
                     customerId={customerId}
                     onProductCreated={handleProductCreated}
                     customFieldButtonEnabled={customFieldButtonEnabled}
@@ -966,8 +1023,16 @@ export default function PosDigital({
                 onClose={() => {
                     setShowVariationModal(false);
                     setPendingProduct(null);
+                    pendingUnitRef.current = null;
                 }}
                 onSelect={handleVariationSelect}
+            />
+
+            <PackingModal
+                isOpen={!!packingProduct}
+                item={packingModalItem}
+                onClose={() => setPackingProduct(null)}
+                onSelectUnit={handlePackingSelect}
             />
 
             <BatchModal
@@ -975,7 +1040,10 @@ export default function PosDigital({
                 product={targetProduct}
                 batches={availableBatches}
                 quantityValidation={quantityValidation}
-                onClose={() => setShowBatchModal(false)}
+                onClose={() => {
+                    setShowBatchModal(false);
+                    pendingUnitRef.current = null;
+                }}
                 onSelect={(batch) =>
                     submitToCart(
                         targetProduct.id,

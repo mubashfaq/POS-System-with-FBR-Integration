@@ -71,8 +71,11 @@
                     <!-- /.col -->
                     <div class="col-sm-4 invoice-col">
                         Info <br>
-                        Sale ID #{{ $order->id }}<br>
-                        Sale Date: {{ date('d/m/Y', strtotime($order->order_date ?? $order->created_at)) }}<br>
+                        Invoice No. {{ $order->display_invoice_number }}<br>
+                        @if (($invoiceSettings?->po_number ?? 0) == 1)
+                            PO No. {{ $order->po_number ?? '  -' }}<br>
+                        @endif
+                        Sale Date: {{ date('d-M-Y', strtotime($order->order_date ?? $order->created_at)) }}<br>
                         @if (($fbrIntegration ?? null) == 'enabled' && $order->order_stage !== 'draft')
                             FBR Invoice: <div>{{ $order->fbr_invoice_no }}</div>
                         @endif
@@ -111,14 +114,23 @@
                                 @foreach ($order->products->where('is_accessory', 0) as $item)
                                     <tr>
                                         <td>{{ $loop->index + 1 }}</td>
-                                        <td>{{ $item->product->name }}</td>
+                                        <td>{{ $item->product->name }}
+                                            @if ($item->variation)
+                                                <br><small>{{ $item->variation->label }}</small>
+                                            @endif
+                                        </td>
                                         @if ($order->type !== 'pos_invoice')
                                             <td>{{ $item->hsCode }}</td>
                                             <td>{{ $item->uom }}</td>
                                         @endif
-                                        <td>{{ $item->quantity }} {{ optional($item->product->unit)->short_name }}</td>
                                         <td>
-                                            {{ $item->price }}
+                                            {{ $item->quantity_text ?: $item->quantity . ' ' . optional($item->product->unit)->short_name }}
+                                            @if ($item->packing_description)
+                                                <br><small>({{ $item->packing_description }})</small>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            {{ number_format($item->invoice_unit_price, 2) }}
                                         </td>
                                         @php
                                             $inclTax = $item->total;

@@ -11,7 +11,23 @@ class PosCart extends Model
 
     protected $guarded = [];
 
-    protected $casts = ['custom_fields' => 'array'];
+    protected $casts = [
+        'custom_fields' => 'array',
+        'quantity' => 'decimal:4',
+        'entered_qty' => 'decimal:4',
+        'entered_unit_price' => 'decimal:4',
+        'price_override' => 'decimal:4',
+    ];
+
+    public function packing()
+    {
+        return $this->belongsTo(Packing::class, 'packing_id');
+    }
+
+    public function qtyUnit()
+    {
+        return $this->belongsTo(Unit::class, 'qty_unit_id');
+    }
 
     protected $appends = [
         'variation_label',
@@ -60,10 +76,10 @@ class PosCart extends Model
     public function getAvailableStockAttribute(): float
     {
         if ($this->purchase_item_id) {
-            return (float) optional($this->purchaseItem)->remaining_qty;
+            return round((float) optional($this->purchaseItem)->remaining_qty, 4);
         }
 
-        return $this->variation ? $this->variation->quantity : (float) ($this->product->quantity ?? 0);
+        return round((float) ($this->variation ? $this->variation->quantity : ($this->product->quantity ?? 0)), 4);
     }
 
     /**

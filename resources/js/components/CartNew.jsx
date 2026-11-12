@@ -6,6 +6,7 @@ import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
 import ProductCreateDigitalModal from "./ProductCreateDigitalModal";
+import PackingModal from "./modals/PackingModal";
 import ReactDOM from "react-dom";
 
 const PriceInput = ({ item, onPriceChange, onPriceSave }) => {
@@ -75,34 +76,45 @@ const PriceInput = ({ item, onPriceChange, onPriceSave }) => {
 };
 
 const QuantityInput = ({ item, onQuantityChange, onQuantityBlur }) => {
-    const [value, setValue] = useState(item.quantity ?? "");
-    const debounceRef = useRef(null);
-    const lastSavedRef = useRef(item.quantity ?? "");
+    const isPacked = Boolean(item.packing_id || (item.packing_levels && item.packing_levels.length > 0));
+    const serverQty = isPacked && item.entered_qty !== undefined && item.entered_qty !== null
+        ? item.entered_qty
+        : (item.quantity ?? "");
 
+    const [value, setValue] = useState(serverQty);
+    const debounceRef = useRef(null);
+    const lastSavedRef = useRef(String(serverQty));
+    const dirtyRef = useRef(false); // true while the user has an unsaved edit
+
+    // Sync from the cart only when the change did NOT come from this input
     useEffect(() => {
-        setValue(item.quantity ?? "");
-        lastSavedRef.current = item.quantity ?? "";
-    }, [item.id]);
+        if (dirtyRef.current) return;
+        setValue(serverQty);
+        lastSavedRef.current = String(serverQty);
+    }, [item.id, item.qty_unit_id, serverQty]);
 
     const save = (val) => {
-        if (val === lastSavedRef.current) return; // skip duplicate save
-        lastSavedRef.current = val;
+        clearTimeout(debounceRef.current);
+        if (String(val) === lastSavedRef.current) {
+            dirtyRef.current = false;
+            return; // nothing actually changed
+        }
+        lastSavedRef.current = String(val);
+        dirtyRef.current = false;      // let the server response sync back in
         onQuantityBlur(item.id, val);
     };
 
     const handleChange = (e) => {
         const newValue = e.target.value;
+        dirtyRef.current = true;
         setValue(newValue);
-        onQuantityChange(item.id, newValue); // live totals, no API call
+        onQuantityChange(item.id, newValue); // live totals only, no API call
 
         clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => save(newValue), 1000);
     };
 
-    const handleBlur = () => {
-        clearTimeout(debounceRef.current);
-        save(value);
-    };
+    const handleBlur = () => save(value);
 
     useEffect(() => () => clearTimeout(debounceRef.current), []);
 
@@ -110,7 +122,7 @@ const QuantityInput = ({ item, onQuantityChange, onQuantityBlur }) => {
         <input
             type="number"
             min="0.01"
-            step="0.01"
+            step="any"
             className="form-control form-control-sm text-center"
             style={{ width: 70 }}
             value={value}
@@ -150,6 +162,7 @@ export default function Cart({
     onProductCreated,
 }) {
     const [editingQuantity, setEditingQuantity] = useState({});
+    const [packingModalItem, setPackingModalItem] = useState(null);
     const [cartItems, setCartItems] = useState([]);
     const [subTotal, setSubTotal] = useState(0);
     const [furtherTaxTotal, setFurtherTaxTotal] = useState(0);
@@ -275,6 +288,26 @@ export default function Cart({
 
     const registrationStatus = isRegistered || "Registered";
 
+    const handleSetUnit = async (cartId, qtyUnitId) => {
+        try {
+            const res = await axios.put("/admin/cart/set-unit", {
+                id: cartId,
+                qty_unit_id: qtyUnitId,
+            });
+
+            playSound(SuccessSound);
+            toast.success(res?.data?.message || "Packaging unit updated");
+            setCartUpdated((prev) => !prev);
+
+            return true;
+        } catch (err) {
+            playSound(WarningSound);
+            toast.error(err.response?.data?.message || "Failed to change unit");
+
+            return false;
+        }
+    };
+
     // ── Close picker on outside click ──────────────────────────────────────
     useEffect(() => {
         const onClick = (e) => {
@@ -297,11 +330,18 @@ export default function Cart({
         // let customerTaxCalc = 0;
 
         const updatedCarts = carts.map((item) => {
+            const isPacked = Boolean(item.packing_id || (item.packing_levels && item.packing_levels.length > 0));
+            const factor = Number(item.base_qty_factor) || 1;
+            const displayQty = isPacked && item.entered_qty !== undefined && item.entered_qty !== null
+                ? Number(item.entered_qty)
+                : Number(item.quantity);
+            const baseQty = isPacked ? Math.round(displayQty * factor * 10000) / 10000 : displayQty;
+
             const price = Number(
-                item.unit_price ?? item.product.discounted_price,
+                item.unit_price ?? item.product?.discounted_price ?? 0,
             );
-            const baseTotal = price * item.quantity;
-            const rateText = String(item.product.rate_of_tax).trim();
+            const baseTotal = price * displayQty;
+            const rateText = String(item.product?.rate_of_tax ?? "0%").trim();
 
             let saleTax = 0;
             let exTaxAmount = baseTotal;
@@ -311,35 +351,30 @@ export default function Cart({
                 saleTax = exTaxAmount * (rate / 100);
             } else {
                 const ratePerUnit = parseFloat(rateText) || 0;
-                saleTax = ratePerUnit * item.quantity;
+                saleTax = ratePerUnit * baseQty;
             }
 
             let furtherTax = 0;
             if (
-                item.product.sale_type?.trim().toLowerCase() !==
+                item.product?.sale_type?.trim().toLowerCase() !==
                 "3rd schedule goods" &&
                 registrationStatus?.trim().toLowerCase() === "unregistered"
             ) {
                 furtherTax = exTaxAmount * (4 / 100);
             }
 
-            // let customerTax = 0;
-
-            // if (customerTaxType === "retailer") {
-            //     customerTax = exTaxAmount * 0.005; // 0.5%
-            // } else if (customerTaxType === "distributor") {
-            //     customerTax = exTaxAmount * 0.01; // 1%
-            // }
-
             if (!item.parent_cart_id && !item.is_accessory) {
                 subTotalExTax += exTaxAmount;
                 saleTaxCalc += saleTax;
                 furtherTaxCalc += furtherTax;
-                // customerTaxCalc += customerTax;
             }
 
             return {
                 ...item,
+                display_qty: displayQty,
+                base_qty_calculated: baseQty,
+                factor,
+                is_packed: isPacked,
                 base_total: exTaxAmount.toFixed(2),
                 sale_tax: saleTax.toFixed(2),
                 further_tax: furtherTax.toFixed(2),
@@ -391,48 +426,21 @@ export default function Cart({
 
         if (isNaN(newQuantity) || newQuantity < 0) {
             setEditingQuantity((prev) => ({ ...prev, [id]: false }));
+            setCartUpdated((prev) => !prev);
             return;
         }
 
-        if (
-            !isAccessory &&
-            stockEnforced &&
-            newQuantity > stockOf(item)
-        ) {
+        const factor = Number(item?.base_qty_factor) || 1;
+        const newBaseQty = newQuantity * factor;
+        if (!isAccessory && stockEnforced && newBaseQty > stockOf(item)) {
             playSound(WarningSound);
-            toast.error(
-                `Only ${stockOf(item)} items available in stock`,
-            );
+            toast.error(`Only ${stockOf(item)} base items available in stock`);
             setEditingQuantity((prev) => ({ ...prev, [id]: false }));
+            setCartUpdated((prev) => !prev);
             return;
         }
 
         updateQuantity(id, newQuantity);
-    }
-
-    function increment(id) {
-        const item = carts.find((cart) => cart.id === id);
-        if (!item) return;
-        const isAccessory = !!item.parent_cart_id || !!item.is_accessory;
-        const stockEnforced = quantityValidation == "disabled";
-        const currentQty = Number(item.quantity);
-        if (
-            isAccessory ||
-            !stockEnforced ||
-            currentQty < stockOf(item)
-        ) {
-            updateQuantity(id, currentQty + 1);
-        }
-    }
-
-    function decrement(id) {
-        const item = carts.find((cart) => cart.id === id);
-        if (item && item.quantity > 1) {
-            updateQuantity(
-                id,
-                parseFloat((Number(item.quantity) - 1).toFixed(2)),
-            );
-        }
     }
 
     function destroy(id) {
@@ -509,7 +517,7 @@ export default function Cart({
 
     const totals = parentItems.reduce(
         (acc, item) => {
-            acc.qty += Number(item.quantity) || 0;
+            acc.qty += Number(item.display_qty ?? item.entered_qty ?? item.quantity) || 0;
             acc.amount += Number(item.base_total) || 0;
             acc.saleTax += Number(item.sale_tax) || 0;
             // acc.customerTax += Number(item.customer_tax) || 0;
@@ -601,28 +609,69 @@ export default function Cart({
                             const applyFurtherTax = shouldApplyFurtherTax(item);
                             const itemAccessories = accessoryMap[item.id] || [];
                             const rateText = String(item.product.rate_of_tax ?? "0%").trim();
+                            const hasPacking = Boolean(
+                                item.packing_levels && item.packing_levels.length > 0
+                            );
+                            const factor = Number(item.base_qty_factor) || 1;
+                            const displayQty = item.display_qty ?? (item.entered_qty !== undefined && item.entered_qty !== null ? item.entered_qty : item.quantity);
+                            const baseQty = item.base_qty_calculated ?? (displayQty * factor);
+                            const unitName = item.qty_unit_name || item.base_unit_name || "Unit";
+                            const baseUnitName = item.base_unit_name || "Piece";
 
                             return (
                                 <React.Fragment key={item.id}>
                                     <tr>
                                         {/* Product name */}
                                         <td className="pl-3">
-                                            <strong>{item.product.name}</strong>
-                                            {item.variation_label && (
-                                                <div className="small text-muted">{item.variation_label}</div>
-                                            )}
-                                            {itemAccessories.length > 0 && (
-                                                <span
-                                                    className="badge badge-info ml-1"
-                                                    style={{
-                                                        fontSize: "0.7em",
-                                                    }}
-                                                    title={`${itemAccessories.length} accessory item(s)`}
+                                            <div className="d-flex flex-column align-items-start">
+                                                <div
+                                                    className="d-flex align-items-center flex-nowrap"
+                                                    style={{ gap: "8px", minWidth: 0, maxWidth: "100%" }}
                                                 >
-                                                    <i className="fas fa-puzzle-piece"></i>{" "}
-                                                    {itemAccessories.length}
-                                                </span>
-                                            )}
+                                                    <strong
+                                                        className="text-dark"
+                                                        style={{
+                                                            fontSize: "13px",
+                                                            whiteSpace: "nowrap",
+                                                            overflow: "hidden",
+                                                            textOverflow: "ellipsis",
+                                                            cursor: hasPacking ? "pointer" : "default",
+                                                        }}
+                                                        onClick={() => hasPacking && setPackingModalItem(item)}
+                                                        title={item.product.name}
+                                                    >
+                                                        {item.product.name}
+                                                    </strong>
+
+                                                    {hasPacking && (
+                                                        <button
+                                                            type="button"
+                                                            className="packing-unit-btn"
+                                                            onClick={() => setPackingModalItem(item)}
+                                                            title="Change packaging unit"
+                                                        >
+                                                            {unitName} ({factor})
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                {item.variation_label && (
+                                                    <div className="small text-muted mt-1">
+                                                        {item.variation_label}
+                                                    </div>
+                                                )}
+
+                                                {itemAccessories.length > 0 && (
+                                                    <span
+                                                        className="badge badge-info mt-1"
+                                                        style={{ fontSize: "0.7em" }}
+                                                        title={`${itemAccessories.length} accessory item(s)`}
+                                                    >
+                                                        <i className="fas fa-puzzle-piece"></i>{" "}
+                                                        {itemAccessories.length}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
 
                                         {activeFields.map((f) => (
@@ -653,12 +702,20 @@ export default function Cart({
 
                                         {/* Qty */}
                                         <td>
-                                            <div className="d-flex align-items-center justify-content-center">
+                                            <div className="d-flex flex-column align-items-center justify-content-center">
                                                 <QuantityInput
                                                     item={item}
                                                     onQuantityChange={onQuantityChange}
                                                     onQuantityBlur={handleQuantityBlur}
                                                 />
+                                                {factor > 1 && (
+                                                    <div
+                                                        className="text-muted text-center mt-1"
+                                                        style={{ fontSize: "11px", whiteSpace: "nowrap" }}
+                                                    >
+                                                        = {baseQty} {baseUnitName}
+                                                    </div>
+                                                )}
                                             </div>
                                         </td>
 
@@ -1115,6 +1172,14 @@ export default function Cart({
                     </div>
                 </div>
             )}
+
+            <PackingModal
+                isOpen={!!packingModalItem}
+                item={packingModalItem}
+                onClose={() => setPackingModalItem(null)}
+                onSelectUnit={handleSetUnit}
+                skipIfSameUnit
+            />
 
             <Toaster position="top-right" reverseOrder={false} />
         </>

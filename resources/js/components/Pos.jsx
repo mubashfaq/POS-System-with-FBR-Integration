@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 import Cart1 from "./Cart1";
@@ -11,6 +11,7 @@ import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
 import VariationModal from "./modals/VariationModal";
 import BatchModal from "./modals/BatchModal";
+import PackingModal from "./modals/PackingModal";
 
 const Field = ({ label, required, children, alignStart }) => (
     <div
@@ -61,6 +62,11 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
     // ✅ Opt-4: Double-click guard — tracks product IDs currently being added
     const [addingProducts, setAddingProducts] = useState(new Set());
 
+    const [packingProduct, setPackingProduct] = useState(null);
+    const pendingUnitRef = useRef(null); // chosen packing unit, carried through variation/batch modals
+    const cartsRef = useRef([]);
+    cartsRef.current = carts;
+
     const today = new Date().toISOString().split("T")[0];
 
     const minDateObj = new Date();
@@ -105,7 +111,7 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
     const handleQuantityChange = (cartId, newQty) => {
         setCarts((prev) =>
             prev.map((item) =>
-                item.id === cartId ? { ...item, quantity: newQty } : item
+                item.id === cartId ? { ...item, entered_qty: newQty, quantity: newQty } : item
             )
         );
     };
@@ -270,6 +276,54 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
 
     const guardKey = (productId, variationId) => `${productId}-${variationId ?? 0}`;
 
+    const handleProductClick = (product) => {
+        if (!customerIdRef.current) {
+            toast.error("Please Select Customer");
+            return;
+        }
+        const levels = product.packing_levels || [];
+        if (levels.length > 0) {
+            setPackingProduct(product);      // show packing modal first
+        } else {
+            addProductToCart(product);       // no packing -> old behaviour
+        }
+    };
+
+    const handlePackingSelect = (_itemId, unitId) => {
+        const product = packingProduct;
+        if (!product) return;
+        pendingUnitRef.current = unitId;
+        setPackingProduct(null);
+        addProductToCart(product);           // continues variation -> batch -> cart flow
+    };
+
+    // Build the "item" shape PackingModal expects
+    const packingModalItem = useMemo(() => {
+        if (!packingProduct) return null;
+        const existingCartItem = carts.find(
+            (c) =>
+                !c._optimistic &&
+                !c.parent_cart_id &&
+                !c.is_accessory &&
+                Number(c.product_id ?? c.product?.id) === Number(packingProduct.id)
+        );
+
+        const activeUnitId = existingCartItem
+            ? existingCartItem.qty_unit_id
+            : (packingProduct.unit_id ??
+                packingProduct.base_unit_id ??
+                packingProduct.packing_levels?.find((l) => Number(l.base_qty) === 1)?.unit_id ??
+                packingProduct.packing_levels?.[0]?.unit_id);
+
+        return {
+            id: packingProduct.id,
+            product: packingProduct,
+            packing_levels: packingProduct.packing_levels,
+            qty_unit_id: activeUnitId,
+            base_unit_name: packingProduct.base_unit_name || packingProduct.unit?.title || "Piece",
+        };
+    }, [packingProduct, carts]);
+
     // ✅ Opt-3: useCallback so the function reference is stable across renders
     //           Uses customerIdRef so barcode-scan path also gets the latest customer
     const addProductToCart = useCallback((product, purchaseItemId = null, variationId = null) => {
@@ -348,6 +402,41 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
     };
 
     function submitToCart(productId, purchaseItemId, variationId = null) {
+        const qtyUnitId = pendingUnitRef.current;   // read
+        pendingUnitRef.current = null;
+        const existing = qtyUnitId
+            ? cartsRef.current.find(
+                (c) =>
+                    !c._optimistic &&
+                    !c.parent_cart_id &&
+                    !c.is_accessory &&
+                    Number(c.product_id ?? c.product?.id) === Number(productId) &&
+                    Number(c.product_variation_id ?? 0) === Number(variationId ?? 0)
+            )
+            : null;
+
+        if (existing && Number(existing.qty_unit_id) !== Number(qtyUnitId)) {
+            axios
+                .put("/admin/cart/set-unit", { id: existing.id, qty_unit_id: qtyUnitId })
+                .then((res) => {
+                    setCartUpdated((prev) => !prev);
+                    playSound(SuccessSound);
+                    toast.success(res?.data?.message || "Packaging unit updated");
+                    setShowBatchModal(false);
+                })
+                .catch((err) => {
+                    playSound(WarningSound);
+                    toast.error(err?.response?.data?.message || "Failed to change unit");
+                })
+                .finally(() => {
+                    setAddingProducts((prev) => {
+                        const s = new Set(prev);
+                        s.delete(guardKey(productId, variationId));
+                        return s;
+                    });
+                });
+            return;
+        }
         const tempId = `temp-${Date.now()}`;
         setCarts(prev => [
             ...prev,
@@ -366,6 +455,7 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
                 id: productId,
                 product_variation_id: variationId,
                 purchase_item_id: purchaseItemId,
+                qty_unit_id: qtyUnitId,
             })
             .then((res) => {
                 setCarts(prev => prev.filter(c => c.id !== tempId));
@@ -845,7 +935,7 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
                                 {products.length > 0 &&
                                     products.map((product, index) => (
                                         <div
-                                            onClick={() => addProductToCart(product)}
+                                            onClick={() => handleProductClick(product)}
                                             className="col-6 col-md-4 col-lg-3 mb-3"
                                             key={index}
                                             style={{ cursor: "pointer" }}
@@ -896,8 +986,15 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
                 onClose={() => {
                     setShowVariationModal(false);
                     setPendingProduct(null);
+                    pendingUnitRef.current = null;
                 }}
                 onSelect={handleVariationSelect}
+            />
+            <PackingModal
+                isOpen={!!packingProduct}
+                item={packingModalItem}
+                onClose={() => setPackingProduct(null)}
+                onSelectUnit={handlePackingSelect}
             />
             <BatchModal
                 show={showBatchModal}
@@ -906,6 +1003,7 @@ export default function Pos({ businessType, draftButtonEnabled, fbrEnabled }) {
                 quantityValidation={quantityValidation}
                 onClose={() => {
                     setShowBatchModal(false);
+                    pendingUnitRef.current = null;
                     if (targetProduct) {
                         setAddingProducts((prev) => {
                             const s = new Set(prev);

@@ -42,12 +42,40 @@ class CartController extends Controller
         $customerIsRegistered = session('customer_is_registered', 'Registered'); // ✅ Default "Registered" capital
 
         $cartItems = PosCart::where('user_id', auth()->id())
-            ->with(['product', 'purchaseItem.purchase', 'variation.values'])
+            ->with([
+                'product.unit',
+                'product.defaultPacking.levels.unit',
+                'product.unitPrices',
+                'packing.levels.unit',
+                'qtyUnit',
+                'purchaseItem.purchase',
+                'variation.values'
+            ])
             ->latest('created_at')
             ->get()
             ->map(function ($item) use ($customerIsRegistered) {
-                $unitPrice = $item->price_override ?? $item->variation?->price ?? $item->product->discounted_price;
-                $baseTotal = round($unitPrice * $item->quantity, 2);
+                $factor = 1.0;
+                $packing = $item->packing ?? $item->product?->defaultPacking;
+                $qtyUnit = $item->qtyUnit;
+
+                if ($item->packing_id || $item->product?->default_packing_id) {
+                    $packingId = $item->packing_id ?: $item->product?->default_packing_id;
+                    $qtyUnitId = $item->qty_unit_id ?: $item->product?->unit_id;
+                    if ($packing && $packing->levels) {
+                        $lvl = $packing->levels->firstWhere('unit_id', $qtyUnitId);
+                        $factor = $lvl ? (float) $lvl->base_qty : 1.0;
+                        if (!$qtyUnit && $lvl) {
+                            $qtyUnit = $lvl->unit;
+                        }
+                    }
+                    $unitPrice = (float) ($item->entered_unit_price ?? (($item->price_override ?? $item->variation?->price ?? $item->product->discounted_price) * $factor));
+                    $enteredQty = (float) ($item->entered_qty ?? ($factor > 0 ? $item->quantity / $factor : $item->quantity));
+                    $baseTotal = round($unitPrice * $enteredQty, 2);
+                } else {
+                    $unitPrice = (float) ($item->price_override ?? $item->variation?->price ?? $item->product->discounted_price);
+                    $enteredQty = (float) $item->quantity;
+                    $baseTotal = round($unitPrice * $enteredQty, 2);
+                }
 
                 $furtherTax = 0;
                 $valueExTax = $baseTotal;
@@ -62,20 +90,42 @@ class CartController extends Controller
                         $furtherTax = round($valueExTax * 0.04, 2);
                         $salesTax = round($baseTotal - $valueExTax, 2);
                     } else {
-                        $fixedTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
-                        $valueExTax = round($baseTotal - $fixedTax, 2);
+                        preg_match('/\d+(?:\.\d+)?/', $rateText, $m);
+                        $ratePerUnit = (float) ($m[0] ?? 0);
+                        $salesTax = round($ratePerUnit * (float) $item->quantity, 2);
+                        $valueExTax = round($baseTotal - $salesTax, 2);
                         $furtherTax = round($valueExTax * 0.04, 2);
                     }
                 }
 
                 $totalWithTax = $baseTotal + $furtherTax;
 
+                $packingLevels = [];
+                if ($packing && $packing->levels) {
+                    foreach ($packing->levels as $lvl) {
+                        $uPrice = $item->product?->unitPrices?->firstWhere('unit_id', $lvl->unit_id)?->sale_price;
+                        $suggested = $uPrice ?? round((float) $item->product?->discounted_price * (float) $lvl->base_qty, 2);
+                        $packingLevels[] = [
+                            'unit_id' => $lvl->unit_id,
+                            'title' => $lvl->unit?->title ?? 'Unit',
+                            'base_qty' => (float) $lvl->base_qty,
+                            'contains_qty' => $lvl->contains_qty ? (float) $lvl->contains_qty : null,
+                            'price' => (float) $suggested,
+                        ];
+                    }
+                }
+
                 $item->unit_price = $unitPrice;
+                $item->entered_qty = $enteredQty;
                 $item->base_total = $baseTotal;
                 $item->further_tax = $furtherTax;
                 $item->row_total = $totalWithTax;
                 $item->customer_is_registered = $customerIsRegistered;
                 $item->is_accessory = !is_null($item->parent_cart_id);
+                $item->base_qty_factor = $factor;
+                $item->base_unit_name = $item->product?->unit?->title ?? 'Piece';
+                $item->qty_unit_name = $qtyUnit?->title ?? $item->base_unit_name;
+                $item->packing_levels = $packingLevels;
 
                 return $item;
             });
@@ -102,6 +152,9 @@ class CartController extends Controller
         $quantityVal = quantity_validation::where('business_id', $businessId)->first();
 
         $products = Product::query()->where('business_id', $businessId)->with([
+            'unit',
+            'defaultPacking.levels.unit',
+            'unitPrices',
             'variations' => function ($query) {
                 $query->where('status', 1)->withSum('purchaseItems', 'remaining_qty');
             }
@@ -142,6 +195,7 @@ class CartController extends Controller
             'id' => 'required|exists:products,id',
             'product_variation_id' => 'nullable|integer|exists:product_variations,id',
             'purchase_item_id' => 'nullable|integer|exists:purchase_items,id',
+            'qty_unit_id' => 'nullable|integer|exists:units,id',
         ]);
 
         try {
@@ -154,7 +208,8 @@ class CartController extends Controller
                 null,   // parentCartId
                 null,   // overrideQty
                 false,  // skipStockCheck
-                $request->product_variation_id
+                $request->product_variation_id,
+                $request->qty_unit_id
             );
 
             return response()->json([
@@ -176,6 +231,7 @@ class CartController extends Controller
             'id' => 'required|exists:products,id',
             'product_variation_id' => 'nullable|integer|exists:product_variations,id',
             'purchase_item_id' => 'nullable|integer|exists:purchase_items,id',
+            'qty_unit_id' => 'nullable|integer|exists:units,id',
         ]);
 
         try {
@@ -188,7 +244,8 @@ class CartController extends Controller
                 null,   // parentCartId
                 null,   // overrideQty
                 false,  // skipStockCheck
-                $request->product_variation_id
+                $request->product_variation_id,
+                $request->qty_unit_id
             );
 
             return response()->json([
@@ -322,6 +379,38 @@ class CartController extends Controller
         }
     }
 
+    public function setUnit(Request $request, CartService $cartService)
+    {
+        $request->validate([
+            'id' => 'required|exists:pos_carts,id',
+            'qty_unit_id' => 'required|exists:units,id',
+        ]);
+
+        try {
+            $registrationStatus = session('registration_status') ?? 'registered';
+            $cart = $cartService->setUnit(
+                $request->id,
+                (int) $request->qty_unit_id,
+                $registrationStatus,
+                session('business_id')
+            );
+
+            return response()->json([
+                'message' => 'Unit updated successfully',
+                'cart' => $cart,
+                'quantity' => $cart->quantity,
+                'entered_qty' => $cart->entered_qty,
+                'entered_unit_price' => $cart->entered_unit_price,
+                'row_total' => $cart->row_total,
+                'further_tax' => $cart->further_tax,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
     public function digitalInvoice(Request $request)
     {
         $businessId = session('business_id');
@@ -356,12 +445,40 @@ class CartController extends Controller
         $customerIsRegistered = session('customer_is_registered', 'Registered'); // ✅ Default "Registered" capital
 
         $cartItems = PosCart::where('user_id', auth()->id())
-            ->with(['product', 'purchaseItem.purchase', 'variation.values'])
+            ->with([
+                'product.unit',
+                'product.defaultPacking.levels.unit',
+                'product.unitPrices',
+                'packing.levels.unit',
+                'qtyUnit',
+                'purchaseItem.purchase',
+                'variation.values'
+            ])
             ->oldest('created_at')
             ->get()
             ->map(function ($item) use ($customerIsRegistered) {
-                $unitPrice = $item->price_override ?? $item->variation?->price ?? $item->product->discounted_price;
-                $baseTotal = round($unitPrice * $item->quantity, 2);
+                $factor = 1.0;
+                $packing = $item->packing ?? $item->product?->defaultPacking;
+                $qtyUnit = $item->qtyUnit;
+
+                if ($item->packing_id || $item->product?->default_packing_id) {
+                    $packingId = $item->packing_id ?: $item->product?->default_packing_id;
+                    $qtyUnitId = $item->qty_unit_id ?: $item->product?->unit_id;
+                    if ($packing && $packing->levels) {
+                        $lvl = $packing->levels->firstWhere('unit_id', $qtyUnitId);
+                        $factor = $lvl ? (float) $lvl->base_qty : 1.0;
+                        if (!$qtyUnit && $lvl) {
+                            $qtyUnit = $lvl->unit;
+                        }
+                    }
+                    $unitPrice = (float) ($item->entered_unit_price ?? (($item->price_override ?? $item->variation?->price ?? $item->product->discounted_price) * $factor));
+                    $enteredQty = (float) ($item->entered_qty ?? ($factor > 0 ? $item->quantity / $factor : $item->quantity));
+                    $baseTotal = round($unitPrice * $enteredQty, 2);
+                } else {
+                    $unitPrice = (float) ($item->price_override ?? $item->variation?->price ?? $item->product->discounted_price);
+                    $enteredQty = (float) $item->quantity;
+                    $baseTotal = round($unitPrice * $enteredQty, 2);
+                }
 
                 $furtherTax = 0;
                 $valueExTax = $baseTotal;
@@ -379,21 +496,43 @@ class CartController extends Controller
                         $furtherTax = round($valueExTax * 0.04, 2);
                         $salesTax = round($baseTotal - $valueExTax, 2);
                     } else {
-                        $fixedTax = floatval(preg_replace('/[^0-9.]/', '', $rateText));
-                        $valueExTax = round($baseTotal - $fixedTax, 2);
+                        preg_match('/\d+(?:\.\d+)?/', $rateText, $m);
+                        $ratePerUnit = (float) ($m[0] ?? 0);
+                        $salesTax = round($ratePerUnit * (float) $item->quantity, 2);
+                        $valueExTax = round($baseTotal - $salesTax, 2);
                         $furtherTax = round($valueExTax * 0.04, 2);
                     }
                 }
 
                 $totalWithTax = $baseTotal + $furtherTax;
 
+                $packingLevels = [];
+                if ($packing && $packing->levels) {
+                    foreach ($packing->levels as $lvl) {
+                        $uPrice = $item->product?->unitPrices?->firstWhere('unit_id', $lvl->unit_id)?->sale_price;
+                        $suggested = $uPrice ?? round((float) $item->product?->discounted_price * (float) $lvl->base_qty, 2);
+                        $packingLevels[] = [
+                            'unit_id' => $lvl->unit_id,
+                            'title' => $lvl->unit?->title ?? 'Unit',
+                            'base_qty' => (float) $lvl->base_qty,
+                            'contains_qty' => $lvl->contains_qty ? (float) $lvl->contains_qty : null,
+                            'price' => (float) $suggested,
+                        ];
+                    }
+                }
+
                 $item->unit_price = $unitPrice;
+                $item->entered_qty = $enteredQty;
                 $item->base_total = $baseTotal;
                 $item->further_tax = $furtherTax;
                 $item->row_total = $totalWithTax;
                 $item->customer_is_registered = $customerIsRegistered;
                 // Accessory flag for frontend grouping
                 $item->is_accessory = !is_null($item->parent_cart_id);
+                $item->base_qty_factor = $factor;
+                $item->base_unit_name = $item->product?->unit?->title ?? 'Piece';
+                $item->qty_unit_name = $qtyUnit?->title ?? $item->base_unit_name;
+                $item->packing_levels = $packingLevels;
 
                 return $item;
             });

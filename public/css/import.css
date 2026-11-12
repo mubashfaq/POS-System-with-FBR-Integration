@@ -715,3 +715,54 @@
     background: #cccccc;
     border-radius: 10px;
 }
+
+/* ===== Total Base with Unit in Border ===== */
+#importProductsTable .total-base-fieldset {
+    min-width: 85px;
+    width: 100%;
+    height: 48px;
+    margin: 0;
+    padding: 0 5px 3px;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    background: #f8f9fa;
+    box-sizing: border-box;
+}
+
+#importProductsTable .total-base-legend {
+    float: none;
+    display: table;
+    width: auto;
+    max-width: 90%;
+    margin: 0 0 0 5px;
+    padding: 0 4px;
+    border: 0;
+    font-size: 10px;
+    line-height: 12px;
+    font-weight: 600;
+    color: #fd6802;
+    white-space: nowrap;
+}
+
+#importProductsTable .total-base-fieldset .total-pcs {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    height: 27px;
+    margin: 0;
+    padding: 2px 4px;
+    border: 0 !important;
+    border-radius: 0;
+    outline: none;
+    box-shadow: none !important;
+    background: transparent;
+    color: #343a40;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: right;
+}
+
+#importProductsTable .total-base-fieldset .total-pcs:focus {
+    border: 0;
+    box-shadow: none;
+}

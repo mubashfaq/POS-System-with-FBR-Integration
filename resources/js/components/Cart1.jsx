@@ -5,6 +5,7 @@ import Swal from "sweetalert2";
 import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
+import PackingModal from "./modals/PackingModal";
 
 const PriceInput = ({ item, onPriceSave }) => {
     const [value, setValue] = useState(item.unit_price ?? item.product.discounted_price ?? "");
@@ -43,6 +44,7 @@ export default function Cart1({
     quantityValidation,
 }) {
     const [editingQuantity, setEditingQuantity] = useState({});
+    const [packingModalItem, setPackingModalItem] = useState(null);
     const pendingUpdates = useRef({});
     const debounceTimers = useRef({});
     const toastIdRef = useRef({});
@@ -54,16 +56,31 @@ export default function Cart1({
         const furtherTaxCalc = 0; // not used in this component
 
         const items = carts.map((raw) => {
+            const isPacked = Boolean(raw.packing_id || (raw.packing_levels && raw.packing_levels.length > 0));
+            const factor = Number(raw.base_qty_factor) || 1;
+
             // keep the user's newer quantity if a refetch lands during a pending save
             const pendingQty = pendingUpdates.current[raw.id];
-            const item = pendingQty !== undefined ? { ...raw, quantity: pendingQty } : raw;
+            const displayQty = pendingQty !== undefined
+                ? Number(pendingQty)
+                : (isPacked && raw.entered_qty !== undefined && raw.entered_qty !== null ? Number(raw.entered_qty) : Number(raw.quantity));
 
-            const price = Number(item.unit_price ?? item.product.discounted_price);
-            const qty = Number(item.quantity);
-            const baseTotal = price * qty;
-            const rateText = String(item.product.pos_sale_tax ?? "0").trim();
+            const baseQty = isPacked ? roundTo(displayQty * factor, 4) : displayQty;
+            const price = Number(raw.unit_price ?? raw.product?.discounted_price ?? 0);
+            const baseTotal = price * displayQty;
+            const rateText = String(raw.product?.pos_sale_tax ?? "0").trim();
 
-            const saleTax = rateText.endsWith("%") ? baseTotal * (parseFloat(rateText) / 100) : (parseFloat(rateText) || 0) * qty;
+            const saleTax = rateText.endsWith("%")
+                ? baseTotal * (parseFloat(rateText) / 100)
+                : (parseFloat(rateText) || 0) * baseQty;
+
+            const item = {
+                ...raw,
+                display_qty: displayQty,
+                base_qty_calculated: baseQty,
+                factor,
+                is_packed: isPacked,
+            };
 
             if (!item.parent_cart_id && !item.is_accessory) {
                 subTotalCalc += baseTotal;
@@ -82,6 +99,10 @@ export default function Cart1({
         return { items, subTotalCalc, saleTaxCalc, furtherTaxCalc };
     }, [carts]);
 
+    function roundTo(val, decimals = 4) {
+        return Math.round(val * Math.pow(10, decimals)) / Math.pow(10, decimals);
+    }
+
     const cartItems = computed.items;
 
     useEffect(() => {
@@ -96,6 +117,27 @@ export default function Cart1({
     const stockOf = (item) => {
         if (!item || item._optimistic) return Infinity;
         return Number(item.available_stock ?? item.product?.quantity ?? Infinity);
+    };
+
+
+    const handleSetUnit = async (cartId, qtyUnitId) => {
+        try {
+            const res = await axios.put("/admin/cart/set-unit", {
+                id: cartId,
+                qty_unit_id: qtyUnitId,
+            });
+
+            playSound(SuccessSound);
+            toast.success(res?.data?.message || "Packaging unit updated");
+            setCartUpdated((prev) => !prev);
+
+            return true;
+        } catch (err) {
+            playSound(WarningSound);
+            toast.error(err.response?.data?.message || "Failed to change unit");
+
+            return false;
+        }
     };
 
     function updateQuantity(id, newQuantity) {
@@ -159,9 +201,12 @@ export default function Cart1({
             return;
         }
 
-        if (!isAccessory && stockEnforced && newQuantity > stockOf(item)) {
+        const factor = Number(item.base_qty_factor) || 1;
+        const newBaseQty = newQuantity * factor;
+
+        if (!isAccessory && stockEnforced && newBaseQty > stockOf(item)) {
             playSound(WarningSound);
-            toast.error(`Only ${stockOf(item)} items available in stock`);
+            toast.error(`Only ${stockOf(item)} base items available in stock`);
             setEditingQuantity((prev) => ({ ...prev, [id]: false }));
             return;
         }
@@ -175,17 +220,21 @@ export default function Cart1({
 
         const isAccessory = !!item.parent_cart_id || !!item.is_accessory;
         const stockEnforced = quantityValidation == "disabled";
-        const currentQty = Number(item.quantity);
+        const currentQty = Number(item.display_qty ?? item.entered_qty ?? item.quantity);
+        const factor = Number(item.base_qty_factor) || 1;
+        const nextBaseQty = (currentQty + 1) * factor;
 
-        if (isAccessory || !stockEnforced || currentQty < stockOf(item)) {
+        if (isAccessory || !stockEnforced || nextBaseQty <= stockOf(item)) {
             updateQuantity(id, currentQty + 1);
         }
     }
 
     function decrement(id) {
         const item = cartItems.find((cart) => cart.id === id);
-        if (!item || item._optimistic || item.quantity <= 1) return;
-        updateQuantity(id, parseFloat((Number(item.quantity) - 1).toFixed(2)));
+        if (!item || item._optimistic) return;
+        const currentQty = Number(item.display_qty ?? item.entered_qty ?? item.quantity);
+        if (currentQty <= 1) return;
+        updateQuantity(id, parseFloat((currentQty - 1).toFixed(2)));
     }
 
     function destroy(id) {
@@ -239,7 +288,7 @@ export default function Cart1({
                             <table className="table table-striped">
                                 <thead>
                                     <tr className="text-center">
-                                        <th>Name</th>
+                                        <th style={{ textAlign: "left" }}>Product</th>
                                         <th>Quantity</th>
                                         <th></th>
                                         <th>Price</th>
@@ -251,6 +300,14 @@ export default function Cart1({
                                         parentItems.map((item) => {
                                             if (!item) return null;
                                             const itemAccessories = accessoryMap[item.id] || [];
+                                            const hasPacking = Boolean(
+                                                item.packing_levels && item.packing_levels.length > 0
+                                            );
+                                            const factor = Number(item.base_qty_factor) || 1;
+                                            const displayQty = item.display_qty ?? 1;
+                                            const baseQty = item.base_qty_calculated ?? item.quantity;
+                                            const unitName = item.qty_unit_name || item.base_unit_name || "Unit";
+                                            const baseUnitName = item.base_unit_name || "Piece";
 
                                             return (
                                                 <React.Fragment key={item.id}>
@@ -260,75 +317,154 @@ export default function Cart1({
                                                             {item._optimistic ? (
                                                                 <span className="text-muted"><i className="fas fa-spinner fa-spin"></i> Adding...</span>
                                                             ) : (
-                                                                <strong>{item.product.name}</strong>
-                                                            )}
-                                                            {item.variation_label && (
-                                                                <div className="small text-muted">{item.variation_label}</div>
-                                                            )}
-                                                            {itemAccessories.length > 0 && (
-                                                                <span className="badge badge-info ml-1" style={{ fontSize: "0.7em" }}>
-                                                                    <i className="fas fa-puzzle-piece"></i> {itemAccessories.length}
-                                                                </span>
+
+
+                                                                <div className="d-flex flex-column align-items-start">
+
+                                                                    {/* Product name and packaging unit in one line */}
+                                                                    <div className="d-flex align-items-center flex-nowrap"
+                                                                        style={{ gap: "8px", minWidth: 0, maxWidth: "100%" }}
+                                                                    >
+                                                                        <strong
+                                                                            className="text-dark"
+                                                                            style={{
+                                                                                fontSize: "13px",
+                                                                                whiteSpace: "nowrap",
+                                                                                overflow: "hidden",
+                                                                                textOverflow: "ellipsis",
+                                                                            }}
+                                                                            title={item.product.name}
+                                                                        >
+                                                                            {item.product.name}
+                                                                        </strong>
+
+                                                                        {hasPacking && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setPackingModalItem(item)}
+                                                                                title="Change packaging unit"
+                                                                                className="packing-unit-btn"
+                                                                            >
+                                                                                {unitName} ({factor})
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+
+                                                                    {/* Variation */}
+                                                                    {item.variation_label && (
+                                                                        <div className="small text-muted mt-1">
+                                                                            {item.variation_label}
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Accessories */}
+                                                                    {itemAccessories.length > 0 && (
+                                                                        <span
+                                                                            className="badge badge-info mt-1"
+                                                                            style={{ fontSize: "0.7em" }}
+                                                                        >
+                                                                            <i className="fas fa-puzzle-piece"></i>{" "}
+                                                                            {itemAccessories.length}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+
                                                             )}
                                                         </td>
-                                                        <td className="d-flex align-items-center">
-                                                            <button className="btn btn-warning btn-sm" onClick={() => decrement(item.id)}
-                                                                disabled={item._optimistic || item.quantity <= 1}>
-                                                                <i className="fas fa-minus"></i>
-                                                            </button>
-                                                            {editingQuantity[item.id] ? (
-                                                                <input type="number" className="form-control form-control-sm qty ml-1 mr-1"
-                                                                    defaultValue={item.quantity} min="0.01" step="0.01" max={stockOf(item)} autoFocus
-                                                                    onBlur={(e) => handleQuantityBlur(item.id, e.target.value)}
-                                                                    onKeyPress={(e) => { if (e.key === "Enter") handleQuantityBlur(item.id, e.target.value); }}
-                                                                    style={{ width: "60px" }} />
-                                                            ) : (
-                                                                <div className="form-control form-control-sm qty ml-1 mr-1 text-center"
-                                                                    style={{ width: "60px", cursor: "pointer", backgroundColor: "#f8f9fa" }}
-                                                                    onClick={() => {
-                                                                        if (item._optimistic) return;
-                                                                        setEditingQuantity((prev) => ({ ...prev, [item.id]: true }))
-                                                                    }}>
-                                                                    {item.quantity}
+
+                                                        <td>
+                                                            <div className="d-flex align-items-center justify-content-center">
+                                                                <button
+                                                                    className="btn btn-warning btn-sm"
+                                                                    onClick={() => decrement(item.id)}
+                                                                    disabled={item._optimistic || displayQty <= 1}
+                                                                >
+                                                                    <i className="fas fa-minus"></i>
+                                                                </button>
+
+                                                                {editingQuantity[item.id] ? (
+                                                                    <input
+                                                                        type="number"
+                                                                        className="form-control form-control-sm qty ml-1 mr-1"
+                                                                        defaultValue={displayQty}
+                                                                        min="0.01"
+                                                                        step="any"
+                                                                        autoFocus
+                                                                        onBlur={(e) => handleQuantityBlur(item.id, e.target.value)}
+                                                                        onKeyPress={(e) => {
+                                                                            if (e.key === "Enter") handleQuantityBlur(item.id, e.target.value);
+                                                                        }}
+                                                                        style={{ width: "65px" }}
+                                                                    />
+                                                                ) : (
+                                                                    <div
+                                                                        className="form-control form-control-sm qty ml-1 mr-1 text-center font-weight-bold"
+                                                                        style={{ width: "65px", cursor: "pointer", backgroundColor: "#f8f9fa" }}
+                                                                        onClick={() => {
+                                                                            if (item._optimistic) return;
+                                                                            setEditingQuantity((prev) => ({ ...prev, [item.id]: true }));
+                                                                        }}
+                                                                    >
+                                                                        {displayQty}
+                                                                    </div>
+                                                                )}
+
+                                                                <button
+                                                                    className="btn btn-success btn-sm"
+                                                                    onClick={() => increment(item.id)}
+                                                                    disabled={
+                                                                        item._optimistic ||
+                                                                        (quantityValidation == "disabled" &&
+                                                                            (displayQty + 1) * factor > stockOf(item))
+                                                                    }
+                                                                >
+                                                                    <i className="fas fa-plus"></i>
+                                                                </button>
+                                                            </div>
+
+                                                            {factor > 1 && (
+                                                                <div
+                                                                    className="text-muted text-center mt-1"
+                                                                    style={{ fontSize: "11px", whiteSpace: "nowrap" }}
+                                                                >
+                                                                    = {baseQty} {baseUnitName}
                                                                 </div>
                                                             )}
-                                                            <button className="btn btn-success btn-sm" onClick={() => increment(item.id)}
-                                                                disabled={item._optimistic || quantityValidation == "disabled" && item.quantity >= stockOf(item)}>
-                                                                <i className="fas fa-plus"></i>
-                                                            </button>
                                                         </td>
+
                                                         <td>
-                                                            <button className="btn btn-danger btn-sm mr-3" onClick={() => destroy(item.id)}>
+                                                            <button className="btn btn-danger btn-sm mr-2" onClick={() => destroy(item.id)}>
                                                                 <i className="fas fa-trash"></i>
                                                             </button>
                                                         </td>
+
                                                         <td className="text-right">
-
                                                             <PriceInput item={item} onPriceSave={onPriceSave} />
-
                                                             {item.product.price > item.product.discounted_price && (
                                                                 <>
                                                                     <br />
-                                                                    <del>{item.product.price}</del>
+                                                                    <del className="text-muted small">
+                                                                        {Number(item.product.price * factor).toFixed(2)}
+                                                                    </del>
                                                                 </>
                                                             )}
-
                                                         </td>
-                                                        <td className="text-right">
 
-                                                            <>
-                                                                <div className="font-weight-bold">{item.total_with_tax}</div>
-                                                                <div className="small text-warning">+{item.sale_tax} sale tax</div>
-                                                            </>
+                                                        <td className="text-right">
+                                                            <div className="font-weight-bold">{item.total_with_tax}</div>
+                                                            {parseFloat(item.sale_tax) > 0 && (
+                                                                <div className="small text-warning">+{item.sale_tax} tax</div>
+                                                            )}
                                                         </td>
                                                     </tr>
-
                                                 </React.Fragment>
                                             );
                                         })
                                     ) : (
                                         <tr>
-                                            <td colSpan="5" className="text-center">Cart is empty</td>
+                                            <td colSpan="5" className="text-center py-4 text-muted">
+                                                Cart is empty
+                                            </td>
                                         </tr>
                                     )}
                                 </tbody>
@@ -337,6 +473,15 @@ export default function Cart1({
                     </div>
                 </div>
             </div>
+
+            <PackingModal
+                isOpen={!!packingModalItem}
+                item={packingModalItem}
+                onClose={() => setPackingModalItem(null)}
+                onSelectUnit={handleSetUnit}
+                skipIfSameUnit
+            />
+
             <Toaster position="top-right" reverseOrder={false} />
         </>
     );

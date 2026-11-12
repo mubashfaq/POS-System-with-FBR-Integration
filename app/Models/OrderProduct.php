@@ -11,12 +11,84 @@ class OrderProduct extends Model
 
     protected $guarded = [];
 
-    protected $casts = ['custom_fields' => 'array'];
+    protected $casts = [
+        'custom_fields' => 'array',
+        'quantity' => 'decimal:4',
+        'entered_qty' => 'decimal:4',
+        'base_qty_factor' => 'decimal:4',
+        'price' => 'decimal:4',
+        'unit_price' => 'decimal:4',
+        'purchase_price' => 'decimal:4',
+    ];
+
+    public function packing()
+    {
+        return $this->belongsTo(Packing::class, 'packing_id');
+    }
+
+    public function qtyUnit()
+    {
+        return $this->belongsTo(Unit::class, 'qty_unit_id');
+    }
     public function product()
     {
         return $this->belongsTo(Product::class);
     }
-    protected $appends = ['discounted_price'];
+    protected $appends = ['discounted_price', 'quantity_text', 'invoice_unit_price'];
+
+
+    public function getQuantityTextAttribute(): string
+    {
+        $factor = (float) ($this->base_qty_factor ?? 1);
+        if ($this->packing_id && $this->qty_unit_id && $factor > 1) {
+            $entered = (float) ($this->entered_qty ?? ($this->quantity / $factor));
+            $enteredFmt = $entered == (int) $entered ? (int) $entered : round($entered, 4);
+
+            $qtyUnit = $this->qtyUnit?->title ?? 'Carton';
+
+            return "{$enteredFmt} {$qtyUnit}";
+        }
+
+        $baseQty = (float) $this->quantity;
+        $baseFmt = $baseQty == (int) $baseQty ? (int) $baseQty : round($baseQty, 4);
+
+        $unit = $this->product?->unit?->title ?? $this->qtyUnit?->title ?? '';
+
+        return trim("{$baseFmt} {$unit}");
+    }
+
+
+    public function getPackingDescriptionAttribute(): ?string
+    {
+        $factor = (float) ($this->base_qty_factor ?? 1);
+
+        if (!$this->packing_id || !$this->qty_unit_id || $factor <= 1) {
+            return null;
+        }
+
+        $factorFmt = $factor == (int) $factor ? (int) $factor : round($factor, 4);
+
+        $qtyUnit = $this->qtyUnit?->title ?? 'Carton';
+        $baseUnit = $this->product?->unit?->title ?? 'Piece';
+
+        return "1 {$qtyUnit} = {$factorFmt} {$baseUnit}";
+    }
+
+
+
+    public function getInvoiceUnitPriceAttribute(): float
+    {
+        if ($this->unit_price !== null && (float) $this->unit_price > 0) {
+            return (float) $this->unit_price;
+        }
+
+        $factor = (float) ($this->base_qty_factor ?? 1);
+        if ($factor > 1 && $this->price !== null) {
+            return round((float) $this->price * $factor, 4);
+        }
+
+        return (float) ($this->price ?? $this->discounted_price ?? 0);
+    }
 
     public function getDiscountedPriceAttribute()
     {
@@ -29,7 +101,6 @@ class OrderProduct extends Model
 
             $salesRate = !is_null($this->sale_tax) ? floatval($this->sale_tax) : 0;
             $furtherRate = !is_null($this->further_tax) ? floatval($this->further_tax) : 0;
-            // $customerRate = !is_null($this->customer_tax) ? floatval($this->customer_tax) : 0;
 
             $base = $total - ($salesRate + $furtherRate);
         } else {
